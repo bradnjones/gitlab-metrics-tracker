@@ -1176,17 +1176,19 @@ describe('GitLabClient', () => {
 
       expect(result).toHaveLength(2);
 
-      // First incident - closed with downtime
+      // First incident - closed
       expect(result[0].title).toBe('Production outage');
       expect(result[0].state).toBe('closed');
-      expect(result[0].downtimeHours).toBe(2);
+      expect(result[0].createdAt).toBe('2025-01-01T00:00:00Z');
+      expect(result[0].closedAt).toBe('2025-01-01T02:00:00Z');
       expect(result[0]).toHaveProperty('labels');
       expect(result[0]).toHaveProperty('webUrl');
+      expect(result[0]).not.toHaveProperty('downtimeHours'); // No calculation in Infrastructure
 
-      // Second incident - still open, no downtime calculated
+      // Second incident - still open
       expect(result[1].title).toBe('Database issue');
       expect(result[1].state).toBe('opened');
-      expect(result[1].downtimeHours).toBe(0);
+      expect(result[1].closedAt).toBeNull();
 
       expect(mockRequest).toHaveBeenCalledTimes(1);
       expect(mockRequest).toHaveBeenCalledWith(
@@ -1250,8 +1252,8 @@ describe('GitLabClient', () => {
       const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
 
       expect(result).toHaveLength(2);
-      expect(result[0].downtimeHours).toBe(1);
-      expect(result[1].downtimeHours).toBe(3);
+      expect(result[0].title).toBe('Incident 1');
+      expect(result[1].title).toBe('Incident 2');
       expect(mockRequest).toHaveBeenCalledTimes(2);
 
       // Delay called once (between pages)

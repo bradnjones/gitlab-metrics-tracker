@@ -514,11 +514,11 @@ export class GitLabClient {
 
   /**
    * Fetches incidents (issues with type=INCIDENT) within a date range.
-   * Calculates downtime for closed incidents. Used for MTTR metric.
+   * Returns raw incident data. Use IncidentAnalyzer for downtime calculations.
    *
    * @param {string} startDate - Start date (ISO format or parseable string)
    * @param {string} endDate - End date (ISO format or parseable string)
-   * @returns {Promise<Array>} Array of incident objects with downtime calculations
+   * @returns {Promise<Array>} Array of raw incident objects
    * @throws {Error} If the group is not found or request fails
    */
   async fetchIncidents(startDate, endDate) {
@@ -595,30 +595,17 @@ export class GitLabClient {
 
       console.log(`✓ Found ${allIncidents.length} incidents in date range`);
 
-      // Transform incidents to match expected format with downtime calculation
-      const incidents = allIncidents.map((incident) => {
-        // Calculate downtime if incident is closed
-        let downtimeHours = 0;
-        if (incident.closedAt && incident.createdAt) {
-          const created = new Date(incident.createdAt);
-          const closed = new Date(incident.closedAt);
-          downtimeHours = (closed - created) / (1000 * 60 * 60);
-        }
-
-        return {
-          id: incident.id,
-          iid: incident.iid,
-          title: incident.title,
-          state: incident.state,
-          createdAt: incident.createdAt,
-          closedAt: incident.closedAt,
-          downtimeHours,
-          labels: incident.labels,
-          webUrl: incident.webUrl,
-        };
-      });
-
-      return incidents;
+      // Return raw data without calculations (business logic belongs in Core layer)
+      return allIncidents.map((incident) => ({
+        id: incident.id,
+        iid: incident.iid,
+        title: incident.title,
+        state: incident.state,
+        createdAt: incident.createdAt,
+        closedAt: incident.closedAt,
+        labels: incident.labels,
+        webUrl: incident.webUrl,
+      }));
     } catch (error) {
       // Check if it's a GraphQL error
       if (error.response?.errors) {
