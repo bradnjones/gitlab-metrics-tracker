@@ -55,8 +55,6 @@ export class GitLabClient {
           id
           name
           nameWithNamespace
-          path
-          pathWithNamespace
           description
           webUrl
         }
