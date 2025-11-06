@@ -513,6 +513,122 @@ export class GitLabClient {
   }
 
   /**
+   * Fetches incidents (issues with type=INCIDENT) within a date range.
+   * Calculates downtime for closed incidents. Used for MTTR metric.
+   *
+   * @param {string} startDate - Start date (ISO format or parseable string)
+   * @param {string} endDate - End date (ISO format or parseable string)
+   * @returns {Promise<Array>} Array of incident objects with downtime calculations
+   * @throws {Error} If the group is not found or request fails
+   */
+  async fetchIncidents(startDate, endDate) {
+    const query = `
+      query getIncidents($fullPath: ID!, $after: String, $createdAfter: Time, $createdBefore: Time) {
+        group(fullPath: $fullPath) {
+          id
+          issues(
+            types: [INCIDENT]
+            createdAfter: $createdAfter
+            createdBefore: $createdBefore
+            first: 100
+            after: $after
+          ) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              iid
+              title
+              state
+              createdAt
+              closedAt
+              updatedAt
+              webUrl
+              labels {
+                nodes {
+                  title
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let allIncidents = [];
+    let hasNextPage = true;
+    let after = null;
+
+    try {
+      const createdAfter = new Date(startDate).toISOString();
+      const createdBefore = new Date(endDate).toISOString();
+
+      console.log(`Querying incidents from group (${startDate} to ${endDate})...`);
+
+      while (hasNextPage) {
+        const data = await this.client.request(query, {
+          fullPath: this.projectPath,
+          after,
+          createdAfter,
+          createdBefore,
+        });
+
+        if (!data.group) {
+          throw new Error(`Group not found: ${this.projectPath}`);
+        }
+
+        if (!data.group.issues) {
+          break;
+        }
+
+        const { nodes, pageInfo } = data.group.issues;
+        allIncidents = allIncidents.concat(nodes);
+        hasNextPage = pageInfo.hasNextPage;
+        after = pageInfo.endCursor;
+
+        if (hasNextPage) {
+          await this.delay(100);
+        }
+      }
+
+      console.log(`✓ Found ${allIncidents.length} incidents in date range`);
+
+      // Transform incidents to match expected format with downtime calculation
+      const incidents = allIncidents.map((incident) => {
+        // Calculate downtime if incident is closed
+        let downtimeHours = 0;
+        if (incident.closedAt && incident.createdAt) {
+          const created = new Date(incident.createdAt);
+          const closed = new Date(incident.closedAt);
+          downtimeHours = (closed - created) / (1000 * 60 * 60);
+        }
+
+        return {
+          id: incident.id,
+          iid: incident.iid,
+          title: incident.title,
+          state: incident.state,
+          createdAt: incident.createdAt,
+          closedAt: incident.closedAt,
+          downtimeHours,
+          labels: incident.labels,
+          webUrl: incident.webUrl,
+        };
+      });
+
+      return incidents;
+    } catch (error) {
+      // Check if it's a GraphQL error
+      if (error.response?.errors) {
+        throw new Error(`Failed to fetch incidents: ${error.response.errors[0].message}`);
+      }
+      throw new Error(`Failed to fetch incidents: ${error.message}`);
+    }
+  }
+
+  /**
    * Helper method to delay execution (for rate limiting).
    *
    * @param {number} ms - Milliseconds to delay

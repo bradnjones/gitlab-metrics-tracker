@@ -1123,4 +1123,189 @@ describe('GitLabClient', () => {
       expect(mockRequest).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('fetchIncidents', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+      // Mock the delay method to avoid actual delays in tests
+      client.delay = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('should fetch incidents within date range and calculate downtime', async () => {
+      const mockIncidentData = {
+        group: {
+          id: 'gid://gitlab/Group/1',
+          issues: {
+            nodes: [
+              {
+                id: 'gid://gitlab/Issue/1',
+                iid: '100',
+                title: 'Production outage',
+                state: 'closed',
+                createdAt: '2025-01-01T00:00:00Z',
+                closedAt: '2025-01-01T02:00:00Z', // 2 hours downtime
+                updatedAt: '2025-01-01T02:00:00Z',
+                webUrl: 'https://gitlab.com/group/project/-/issues/100',
+                labels: { nodes: [{ title: 'incident::high' }] }
+              },
+              {
+                id: 'gid://gitlab/Issue/2',
+                iid: '101',
+                title: 'Database issue',
+                state: 'opened',
+                createdAt: '2025-01-02T00:00:00Z',
+                closedAt: null,
+                updatedAt: '2025-01-02T01:00:00Z',
+                webUrl: 'https://gitlab.com/group/project/-/issues/101',
+                labels: { nodes: [{ title: 'incident::medium' }] }
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValueOnce(mockIncidentData);
+
+      const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+      expect(result).toHaveLength(2);
+
+      // First incident - closed with downtime
+      expect(result[0].title).toBe('Production outage');
+      expect(result[0].state).toBe('closed');
+      expect(result[0].downtimeHours).toBe(2);
+      expect(result[0]).toHaveProperty('labels');
+      expect(result[0]).toHaveProperty('webUrl');
+
+      // Second incident - still open, no downtime calculated
+      expect(result[1].title).toBe('Database issue');
+      expect(result[1].state).toBe('opened');
+      expect(result[1].downtimeHours).toBe(0);
+
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('query getIncidents'),
+        {
+          fullPath: 'group/project',
+          after: null,
+          createdAfter: new Date('2025-01-01').toISOString(),
+          createdBefore: new Date('2025-01-10').toISOString()
+        }
+      );
+    });
+
+    it('should handle pagination for incidents', async () => {
+      // Mock page 1 response
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          issues: {
+            nodes: [
+              {
+                id: 'gid://gitlab/Issue/1',
+                iid: '100',
+                title: 'Incident 1',
+                state: 'closed',
+                createdAt: '2025-01-01T00:00:00Z',
+                closedAt: '2025-01-01T01:00:00Z',
+                updatedAt: '2025-01-01T01:00:00Z',
+                webUrl: 'https://gitlab.com/group/project/-/issues/100',
+                labels: { nodes: [] }
+              }
+            ],
+            pageInfo: { hasNextPage: true, endCursor: 'cursor1' }
+          }
+        }
+      });
+
+      // Mock page 2 response
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          issues: {
+            nodes: [
+              {
+                id: 'gid://gitlab/Issue/2',
+                iid: '101',
+                title: 'Incident 2',
+                state: 'closed',
+                createdAt: '2025-01-02T00:00:00Z',
+                closedAt: '2025-01-02T03:00:00Z',
+                updatedAt: '2025-01-02T03:00:00Z',
+                webUrl: 'https://gitlab.com/group/project/-/issues/101',
+                labels: { nodes: [] }
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      });
+
+      const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+      expect(result).toHaveLength(2);
+      expect(result[0].downtimeHours).toBe(1);
+      expect(result[1].downtimeHours).toBe(3);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+
+      // Delay called once (between pages)
+      expect(client.delay).toHaveBeenCalledTimes(1);
+      expect(client.delay).toHaveBeenCalledWith(100);
+    });
+
+    it('should throw error if group not found', async () => {
+      mockRequest.mockResolvedValueOnce({
+        group: null
+      });
+
+      await expect(client.fetchIncidents('2025-01-01', '2025-01-10')).rejects.toThrow(
+        'Group not found: group/project'
+      );
+    });
+
+    it('should return empty array if issues is null', async () => {
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          issues: null
+        }
+      });
+
+      const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+      expect(result).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockError = {
+        response: {
+          errors: [
+            { message: 'Insufficient permissions to query incidents' }
+          ]
+        }
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+
+      await expect(client.fetchIncidents('2025-01-01', '2025-01-10')).rejects.toThrow(
+        'Failed to fetch incidents: Insufficient permissions to query incidents'
+      );
+    });
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Connection timeout');
+      mockRequest.mockRejectedValue(networkError);
+
+      await expect(client.fetchIncidents('2025-01-01', '2025-01-10')).rejects.toThrow(
+        'Failed to fetch incidents: Connection timeout'
+      );
+    });
+  });
 });
