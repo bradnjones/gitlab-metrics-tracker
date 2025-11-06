@@ -900,4 +900,227 @@ describe('GitLabClient', () => {
       );
     });
   });
+
+  describe('fetchPipelinesForProject', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+      // Mock the delay method to avoid actual delays in tests
+      client.delay = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('should fetch pipelines for a specific project and ref', async () => {
+      const mockPipelineData = {
+        project: {
+          pipelines: {
+            nodes: [
+              {
+                id: 'gid://gitlab/Ci::Pipeline/1',
+                iid: '100',
+                status: 'success',
+                ref: 'main',
+                createdAt: '2025-01-01T00:00:00Z',
+                updatedAt: '2025-01-01T00:30:00Z',
+                finishedAt: '2025-01-01T00:25:00Z',
+                sha: 'abc123'
+              },
+              {
+                id: 'gid://gitlab/Ci::Pipeline/2',
+                iid: '101',
+                status: 'failed',
+                ref: 'main',
+                createdAt: '2025-01-02T00:00:00Z',
+                updatedAt: '2025-01-02T00:15:00Z',
+                finishedAt: '2025-01-02T00:10:00Z',
+                sha: 'def456'
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValueOnce(mockPipelineData);
+
+      const result = await client.fetchPipelinesForProject('group/project1', 'main', '2025-01-01', '2025-01-10');
+
+      expect(result).toHaveLength(2);
+      expect(result[0].status).toBe('success');
+      expect(result[0].ref).toBe('main');
+      expect(result[1].status).toBe('failed');
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('query getPipelines'),
+        {
+          fullPath: 'group/project1',
+          ref: 'main',
+          after: null,
+          updatedAfter: new Date('2025-01-01').toISOString()
+        }
+      );
+    });
+
+    it('should filter pipelines by end date on client side', async () => {
+      const mockPipelineData = {
+        project: {
+          pipelines: {
+            nodes: [
+              {
+                id: 'gid://gitlab/Ci::Pipeline/1',
+                iid: '100',
+                status: 'success',
+                ref: 'main',
+                createdAt: '2025-01-05T00:00:00Z',
+                updatedAt: '2025-01-05T00:30:00Z',
+                finishedAt: '2025-01-05T00:25:00Z',
+                sha: 'abc123'
+              },
+              {
+                id: 'gid://gitlab/Ci::Pipeline/2',
+                iid: '101',
+                status: 'failed',
+                ref: 'main',
+                createdAt: '2025-01-15T00:00:00Z',
+                updatedAt: '2025-01-15T00:15:00Z',
+                finishedAt: '2025-01-15T00:10:00Z',
+                sha: 'def456'
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValueOnce(mockPipelineData);
+
+      // End date is 2025-01-10, so second pipeline (2025-01-15) should be filtered out
+      const result = await client.fetchPipelinesForProject('group/project1', 'main', '2025-01-01', '2025-01-10');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('gid://gitlab/Ci::Pipeline/1');
+    });
+
+    it('should handle pagination for pipelines', async () => {
+      // Mock page 1 response
+      mockRequest.mockResolvedValueOnce({
+        project: {
+          pipelines: {
+            nodes: [
+              {
+                id: 'gid://gitlab/Ci::Pipeline/1',
+                iid: '100',
+                status: 'success',
+                ref: 'main',
+                createdAt: '2025-01-01T00:00:00Z',
+                updatedAt: '2025-01-01T00:30:00Z',
+                finishedAt: '2025-01-01T00:25:00Z',
+                sha: 'abc123'
+              }
+            ],
+            pageInfo: { hasNextPage: true, endCursor: 'cursor1' }
+          }
+        }
+      });
+
+      // Mock page 2 response
+      mockRequest.mockResolvedValueOnce({
+        project: {
+          pipelines: {
+            nodes: [
+              {
+                id: 'gid://gitlab/Ci::Pipeline/2',
+                iid: '101',
+                status: 'failed',
+                ref: 'main',
+                createdAt: '2025-01-02T00:00:00Z',
+                updatedAt: '2025-01-02T00:15:00Z',
+                finishedAt: '2025-01-02T00:10:00Z',
+                sha: 'def456'
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      });
+
+      const result = await client.fetchPipelinesForProject('group/project1', 'main', '2025-01-01', '2025-01-10');
+
+      expect(result).toHaveLength(2);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+
+      // First call with no cursor
+      expect(mockRequest).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('query getPipelines'),
+        expect.objectContaining({ after: null })
+      );
+
+      // Second call with cursor
+      expect(mockRequest).toHaveBeenNthCalledWith(2,
+        expect.stringContaining('query getPipelines'),
+        expect.objectContaining({ after: 'cursor1' })
+      );
+
+      // Delay called once (between pages) - reduced delay for pipelines
+      expect(client.delay).toHaveBeenCalledTimes(1);
+      expect(client.delay).toHaveBeenCalledWith(50);
+    });
+
+    it('should return empty array if project not found', async () => {
+      mockRequest.mockResolvedValueOnce({
+        project: null
+      });
+
+      const result = await client.fetchPipelinesForProject('invalid/project', 'main', '2025-01-01', '2025-01-10');
+
+      expect(result).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return empty array if pipelines is null', async () => {
+      mockRequest.mockResolvedValueOnce({
+        project: {
+          pipelines: null
+        }
+      });
+
+      const result = await client.fetchPipelinesForProject('group/project1', 'main', '2025-01-01', '2025-01-10');
+
+      expect(result).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use default ref "master" if not provided', async () => {
+      const mockPipelineData = {
+        project: {
+          pipelines: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValueOnce(mockPipelineData);
+
+      await client.fetchPipelinesForProject('group/project1');
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('query getPipelines'),
+        expect.objectContaining({ ref: 'master' })
+      );
+    });
+
+    it('should handle errors and return empty array', async () => {
+      const mockError = new Error('Network error');
+      mockRequest.mockRejectedValue(mockError);
+
+      const result = await client.fetchPipelinesForProject('group/project1', 'main', '2025-01-01', '2025-01-10');
+
+      expect(result).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+  });
 });

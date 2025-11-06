@@ -354,6 +354,91 @@ export class GitLabClient {
   }
 
   /**
+   * Fetches pipelines for a specific project with date filtering.
+   * Used for deployment frequency metric calculation.
+   *
+   * @param {string} projectPath - Project path (e.g., 'group/project')
+   * @param {string} [ref='master'] - Git ref/branch to filter by
+   * @param {string} [startDate] - Start date for filtering (ISO format)
+   * @param {string} [endDate] - End date for filtering (ISO format)
+   * @returns {Promise<Array>} Array of pipeline objects
+   */
+  async fetchPipelinesForProject(projectPath, ref = 'master', startDate, endDate) {
+    // Use updatedAfter to filter at the API level for better performance
+    const updatedAfter = startDate ? new Date(startDate).toISOString() : null;
+
+    const query = `
+      query getPipelines($fullPath: ID!, $ref: String, $after: String, $updatedAfter: Time) {
+        project(fullPath: $fullPath) {
+          pipelines(first: 100, ref: $ref, after: $after, updatedAfter: $updatedAfter) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              iid
+              status
+              ref
+              createdAt
+              updatedAt
+              finishedAt
+              sha
+            }
+          }
+        }
+      }
+    `;
+
+    let allPipelines = [];
+    let hasNextPage = true;
+    let after = null;
+
+    try {
+      while (hasNextPage) {
+        const data = await this.client.request(query, {
+          fullPath: projectPath,
+          ref,
+          after,
+          updatedAfter,
+        });
+
+        if (!data.project || !data.project.pipelines) {
+          break;
+        }
+
+        const { nodes, pageInfo } = data.project.pipelines;
+        allPipelines = allPipelines.concat(nodes);
+        hasNextPage = pageInfo.hasNextPage;
+        after = pageInfo.endCursor;
+
+        // Only fetch first page if we have many results (performance optimization)
+        if (nodes.length === 100 && hasNextPage) {
+          console.log(`  └─ Found 100+ pipelines, fetching more...`);
+        }
+
+        if (hasNextPage) {
+          await this.delay(50); // Reduced delay
+        }
+      }
+
+      // Additional client-side filtering by end date
+      if (endDate) {
+        const end = new Date(endDate);
+        allPipelines = allPipelines.filter((pipeline) => {
+          const pipelineDate = new Date(pipeline.createdAt);
+          return pipelineDate <= end;
+        });
+      }
+
+      return allPipelines;
+    } catch (error) {
+      console.warn(`Failed to fetch pipelines for ${projectPath}:`, error.message);
+      return [];
+    }
+  }
+
+  /**
    * Fetches all projects in a group with caching support.
    * Uses 10-minute TTL cache to reduce API calls.
    *
