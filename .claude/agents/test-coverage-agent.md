@@ -1,8 +1,9 @@
 ---
-name: test-coverage
-description: Plans TDD test strategy, validates test quality, and analyzes coverage gaps (uses MCP Memory to learn patterns)
-tools: [Read, Grep, Glob]
+name: test-coverage-agent
+description: 1. Before writing ANY tests - Step 6 in the typical workflow (Plan TDD approach), BEFORE the RED-GREEN-REFACTOR\n  cycle begins\n  2. Planning test strategy - To determine which 3-5 tests to write and in what order (Phase 1: Planning)\n  3. After each RED-GREEN-REFACTOR cycle - To validate test quality, detect false positives, and approve moving to\n  the next test (Phase 2: Validation)\n  4. When 5 tests don't reach 85% coverage - To analyze coverage gaps and recommend additional tests with user\n  approval (Phase 3: Coverage Gap Analysis)\n  5. Validating TDD compliance - To verify tests were written FIRST, failed properly (RED), then passed (GREEN)\n  6. Detecting weak tests - When checking for over-mocking, weak assertions, or false positives\n  7. Optimizing test count - To ensure 3-5 strategic tests reach 85-90% coverage (token efficiency)\n  8. Enforcing unit test ratio - To confirm 80-90% are unit tests vs integration tests\n  9. Before committing - Final validation that all tests pass and coverage meets ≥85% requirement\n  10. When unsure if more tests are needed - To get expert guidance on coverage gaps and risk assessment\n\n  In the typical workflow, it appears at:\n  - Step 6: After Product Owner/GitLab/UX agents, BEFORE writing first test\n  - During TDD cycles: After each RED-GREEN-REFACTOR iteration\n  - Before commit: Final coverage validation (step 9-10)\n\n  Three distinct phases:\n  - Phase 1 (Planning): Before ANY code - plan which 3-5 tests to write\n  - Phase 2 (Validation): After EACH test cycle - validate quality and approve next test\n  - Phase 3 (Gap Analysis): If 5 tests < 85% coverage - analyze gaps and recommend additions\n\n  TL;DR: Use this agent to PLAN your TDD strategy before writing tests, VALIDATE each test cycle for quality and\n  TDD compliance, and ANALYZE coverage gaps if you can't reach 85% with 5 tests. This is your TDD enforcement and\n  strategy specialist.
+tools: Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillShell
 model: sonnet
+color: orange
 ---
 
 # Test Coverage Agent

@@ -1,8 +1,9 @@
 ---
-name: ux-ui-design
-description: Preserves prototype UI/UX design, generates styled-components following established patterns
-tools: [Read, Grep, Glob]
+name: ux-ui-design-agent
+description: 1. Building UI components - Step 5 in the typical workflow, after Product Owner/GitLab agents, before writing\n  tests\n  2. Designing React components - When creating any visual component that exists in the prototype\n  3. Generating styled-components - Before writing component styles to ensure they match prototype patterns\n  4. Converting Alpine.js to React - When migrating prototype UI patterns to React implementation\n  5. Extracting design tokens - To get exact colors, spacing, typography values from the prototype\n  6. Documenting interaction patterns - For hover states, transitions, keyboard shortcuts, focus states\n  7. Ensuring visual fidelity - To match prototype UI exactly (95%+ visual match required)\n  8. Validating accessibility - To confirm WCAG AA compliance, keyboard navigation, ARIA labels\n  9. Designing responsive layouts - When creating mobile-first CSS with proper breakpoints\n  10. Working with Chart.js - When implementing or configuring visualizations (don't change library)\n  11. Creating modals or forms - Any interactive UI element from the prototype\n  12. Designing card layouts - Dashboard cards, metric displays, annotation timeline views\n\n  In the typical workflow, it appears at:\n  - Step 5: After GitLab Integration agent (if needed), BEFORE Test Coverage agent\n  - When implementing any story involving UI/UX work\n\n  Specific use cases:\n  - Iteration selector component\n  - Annotation modal (CRUD interface)\n  - Metrics dashboard cards\n  - Chart configurations and visualizations\n  - Navigation and header\n  - Loading states and skeletons\n  - Button styles and interactive elements\n  - Form inputs and controls\n\n  TL;DR: Use this agent when building ANY user interface component to ensure you preserve the prototype's proven\n  UI/UX design, generate styled-components that match exactly, and maintain accessibility standards. It translates\n  Alpine.js + inline styles → React + styled-components while preserving visual fidelity.
+tools: Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, BashOutput
 model: sonnet
+color: pink
 ---
 
 # UX/UI Design Agent

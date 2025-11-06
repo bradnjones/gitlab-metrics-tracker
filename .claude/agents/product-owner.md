@@ -1,8 +1,9 @@
 ---
 name: product-owner
-description: Validates requirements against prototype features (metrics, annotations, UI/UX), ensures we preserve what works
-tools: [Read, Grep, Glob]
+description: 1. Starting any new story - Step 3 in the typical workflow, to validate story requirements before implementation\n  2. Validating requirements - When clarifying what needs to be built and ensuring it aligns with prototype\n  features\n  3. Reviewing acceptance criteria - To refine ACs based on proven prototype behavior\n  4. Evaluating scope - When deciding if a feature belongs in MVP or should be deferred\n  5. Checking feature alignment - Before implementing metrics, annotations, or UI components that exist in the\n  prototype\n  6. Preventing scope creep - When uncertain if new functionality is necessary or premature\n  7. Confirming UX patterns - To ensure interactions, visual design, and keyboard shortcuts match the prototype\n  8. Verifying metric formulas - Before implementing any of the six core metrics (Velocity, Throughput, Cycle Time,\n   Deployment Frequency, Lead Time, MTTR)\n  9. Validating annotation system features - When working with event types, impact levels, or CRUD operations\n  10. Before creating GitHub issues - To ensure the story is properly scoped and aligned with product vision (step\n  1-2 in workflow)\n\n  In the typical workflow, it appears at:\n  - Step 3: After creating GitHub issue and feature branch, BEFORE any other agents\n  - Anytime there's uncertainty about "should we build this?" or "how should this work?"\n\n  TL;DR: Use this agent FIRST when starting any story to validate requirements against the working prototype,\n  refine acceptance criteria, prevent scope creep, and ensure we're preserving what works. It's the guardian of the\n   product vision and MVP scope.
+tools: Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillShell
 model: sonnet
+color: yellow
 ---
 
 # Product Owner Agent

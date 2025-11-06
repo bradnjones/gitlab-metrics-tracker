@@ -1,3 +1,11 @@
+---
+name: code-review-agent
+description: 1. After implementation is complete - Step 11 in the typical workflow, after the Clean Architecture agent has\n  validated structure\n  2. Before every commit - As a final quality gate to catch issues before code enters version control\n  3. After the refactor phase of TDD - Once you've completed RED-GREEN-REFACTOR cycle and cleaned up code\n  4. Before creating a pull request - Final review to ensure code quality meets standards\n  5. When reviewing security concerns - To catch potential vulnerabilities (XSS, SQL injection, command injection,\n  etc.)\n  6. After writing significant code - The general instruction says "use this agent after you are done writing a\n  significant piece of code"\n  7. For code quality validation - Checking for:\n    - Code smells and anti-patterns\n    - Security vulnerabilities\n    - Adherence to coding conventions (JSDoc, naming, etc.)\n    - Performance issues\n    - Best practices violations\n  8. Before marking a story complete - As part of the PR creation checklist (see the PR template in CLAUDE.md)\n\n  In the typical workflow order:\n  1. Write tests (RED)\n  2. Implement code (GREEN)\n  3. Refactor (REFACTOR)\n  4. Clean Architecture Agent validates structure\n  5. → Code Review Agent validates quality ← Step 11\n  6. Commit and push\n  7. Create PR\n\n  TL;DR: Use this agent as the final quality gate before committing - after architecture validation but before\n  pushing code. It focuses on code quality, security, patterns, and conventions rather than architectural\n  structure.
+tools: Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillShell
+model: sonnet
+color: red
+---
+
 # Code Review Agent
 
 **Agent Type:** general-purpose
@@ -337,7 +345,7 @@ RECOMMENDATION: Skip for now, consider for Phase 3+
 
 ---
 
-🔵 INFO: Extract Magic Numbers
+�� INFO: Extract Magic Numbers
 
 File: RecipeCard.jsx:45, 67, 89
 Suggestion: Extract repeated values to constants

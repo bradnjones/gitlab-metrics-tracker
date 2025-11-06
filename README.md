@@ -131,11 +131,11 @@ gitlab-metrics-tracker/
 │   ├── CLAUDE.md              # Main context file
 │   └── agents/                # Specialized agents
 │       ├── product-owner.md
-│       ├── gitlab-integration.md
-│       ├── ux-ui-design.md
-│       ├── clean-architecture.md
-│       ├── test-coverage.md
-│       └── code-review.md
+│       ├── gitlab-graphql-integration.md
+│       ├── ux-ui-design-agent.md
+│       ├── clean-architecture-agent.md
+│       ├── test-coverage-agent.md
+│       └── code-review-agent.md
 ├── _context/                   # Context documentation
 │   ├── architecture/          # ADRs, patterns
 │   ├── coding/                # Conventions
