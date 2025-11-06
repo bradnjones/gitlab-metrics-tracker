@@ -703,4 +703,201 @@ describe('GitLabClient', () => {
       );
     });
   });
+
+  describe('fetchMergeRequestsForGroup', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+      // Mock the delay method to avoid actual delays in tests
+      client.delay = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('should fetch merged MRs within date range', async () => {
+      const mockMRData = {
+        group: {
+          id: 'gid://gitlab/Group/1',
+          mergeRequests: {
+            nodes: [
+              {
+                id: 'gid://gitlab/MergeRequest/1',
+                iid: '10',
+                title: 'Feature A',
+                state: 'merged',
+                createdAt: '2025-01-01T00:00:00Z',
+                mergedAt: '2025-01-02T00:00:00Z',
+                targetBranch: 'main',
+                sourceBranch: 'feature-a',
+                project: { fullPath: 'group/project1', name: 'Project 1' },
+                commits: {
+                  nodes: [
+                    { id: 'gid://gitlab/Commit/1', sha: 'abc123', committedDate: '2025-01-01T12:00:00Z' }
+                  ]
+                }
+              },
+              {
+                id: 'gid://gitlab/MergeRequest/2',
+                iid: '11',
+                title: 'Feature B',
+                state: 'merged',
+                createdAt: '2025-01-03T00:00:00Z',
+                mergedAt: '2025-01-04T00:00:00Z',
+                targetBranch: 'main',
+                sourceBranch: 'feature-b',
+                project: { fullPath: 'group/project2', name: 'Project 2' },
+                commits: {
+                  nodes: [
+                    { id: 'gid://gitlab/Commit/2', sha: 'def456', committedDate: '2025-01-03T12:00:00Z' }
+                  ]
+                }
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValueOnce(mockMRData);
+
+      const result = await client.fetchMergeRequestsForGroup('2025-01-01', '2025-01-10');
+
+      expect(result).toHaveLength(2);
+      expect(result[0].title).toBe('Feature A');
+      expect(result[0].targetBranch).toBe('main');
+      expect(result[1].title).toBe('Feature B');
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('query getGroupMergeRequests'),
+        {
+          fullPath: 'group/project',
+          after: null,
+          mergedAfter: new Date('2025-01-01').toISOString(),
+          mergedBefore: new Date('2025-01-10').toISOString()
+        }
+      );
+    });
+
+    it('should handle pagination for merge requests', async () => {
+      // Mock page 1 response
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          mergeRequests: {
+            nodes: [
+              {
+                id: 'gid://gitlab/MergeRequest/1',
+                iid: '10',
+                title: 'MR 1',
+                state: 'merged',
+                createdAt: '2025-01-01T00:00:00Z',
+                mergedAt: '2025-01-02T00:00:00Z',
+                targetBranch: 'main',
+                sourceBranch: 'feature-1',
+                project: { fullPath: 'group/project1', name: 'Project 1' },
+                commits: { nodes: [] }
+              }
+            ],
+            pageInfo: { hasNextPage: true, endCursor: 'cursor1' }
+          }
+        }
+      });
+
+      // Mock page 2 response
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          mergeRequests: {
+            nodes: [
+              {
+                id: 'gid://gitlab/MergeRequest/2',
+                iid: '11',
+                title: 'MR 2',
+                state: 'merged',
+                createdAt: '2025-01-03T00:00:00Z',
+                mergedAt: '2025-01-04T00:00:00Z',
+                targetBranch: 'main',
+                sourceBranch: 'feature-2',
+                project: { fullPath: 'group/project2', name: 'Project 2' },
+                commits: { nodes: [] }
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      });
+
+      const result = await client.fetchMergeRequestsForGroup('2025-01-01', '2025-01-10');
+
+      expect(result).toHaveLength(2);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+
+      // First call with no cursor
+      expect(mockRequest).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('query getGroupMergeRequests'),
+        expect.objectContaining({ after: null })
+      );
+
+      // Second call with cursor
+      expect(mockRequest).toHaveBeenNthCalledWith(2,
+        expect.stringContaining('query getGroupMergeRequests'),
+        expect.objectContaining({ after: 'cursor1' })
+      );
+
+      // Delay called once (between pages)
+      expect(client.delay).toHaveBeenCalledTimes(1);
+      expect(client.delay).toHaveBeenCalledWith(100);
+    });
+
+    it('should throw error if group not found', async () => {
+      mockRequest.mockResolvedValueOnce({
+        group: null
+      });
+
+      await expect(client.fetchMergeRequestsForGroup('2025-01-01', '2025-01-10')).rejects.toThrow(
+        'Group not found: group/project'
+      );
+    });
+
+    it('should return empty array if mergeRequests is null', async () => {
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          mergeRequests: null
+        }
+      });
+
+      const result = await client.fetchMergeRequestsForGroup('2025-01-01', '2025-01-10');
+
+      expect(result).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockError = {
+        response: {
+          errors: [
+            { message: 'Insufficient permissions' }
+          ]
+        }
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+
+      await expect(client.fetchMergeRequestsForGroup('2025-01-01', '2025-01-10')).rejects.toThrow(
+        'Failed to fetch merge requests: Insufficient permissions'
+      );
+    });
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Connection timeout');
+      mockRequest.mockRejectedValue(networkError);
+
+      await expect(client.fetchMergeRequestsForGroup('2025-01-01', '2025-01-10')).rejects.toThrow(
+        'Failed to fetch merge requests: Connection timeout'
+      );
+    });
+  });
 });

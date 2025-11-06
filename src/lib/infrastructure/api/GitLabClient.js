@@ -256,6 +256,104 @@ export class GitLabClient {
   }
 
   /**
+   * Fetches merged merge requests for a group within a date range.
+   * Used for deployment tracking (proxy) and lead time calculations.
+   *
+   * @param {string} startDate - Start date (ISO format or parseable string)
+   * @param {string} endDate - End date (ISO format or parseable string)
+   * @returns {Promise<Array>} Array of merged merge request objects
+   * @throws {Error} If the group is not found or request fails
+   */
+  async fetchMergeRequestsForGroup(startDate, endDate) {
+    const query = `
+      query getGroupMergeRequests($fullPath: ID!, $after: String, $mergedAfter: Time, $mergedBefore: Time) {
+        group(fullPath: $fullPath) {
+          id
+          mergeRequests(
+            state: merged
+            first: 100
+            after: $after
+            mergedAfter: $mergedAfter
+            mergedBefore: $mergedBefore
+          ) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              iid
+              title
+              state
+              createdAt
+              mergedAt
+              targetBranch
+              sourceBranch
+              project {
+                fullPath
+                name
+              }
+              commits {
+                nodes {
+                  id
+                  sha
+                  committedDate
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let allMRs = [];
+    let hasNextPage = true;
+    let after = null;
+
+    try {
+      const mergedAfter = new Date(startDate).toISOString();
+      const mergedBefore = new Date(endDate).toISOString();
+
+      console.log(`Querying merged MRs from group (${startDate} to ${endDate})...`);
+
+      while (hasNextPage) {
+        const data = await this.client.request(query, {
+          fullPath: this.projectPath,
+          after,
+          mergedAfter,
+          mergedBefore,
+        });
+
+        if (!data.group) {
+          throw new Error(`Group not found: ${this.projectPath}`);
+        }
+
+        if (!data.group.mergeRequests) {
+          break;
+        }
+
+        const { nodes, pageInfo } = data.group.mergeRequests;
+        allMRs = allMRs.concat(nodes);
+        hasNextPage = pageInfo.hasNextPage;
+        after = pageInfo.endCursor;
+
+        if (hasNextPage) {
+          await this.delay(100);
+        }
+      }
+
+      console.log(`✓ Found ${allMRs.length} merged MRs in date range`);
+      return allMRs;
+    } catch (error) {
+      // Check if it's a GraphQL error
+      if (error.response?.errors) {
+        throw new Error(`Failed to fetch merge requests: ${error.response.errors[0].message}`);
+      }
+      throw new Error(`Failed to fetch merge requests: ${error.message}`);
+    }
+  }
+
+  /**
    * Fetches all projects in a group with caching support.
    * Uses 10-minute TTL cache to reduce API calls.
    *
