@@ -1,35 +1,35 @@
 # In Progress
 
-**Current Story:** None
+## Story 0.1: Project Foundation - Clean Architecture Setup
 
-**Status:** Ready to start Story 0.1
+**Started:** 2025-01-06
+**Status:** In Progress
+**GitHub Issue:** #1
+**Branch:** feat/1-project-foundation
 
----
-
-## Instructions
-
-Only ONE story should be in progress at a time. When starting a story:
-
-1. Move story details from `backlog.md` to this file
-2. Update status as you work
-3. When complete, move to `completed.md`
-4. Delete from `backlog.md` (don't just mark as done)
-
-## Story Format
-
-```markdown
-## Story [ID]: [Title]
-
-**Started:** [Date]
-**Status:** [In Progress | Blocked | Testing]
-
-**Goal:** [Brief description]
+**Goal:** Set up Clean Architecture structure with core entities and TDD infrastructure
 
 **Progress:**
-- [x] Task 1 complete
-- [ ] Task 2 in progress
-- [ ] Task 3 pending
+- [x] GitHub issue created (#1)
+- [x] Feature branch created (feat/1-project-foundation)
+- [x] Product Owner Agent consulted - requirements validated
+- [x] Clean Architecture Agent consulted - structure approved
+- [ ] Directory structure created
+- [ ] Metric entity (TDD: tests → implementation)
+- [ ] Annotation entity (TDD: tests → implementation)
+- [ ] AnalysisResult entity (TDD: tests → implementation)
+- [ ] Repository interfaces defined (IMetricsRepository, IAnnotationsRepository)
+- [ ] FileMetricsRepository implemented (TDD: tests → implementation)
+- [ ] FileAnnotationsRepository implemented (TDD: tests → implementation)
+- [ ] Test coverage verified (≥85%)
+- [ ] Test Coverage Agent validation
+- [ ] Code Review Agent validation
+
+**Key Decisions:**
+- Repository interfaces in `core/interfaces/` (not `core/repositories/`) per Clean Architecture Agent
+- Use classes with validation for entities (not plain objects)
+- Dual velocity fields: `velocityPoints` and `velocityStories` per Product Owner Agent
+- File system storage (JSON) appropriate for MVP - defer database decision
 
 **Notes:**
-[Any important notes, decisions, blockers]
-```
+Following TDD strictly - RED (write failing test) → GREEN (minimal implementation) → REFACTOR (clean up)
