@@ -171,6 +171,82 @@ export class GitLabClient {
   }
 
   /**
+   * Fetches all projects in a group with caching support.
+   * Uses 10-minute TTL cache to reduce API calls.
+   *
+   * @param {boolean} [useCache=true] - Whether to use cached data if available
+   * @returns {Promise<Array>} Array of project objects
+   */
+  async fetchGroupProjects(useCache = true) {
+    // Check cache first
+    if (useCache && this._projectsCache && this._projectsCacheTime) {
+      const age = Date.now() - this._projectsCacheTime;
+      if (age < this._cacheTimeout) {
+        console.log(`Using cached projects (${this._projectsCache.length} projects, age: ${Math.round(age / 1000)}s)`);
+        return this._projectsCache;
+      }
+    }
+
+    const query = `
+      query getGroupProjects($fullPath: ID!, $after: String) {
+        group(fullPath: $fullPath) {
+          id
+          name
+          projects(first: 100, after: $after, includeSubgroups: true) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              fullPath
+              name
+            }
+          }
+        }
+      }
+    `;
+
+    let allProjects = [];
+    let hasNextPage = true;
+    let after = null;
+
+    try {
+      while (hasNextPage) {
+        const data = await this.client.request(query, {
+          fullPath: this.projectPath,
+          after,
+        });
+
+        if (!data.group) {
+          console.warn(`Group not found: ${this.projectPath}`);
+          return [];
+        }
+
+        const { nodes, pageInfo } = data.group.projects;
+        allProjects = allProjects.concat(nodes);
+        hasNextPage = pageInfo.hasNextPage;
+        after = pageInfo.endCursor;
+
+        if (hasNextPage) {
+          await this.delay(100);
+        }
+      }
+
+      console.log(`Found ${allProjects.length} projects in group: ${this.projectPath}`);
+
+      // Cache the results
+      this._projectsCache = allProjects;
+      this._projectsCacheTime = Date.now();
+
+      return allProjects;
+    } catch (error) {
+      console.warn('Failed to fetch group projects:', error.message);
+      return [];
+    }
+  }
+
+  /**
    * Helper method to delay execution (for rate limiting).
    *
    * @param {number} ms - Milliseconds to delay

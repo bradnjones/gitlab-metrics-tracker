@@ -312,4 +312,243 @@ describe('GitLabClient', () => {
       await expect(client.fetchIterations()).rejects.toThrow('GitLab API Error: Unauthorized');
     });
   });
+
+  describe('fetchGroupProjects (with cache)', () => {
+    let client;
+    let dateNowSpy;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+      // Mock the delay method to avoid actual delays in tests
+      client.delay = jest.fn().mockResolvedValue(undefined);
+
+      // Mock Date.now() for cache time control
+      dateNowSpy = jest.spyOn(Date, 'now');
+    });
+
+    afterEach(() => {
+      dateNowSpy.mockRestore();
+    });
+
+    it('should fetch group projects on cache miss (first fetch)', async () => {
+      const mockProjectsData = {
+        group: {
+          id: 'gid://gitlab/Group/1',
+          name: 'Test Group',
+          projects: {
+            nodes: [
+              { id: 'gid://gitlab/Project/1', fullPath: 'group/project1', name: 'Project 1' },
+              { id: 'gid://gitlab/Project/2', fullPath: 'group/project2', name: 'Project 2' }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      dateNowSpy.mockReturnValue(1000000);
+      mockRequest.mockResolvedValueOnce(mockProjectsData);
+
+      const result = await client.fetchGroupProjects();
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('Project 1');
+      expect(result[1].name).toBe('Project 2');
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('query getGroupProjects'),
+        { fullPath: 'group/project', after: null }
+      );
+
+      // Verify cache was populated
+      expect(client._projectsCache).toEqual(result);
+      expect(client._projectsCacheTime).toBe(1000000);
+    });
+
+    it('should return cached data on cache hit (data fresh, < 10 min)', async () => {
+      const cachedProjects = [
+        { id: 'gid://gitlab/Project/1', fullPath: 'group/project1', name: 'Cached Project 1' },
+        { id: 'gid://gitlab/Project/2', fullPath: 'group/project2', name: 'Cached Project 2' }
+      ];
+
+      // Set up cache with data at time 1000000
+      client._projectsCache = cachedProjects;
+      client._projectsCacheTime = 1000000;
+
+      // Current time is 5 minutes later (300000 ms = 5 min < 10 min timeout)
+      dateNowSpy.mockReturnValue(1000000 + 300000);
+
+      const result = await client.fetchGroupProjects();
+
+      // Should return cached data
+      expect(result).toEqual(cachedProjects);
+      expect(mockRequest).not.toHaveBeenCalled();
+    });
+
+    it('should refetch when cache is stale (> 10 min)', async () => {
+      const cachedProjects = [
+        { id: 'gid://gitlab/Project/1', fullPath: 'group/project1', name: 'Cached Project 1' }
+      ];
+
+      const freshProjects = {
+        group: {
+          id: 'gid://gitlab/Group/1',
+          name: 'Test Group',
+          projects: {
+            nodes: [
+              { id: 'gid://gitlab/Project/3', fullPath: 'group/project3', name: 'Fresh Project 3' },
+              { id: 'gid://gitlab/Project/4', fullPath: 'group/project4', name: 'Fresh Project 4' }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      // Set up stale cache at time 1000000
+      client._projectsCache = cachedProjects;
+      client._projectsCacheTime = 1000000;
+
+      // Current time is 11 minutes later (660000 ms = 11 min > 10 min timeout)
+      dateNowSpy.mockReturnValue(1000000 + 660000);
+      mockRequest.mockResolvedValueOnce(freshProjects);
+
+      const result = await client.fetchGroupProjects();
+
+      // Should fetch fresh data
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('Fresh Project 3');
+      expect(result[1].name).toBe('Fresh Project 4');
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+
+      // Verify cache was updated
+      expect(client._projectsCache).toEqual(result);
+      expect(client._projectsCacheTime).toBe(1000000 + 660000);
+    });
+
+    it('should bypass cache when useCache is false', async () => {
+      const cachedProjects = [
+        { id: 'gid://gitlab/Project/1', fullPath: 'group/project1', name: 'Cached Project 1' }
+      ];
+
+      const freshProjects = {
+        group: {
+          id: 'gid://gitlab/Group/1',
+          name: 'Test Group',
+          projects: {
+            nodes: [
+              { id: 'gid://gitlab/Project/5', fullPath: 'group/project5', name: 'Bypassed Cache Project' }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      // Set up fresh cache (only 1 minute old)
+      client._projectsCache = cachedProjects;
+      client._projectsCacheTime = 1000000;
+      dateNowSpy.mockReturnValue(1000000 + 60000); // 1 minute later
+
+      mockRequest.mockResolvedValueOnce(freshProjects);
+
+      // Call with useCache = false
+      const result = await client.fetchGroupProjects(false);
+
+      // Should fetch fresh data despite valid cache
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Bypassed Cache Project');
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+
+      // Verify cache was still updated
+      expect(client._projectsCache).toEqual(result);
+      expect(client._projectsCacheTime).toBe(1000000 + 60000);
+    });
+
+    it('should handle pagination with multiple pages', async () => {
+      // Mock page 1 response
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          name: 'Test Group',
+          projects: {
+            nodes: [
+              { id: 'gid://gitlab/Project/1', fullPath: 'group/project1', name: 'Project 1' }
+            ],
+            pageInfo: { hasNextPage: true, endCursor: 'cursor1' }
+          }
+        }
+      });
+
+      // Mock page 2 response
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          name: 'Test Group',
+          projects: {
+            nodes: [
+              { id: 'gid://gitlab/Project/2', fullPath: 'group/project2', name: 'Project 2' }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      });
+
+      dateNowSpy.mockReturnValue(1000000);
+
+      const result = await client.fetchGroupProjects();
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('Project 1');
+      expect(result[1].name).toBe('Project 2');
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+
+      // First call with no cursor
+      expect(mockRequest).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('query getGroupProjects'),
+        { fullPath: 'group/project', after: null }
+      );
+
+      // Second call with cursor
+      expect(mockRequest).toHaveBeenNthCalledWith(2,
+        expect.stringContaining('query getGroupProjects'),
+        { fullPath: 'group/project', after: 'cursor1' }
+      );
+
+      // Delay called once (between pages)
+      expect(client.delay).toHaveBeenCalledTimes(1);
+      expect(client.delay).toHaveBeenCalledWith(100);
+    });
+
+    it('should return empty array if group not found', async () => {
+      mockRequest.mockResolvedValueOnce({
+        group: null
+      });
+
+      dateNowSpy.mockReturnValue(1000000);
+
+      const result = await client.fetchGroupProjects();
+
+      expect(result).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle GraphQL errors and return empty array', async () => {
+      const mockError = {
+        response: {
+          errors: [
+            { message: 'Forbidden' }
+          ]
+        }
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+      dateNowSpy.mockReturnValue(1000000);
+
+      const result = await client.fetchGroupProjects();
+
+      expect(result).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+  });
 });
