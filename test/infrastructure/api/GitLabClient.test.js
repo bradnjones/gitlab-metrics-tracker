@@ -551,4 +551,156 @@ describe('GitLabClient', () => {
       expect(mockRequest).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('fetchIterationDetails', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+      // Mock the delay method to avoid actual delays in tests
+      client.delay = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('should fetch issues for a specific iteration', async () => {
+      const mockIterationData = {
+        group: {
+          id: 'gid://gitlab/Group/1',
+          issues: {
+            nodes: [
+              {
+                id: 'gid://gitlab/Issue/1',
+                iid: '101',
+                title: 'Issue 1',
+                state: 'closed',
+                createdAt: '2025-01-01T00:00:00Z',
+                closedAt: '2025-01-05T00:00:00Z',
+                weight: 3,
+                labels: { nodes: [{ title: 'bug' }] },
+                assignees: { nodes: [{ username: 'user1' }] }
+              },
+              {
+                id: 'gid://gitlab/Issue/2',
+                iid: '102',
+                title: 'Issue 2',
+                state: 'opened',
+                createdAt: '2025-01-02T00:00:00Z',
+                closedAt: null,
+                weight: 5,
+                labels: { nodes: [{ title: 'feature' }] },
+                assignees: { nodes: [{ username: 'user2' }] }
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValueOnce(mockIterationData);
+
+      const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+      expect(result).toHaveProperty('issues');
+      expect(result).toHaveProperty('mergeRequests');
+      expect(result.issues).toHaveLength(2);
+      expect(result.issues[0].title).toBe('Issue 1');
+      expect(result.issues[1].title).toBe('Issue 2');
+      expect(result.mergeRequests).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('query getIterationDetails'),
+        {
+          fullPath: 'group/project',
+          iterationId: ['gid://gitlab/Iteration/123'],
+          after: null
+        }
+      );
+    });
+
+    it('should handle pagination for iteration issues', async () => {
+      // Mock page 1 response
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          issues: {
+            nodes: [
+              { id: 'gid://gitlab/Issue/1', iid: '101', title: 'Issue 1', state: 'closed', createdAt: '2025-01-01T00:00:00Z', closedAt: '2025-01-05T00:00:00Z', weight: 3, labels: { nodes: [] }, assignees: { nodes: [] } }
+            ],
+            pageInfo: { hasNextPage: true, endCursor: 'cursor1' }
+          }
+        }
+      });
+
+      // Mock page 2 response
+      mockRequest.mockResolvedValueOnce({
+        group: {
+          id: 'gid://gitlab/Group/1',
+          issues: {
+            nodes: [
+              { id: 'gid://gitlab/Issue/2', iid: '102', title: 'Issue 2', state: 'opened', createdAt: '2025-01-02T00:00:00Z', closedAt: null, weight: 5, labels: { nodes: [] }, assignees: { nodes: [] } }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      });
+
+      const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+      expect(result.issues).toHaveLength(2);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+
+      // First call with no cursor
+      expect(mockRequest).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('query getIterationDetails'),
+        { fullPath: 'group/project', iterationId: ['gid://gitlab/Iteration/123'], after: null }
+      );
+
+      // Second call with cursor
+      expect(mockRequest).toHaveBeenNthCalledWith(2,
+        expect.stringContaining('query getIterationDetails'),
+        { fullPath: 'group/project', iterationId: ['gid://gitlab/Iteration/123'], after: 'cursor1' }
+      );
+
+      // Delay called once (between pages)
+      expect(client.delay).toHaveBeenCalledTimes(1);
+      expect(client.delay).toHaveBeenCalledWith(100);
+    });
+
+    it('should throw error if group not found', async () => {
+      mockRequest.mockResolvedValueOnce({
+        group: null
+      });
+
+      await expect(client.fetchIterationDetails('gid://gitlab/Iteration/123')).rejects.toThrow(
+        'Group not found: group/project'
+      );
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockError = {
+        response: {
+          errors: [
+            { message: 'Invalid iteration ID' }
+          ]
+        }
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+
+      await expect(client.fetchIterationDetails('invalid-id')).rejects.toThrow(
+        'Failed to fetch iteration details: Invalid iteration ID'
+      );
+    });
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Network timeout');
+      mockRequest.mockRejectedValue(networkError);
+
+      await expect(client.fetchIterationDetails('gid://gitlab/Iteration/123')).rejects.toThrow(
+        'Failed to fetch iteration details: Network timeout'
+      );
+    });
+  });
 });

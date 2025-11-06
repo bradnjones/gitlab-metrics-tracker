@@ -171,6 +171,91 @@ export class GitLabClient {
   }
 
   /**
+   * Fetches detailed information for a specific iteration, including all issues.
+   * Issues are fetched from the group level with subgroup inclusion.
+   *
+   * @param {string} iterationId - GitLab iteration ID (e.g., 'gid://gitlab/Iteration/123')
+   * @returns {Promise<Object>} Object with issues and mergeRequests arrays
+   * @throws {Error} If the group is not found or request fails
+   */
+  async fetchIterationDetails(iterationId) {
+    const query = `
+      query getIterationDetails($fullPath: ID!, $iterationId: [ID!], $after: String) {
+        group(fullPath: $fullPath) {
+          id
+          issues(iterationId: $iterationId, includeSubgroups: true, first: 100, after: $after) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              iid
+              title
+              state
+              createdAt
+              closedAt
+              weight
+              labels {
+                nodes {
+                  title
+                }
+              }
+              assignees {
+                nodes {
+                  username
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let allIssues = [];
+    let hasNextPage = true;
+    let after = null;
+
+    try {
+      while (hasNextPage) {
+        const data = await this.client.request(query, {
+          fullPath: this.projectPath,
+          iterationId: [iterationId], // Pass as array
+          after,
+        });
+
+        if (!data.group) {
+          throw new Error(`Group not found: ${this.projectPath}`);
+        }
+
+        const { nodes, pageInfo } = data.group.issues;
+        allIssues = allIssues.concat(nodes);
+        hasNextPage = pageInfo.hasNextPage;
+        after = pageInfo.endCursor;
+
+        // Small delay to avoid rate limiting
+        if (hasNextPage) {
+          await this.delay(100);
+        }
+      }
+
+      console.log(`✓ Fetched ${allIssues.length} issues for iteration ${iterationId}`);
+
+      // MRs are now fetched separately via fetchMergeRequestsForGroup
+      return {
+        issues: allIssues,
+        mergeRequests: [], // Populated by fetchMergeRequestsForGroup in metrics calculation
+      };
+    } catch (error) {
+      // Check if it's a GraphQL error
+      if (error.response?.errors) {
+        throw new Error(`Failed to fetch iteration details: ${error.response.errors[0].message}`);
+      }
+      throw new Error(`Failed to fetch iteration details: ${error.message}`);
+    }
+  }
+
+  /**
    * Fetches all projects in a group with caching support.
    * Uses 10-minute TTL cache to reduce API calls.
    *
