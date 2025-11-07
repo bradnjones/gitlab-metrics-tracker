@@ -1,8 +1,9 @@
 # CLAUDE.md
 
-**Version:** 1.0
-**Last Updated:** 2025-01-06
+**Version:** 2.0
+**Last Updated:** 2025-11-07
 **Project:** GitLab Sprint Metrics Tracker - Clean Architecture Edition
+**Development Approach:** Vertical Slices (delivering complete user value per story)
 
 ---
 
@@ -11,6 +12,7 @@
 A robust, local-first tool for tracking and analyzing GitLab sprint metrics with Clean Architecture, SOLID principles, and TDD. Built on lessons learned from the lightweight prototype, this version emphasizes maintainability, testability, and architectural integrity.
 
 **Key Principles:**
+- **Vertical Slices** - Each story delivers complete feature (GitLab → Core → API → UI)
 - **Clean Architecture + SOLID** - Well-structured, maintainable code
 - **TDD First** - Write tests before implementation
 - **Agent-Driven Development** - Use specialized agents for guidance
@@ -37,31 +39,43 @@ Before ANY task, **launch appropriate agents**. This is NOT optional.
 
 **Agent files:** `.claude/agents/*.md`
 
-### Typical Workflow
+### Vertical Slice Workflow
+
+Each story delivers a complete feature touching all layers:
 
 ```
-1. 📋 Create GitHub Issue for story (using gh CLI)
-2. 🌿 Create feature branch (feat/issue-number-description)
-3. 🤖 Product Owner Agent - Validate story requirements
-4. 🤖 GitLab Integration Agent (if working with API)
-5. 🤖 UX/UI Design Agent (if building UI)
-6. 🔴 Test Coverage Agent - Plan TDD approach
-7. 🔴 RED: Write failing tests
-8. 🟢 GREEN: Minimal implementation to pass
-9. 🔄 REFACTOR: Clean up code
-10. 🤖 Clean Architecture Agent - Validate architecture
-11. 🤖 Code Review Agent - Final review
-12. 🧪 MANUAL VERIFICATION - User tests functionality
-13. ✅ Commit and push to feature branch
-14. 🔀 Create Pull Request (using gh CLI)
-15. ✅ Merge PR and close issue
+1. 📋 Create GitHub Issue for vertical slice story (using gh CLI)
+2. 🌿 Create feature branch (feat/vN-description)
+3. 🤖 Product Owner Agent - Validate requirements against prototype
+4. 🤖 Launch other agents as needed (GitLab, UX/UI, etc.)
+
+FOR EACH LAYER (Infrastructure → Core → Presentation/API → Presentation/UI):
+5. 🔴 Test Coverage Agent - Plan TDD for this layer
+6. 🔴 RED: Write failing tests for layer
+7. 🟢 GREEN: Minimal implementation to pass
+8. 🔄 REFACTOR: Clean up code
+
+AFTER ALL LAYERS COMPLETE:
+9. 🤖 Clean Architecture Agent - Validate layer separation
+10. 🤖 Code Review Agent - Final review
+11. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
+12. ✅ Commit and push to feature branch
+13. 🔀 Create Pull Request (using gh CLI)
+14. ✅ Merge PR and close issue
 ```
 
-**IMPORTANT: Manual Verification Phase (Step 12)**
+**IMPORTANT: Vertical Slice Characteristics**
+- Each story delivers COMPLETE user value (not just a layer)
+- User can see, interact with, and validate the feature
+- All layers implemented (Infrastructure → Core → API → UI)
+- Feature is independently deployable and testable
+- Clean Architecture principles maintained within each slice
+
+**IMPORTANT: Manual Verification Phase (Step 11)**
 - Claude MUST prepare the application for user testing
 - Claude stops background processes and starts app in correct mode
 - Claude provides clear verification checklist with URLs and test data
-- User manually tests all functionality
+- User manually tests COMPLETE FEATURE end-to-end
 - NO code is committed until user approves implementation
 
 ---
@@ -273,12 +287,12 @@ gh pr merge --squash --delete-branch
 
 ### Branch Naming Convention
 
-- **Feature:** `feat/123-short-description`
+- **Vertical Slice:** `feat/vN-description` (e.g., feat/v1-velocity-tracking)
 - **Bugfix:** `fix/123-short-description`
 - **Refactor:** `refactor/123-short-description`
 - **Docs:** `docs/123-short-description`
 
-Always include issue number for traceability.
+For vertical slices, use vN notation. For other work, include issue number for traceability.
 
 ### Commit Guidelines
 
@@ -368,9 +382,10 @@ All detailed guidance lives in `_context/`:
 - `ui-design-system.md` - Colors, spacing, typography from prototype
 
 ### 📝 stories/
-- `backlog.md` - Planned stories
+- `backlog.md` - Vertical slice stories (V1-V7)
 - `in-progress.md` - Current story (ONLY ONE at a time)
 - `completed.md` - Finished stories
+- `archived-horizontal-backlog.md` - Previous horizontal approach (archived 2025-11-07)
 
 ---
 
@@ -456,16 +471,19 @@ The prototype has a **polished, working UI**. We're preserving it, not reinventi
 
 **Read these in order:**
 1. `_context/workflow/agent-usage.md` - How to use agents
-2. `_context/stories/in-progress.md` - Current work
-3. `_context/reference/prototype-lessons.md` - What we learned
-4. `_context/domain/metrics-formulas.md` - Metric calculations
+2. `_context/stories/backlog.md` - Vertical slice stories (V1-V7)
+3. `_context/stories/in-progress.md` - Current work
+4. `_context/reference/prototype-lessons.md` - What we learned
+5. `_context/domain/metrics-formulas.md` - Metric calculations
 
 ---
 
 ## 🎯 Current Focus
 
-**Phase:** Initial Setup & Architecture
-**Next Steps:** See `_context/stories/backlog.md`
+**Approach:** Vertical Slices - Delivering complete user value per story
+**MVP:** Stories V1-V3 (Velocity, Throughput, Cycle Time with full UI)
+**Next Story:** V1 - Velocity Tracking (Complete Feature)
+**See:** `_context/stories/backlog.md` for all stories
 
 ---
 
@@ -479,4 +497,4 @@ The prototype has a **polished, working UI**. We're preserving it, not reinventi
 
 ---
 
-**Remember:** This is agent-driven, TDD-first, Clean Architecture development. Launch agents BEFORE proposing work. Write tests FIRST. Defer decisions until needed. Build incrementally with discipline. 🚀
+**Remember:** This is vertical slice, agent-driven, TDD-first, Clean Architecture development. Each story delivers complete user value (GitLab → Core → API → UI). Launch agents BEFORE proposing work. Write tests FIRST at each layer. Maintain Clean Architecture within slices. Defer decisions until needed. Build incrementally with discipline. 🚀
