@@ -50,5 +50,29 @@ describe('VelocityCalculator', () => {
 
       expect(velocity).toBe(5); // Only 3 + 2 (closed issues)
     });
+
+    it('should handle null or missing weights', () => {
+      const issues = [
+        {
+          id: 'gid://gitlab/Issue/1',
+          state: 'closed',
+          weight: 3,
+        },
+        {
+          id: 'gid://gitlab/Issue/2',
+          state: 'closed',
+          weight: null, // Null weight - treat as 0
+        },
+        {
+          id: 'gid://gitlab/Issue/3',
+          state: 'closed',
+          // No weight field - treat as 0
+        },
+      ];
+
+      const velocity = VelocityCalculator.calculate(issues);
+
+      expect(velocity).toBe(3); // Only the first issue counts
+    });
   });
 });
