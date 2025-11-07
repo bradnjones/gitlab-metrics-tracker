@@ -24,7 +24,7 @@ describe('VelocityCalculator', () => {
 
       const velocity = VelocityCalculator.calculate(issues);
 
-      expect(velocity).toBe(10); // 3 + 5 + 2
+      expect(velocity).toEqual({ points: 10, stories: 3 }); // 10 points from 3 stories
     });
 
     it('should ignore open issues when calculating velocity', () => {
@@ -48,7 +48,7 @@ describe('VelocityCalculator', () => {
 
       const velocity = VelocityCalculator.calculate(issues);
 
-      expect(velocity).toBe(5); // Only 3 + 2 (closed issues)
+      expect(velocity).toEqual({ points: 5, stories: 2 }); // Only 5 points from 2 closed stories
     });
 
     it('should handle null or missing weights', () => {
@@ -72,7 +72,17 @@ describe('VelocityCalculator', () => {
 
       const velocity = VelocityCalculator.calculate(issues);
 
-      expect(velocity).toBe(3); // Only the first issue counts
+      expect(velocity).toEqual({ points: 3, stories: 3 }); // 3 points from 3 stories (zeros don't reduce count)
+    });
+
+    it('should throw TypeError when issues is not an array', () => {
+      expect(() => VelocityCalculator.calculate(null)).toThrow(TypeError);
+      expect(() => VelocityCalculator.calculate(null)).toThrow('issues must be an array');
+
+      expect(() => VelocityCalculator.calculate(undefined)).toThrow(TypeError);
+      expect(() => VelocityCalculator.calculate('not an array')).toThrow(TypeError);
+      expect(() => VelocityCalculator.calculate({})).toThrow(TypeError);
+      expect(() => VelocityCalculator.calculate(42)).toThrow(TypeError);
     });
   });
 });

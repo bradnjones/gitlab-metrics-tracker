@@ -10,16 +10,25 @@
  */
 export class VelocityCalculator {
   /**
-   * Calculate velocity (sum of story points) from closed issues
+   * Calculate velocity (sum of story points and story count) from closed issues
    *
    * @param {Array<Object>} issues - Issues from a sprint
    * @param {string} issues[].state - Issue state (closed, opened)
    * @param {number} issues[].weight - Story points assigned to issue
-   * @returns {number} Total story points completed
+   * @returns {{points: number, stories: number}} Total points completed and count of closed stories
+   * @throws {TypeError} If issues is not an array
    */
   static calculate(issues) {
-    return issues
-      .filter((issue) => issue.state === 'closed')
-      .reduce((sum, issue) => sum + (issue.weight || 0), 0);
+    // Input validation
+    if (!Array.isArray(issues)) {
+      throw new TypeError('issues must be an array');
+    }
+
+    const closedIssues = issues.filter((issue) => issue.state === 'closed');
+
+    return {
+      points: closedIssues.reduce((sum, issue) => sum + (issue.weight || 0), 0),
+      stories: closedIssues.length
+    };
   }
 }
