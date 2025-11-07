@@ -10,6 +10,75 @@ import { ServiceFactory } from '../services/ServiceFactory.js';
 const router = express.Router();
 
 /**
+ * GET /api/metrics/velocity
+ * Calculate velocity metrics for one or more iterations
+ *
+ * Query params:
+ *   iterations - Comma-separated iteration IDs (e.g., ?iterations=id1,id2,id3)
+ *
+ * Response:
+ * {
+ *   "metrics": [
+ *     { "iteration_id": "...", "velocity_points": 42, "velocity_stories": 8 },
+ *     ...
+ *   ],
+ *   "count": 2
+ * }
+ */
+router.get('/velocity', async (req, res) => {
+  try {
+    // Validate query params
+    const { iterations } = req.query;
+
+    if (!iterations) {
+      return res.status(400).json({
+        error: {
+          message: 'Missing required parameter: iterations',
+          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
+        }
+      });
+    }
+
+    // Parse comma-separated iteration IDs
+    const iterationIds = iterations.split(',').map(id => id.trim());
+
+    // Create service (will use environment variables)
+    const metricsService = ServiceFactory.createMetricsService();
+
+    // Calculate metrics for each iteration
+    const metricsResults = [];
+
+    for (const iterationId of iterationIds) {
+      const metrics = await metricsService.calculateMetrics(iterationId);
+
+      metricsResults.push({
+        iteration_id: iterationId,
+        velocity_points: metrics.velocity.points,
+        velocity_stories: metrics.velocity.stories
+      });
+    }
+
+    // Return results
+    res.json({
+      metrics: metricsResults,
+      count: metricsResults.length
+    });
+
+  } catch (error) {
+    // Log error for debugging
+    console.error('Failed to calculate velocity metrics:', error.message);
+
+    // Return user-friendly error
+    res.status(500).json({
+      error: {
+        message: 'Failed to calculate velocity metrics',
+        details: error.message
+      }
+    });
+  }
+});
+
+/**
  * POST /api/metrics/calculate
  * Calculate metrics for a given iteration
  *
