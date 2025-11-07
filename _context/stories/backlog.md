@@ -237,6 +237,72 @@ See below for details.
 
 ---
 
+## Phase 5: Technical Debt & Enhancements
+
+### Story 5.1: Add JSDoc @example Tags to Complex Calculators
+
+**Goal:** Enhance documentation with usage examples for statistical calculators
+
+**Priority:** LOW (Enhancement)
+**Estimate:** 10 minutes
+**Prerequisites:** Story 1.1 complete
+**Source:** Code Review Agent - Story 1.1 (Info #1)
+
+**Acceptance Criteria:**
+- [ ] Add @example JSDoc tags to CycleTimeCalculator.calculate()
+- [ ] Add @example JSDoc tags to LeadTimeCalculator.calculate()
+- [ ] Examples show sample input data and expected output
+- [ ] Examples demonstrate the statistical calculations (Avg, P50, P90)
+
+**Technical Tasks:**
+1. Add @example block to CycleTimeCalculator JSDoc
+2. Add @example block to LeadTimeCalculator JSDoc
+3. Verify examples render correctly in IDE hover tooltips
+
+**Rationale:**
+- Improves developer experience for complex statistical calculations
+- Makes percentile calculations clearer for future maintainers
+- Current JSDoc is complete, this is purely an enhancement
+
+**Agents to Use:**
+- None required (simple documentation update)
+
+---
+
+### Story 5.2: Extract Time Conversion Constants
+
+**Goal:** Centralize time conversion constants to reduce magic numbers
+
+**Priority:** LOW (Enhancement)
+**Estimate:** 15 minutes
+**Prerequisites:** Story 1.2 complete (MTTR uses MS_PER_HOUR)
+**Source:** Code Review Agent - Story 1.1 (Info #2)
+
+**Acceptance Criteria:**
+- [ ] Create `src/lib/core/utils/time-constants.js`
+- [ ] Export `MS_PER_DAY` constant (1000 * 60 * 60 * 24)
+- [ ] Export `MS_PER_HOUR` constant (1000 * 60 * 60)
+- [ ] Update CycleTimeCalculator to use MS_PER_DAY
+- [ ] Update LeadTimeCalculator to use MS_PER_DAY
+- [ ] Update IncidentAnalyzer to use MS_PER_HOUR
+- [ ] All existing tests still pass
+
+**Technical Tasks:**
+1. Create time-constants.js with JSDoc
+2. Update 3 calculator files to import and use constants
+3. Run tests to verify no behavioral changes
+
+**Rationale:**
+- Single source of truth for time conversions
+- More readable than inline arithmetic
+- Easier to adjust precision if needed
+- Wait until 4+ uses exist (better ROI after Story 1.2 adds MTTR)
+
+**Agents to Use:**
+- 🤖 Code Review Agent (verify no regressions)
+
+---
+
 ## Backlog Notes
 
 - Stories are ordered by dependency and priority
