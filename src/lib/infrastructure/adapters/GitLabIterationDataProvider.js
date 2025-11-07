@@ -41,6 +41,7 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
 
       // For now, return basic structure
       // TODO: Fetch additional data (MRs, pipelines, incidents) in future stories
+      // TODO: Fetch full iteration metadata (title, dates) from GitLab API
       return {
         issues: iterationDetails.issues || [],
         mergeRequests: iterationDetails.mergeRequests || [],
@@ -48,7 +49,9 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
         incidents: [], // TODO: Implement incident fetching
         iteration: {
           id: iterationId,
-          // Additional metadata could be extracted from iterationDetails if available
+          title: 'Sprint (title not yet fetched)', // TODO: Fetch from GitLab
+          startDate: new Date().toISOString(), // TODO: Fetch actual start date
+          dueDate: new Date().toISOString(), // TODO: Fetch actual due date
         },
       };
     } catch (error) {

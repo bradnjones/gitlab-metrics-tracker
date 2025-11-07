@@ -121,12 +121,46 @@ Currently being worked on.
 
 **Rule:** Only ONE story should be "In Progress" at a time. Finish what you start before moving to the next story.
 
-### 3. Completed
-Story is finished and meets all acceptance criteria.
+### 3. Manual Verification (NEW - MANDATORY)
+Story implementation complete, ready for user verification.
+
+**Status:** Ready for Verification
+**Actions:**
+- Claude prepares the application for testing
+- Claude provides clear verification checklist
+- Claude starts the application in the appropriate mode (dev/live server)
+- User manually tests all functionality
+- User verifies all acceptance criteria are met
+- User confirms the implementation matches requirements
+
+**Rule:** EVERY story MUST include a manual verification phase. No story is complete until the user has manually tested and approved the implementation.
+
+**What Claude Should Do:**
+1. Stop any background processes
+2. Start the application in the correct mode for testing
+3. Provide a clear, numbered verification checklist
+4. Include URLs, test data, and expected results
+5. Wait for user confirmation before proceeding
+
+**Example Verification Checklist:**
+```
+Manual Verification Checklist for Story X.X:
+
+1. Open http://localhost:5173/
+2. Enter iteration ID: gid://gitlab/Iteration/12345
+3. Click "Calculate Metrics"
+4. Expected: See velocity metric displayed
+5. Expected: See throughput metric displayed
+6. Verify: Error handling works with invalid ID
+7. Verify: Loading states display correctly
+```
+
+### 4. Completed
+Story is verified and meets all acceptance criteria.
 
 **Status:** Completed
 **Actions:**
-- Verify all acceptance criteria are met
+- User has verified all acceptance criteria are met
 - Ensure all tests pass
 - Update documentation
 - Archive story (keep for reference)
@@ -281,6 +315,7 @@ Before marking a story as "Completed":
 - [ ] No linting errors
 - [ ] Documentation updated
 - [ ] Related stories linked
+- [ ] **MANUAL VERIFICATION COMPLETED BY USER** ✅
 - [ ] Code committed (if applicable)
 - [ ] Story file updated with completion notes
 

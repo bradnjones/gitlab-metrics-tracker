@@ -51,10 +51,18 @@ Before ANY task, **launch appropriate agents**. This is NOT optional.
 9. 🔄 REFACTOR: Clean up code
 10. 🤖 Clean Architecture Agent - Validate architecture
 11. 🤖 Code Review Agent - Final review
-12. ✅ Commit and push to feature branch
-13. 🔀 Create Pull Request (using gh CLI)
-14. ✅ Merge PR and close issue
+12. 🧪 MANUAL VERIFICATION - User tests functionality
+13. ✅ Commit and push to feature branch
+14. 🔀 Create Pull Request (using gh CLI)
+15. ✅ Merge PR and close issue
 ```
+
+**IMPORTANT: Manual Verification Phase (Step 12)**
+- Claude MUST prepare the application for user testing
+- Claude stops background processes and starts app in correct mode
+- Claude provides clear verification checklist with URLs and test data
+- User manually tests all functionality
+- NO code is committed until user approves implementation
 
 ---
 

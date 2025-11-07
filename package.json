@@ -7,6 +7,9 @@
   "scripts": {
     "start": "node src/server/app.js",
     "dev": "nodemon --signal SIGTERM src/server/app.js",
+    "dev:vite": "vite",
+    "dev:server": "PORT=3001 nodemon --signal SIGTERM src/server/app.js",
+    "build": "vite build",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",

@@ -5,8 +5,14 @@
  * @module server/app
  */
 
+import 'dotenv/config';
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import metricsRoutes from './routes/metrics.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Create and configure Express application
@@ -19,6 +25,10 @@ export function createApp() {
   // Middleware
   app.use(express.json());
 
+  // Serve static files from public directory
+  const publicPath = path.join(__dirname, '..', 'public');
+  app.use(express.static(publicPath));
+
   // Routes
   app.use('/api/metrics', metricsRoutes);
 
@@ -27,14 +37,34 @@ export function createApp() {
     res.json({ status: 'ok', service: 'gitlab-metrics-tracker' });
   });
 
-  // 404 handler
-  app.use((req, res) => {
-    res.status(404).json({ error: 'Not found' });
+  // Serve index.html for non-API routes (SPA support)
+  app.get('*', (req, res, next) => {
+    // Only serve index.html for non-API routes
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(path.join(publicPath, 'index.html'));
+  });
+
+  // 404 handler for API routes
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      res.status(404).json({ error: 'Not found' });
+    } else {
+      next();
+    }
   });
 
   // Error handler
   app.use((err, req, res, next) => {
-    console.error('Error:', err);
+    // Log sanitized error (no stack trace exposure)
+    console.error('Error occurred:', {
+      message: err.message,
+      path: req.path,
+      method: req.method,
+      timestamp: new Date().toISOString()
+    });
+
     res.status(500).json({
       error: 'Internal server error',
       message: err.message
