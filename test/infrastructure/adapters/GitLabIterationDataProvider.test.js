@@ -37,6 +37,9 @@ describe('GitLabIterationDataProvider', () => {
         incidents: [],
         iteration: {
           id: iterationId,
+          title: expect.any(String), // Placeholder value
+          startDate: expect.any(String), // ISO date string
+          dueDate: expect.any(String), // ISO date string
         },
       });
     });

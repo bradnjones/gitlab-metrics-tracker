@@ -11,6 +11,7 @@ import { CycleTimeCalculator } from './CycleTimeCalculator.js';
 import { DeploymentFrequencyCalculator } from './DeploymentFrequencyCalculator.js';
 import { LeadTimeCalculator } from './LeadTimeCalculator.js';
 import { IncidentAnalyzer } from './IncidentAnalyzer.js';
+import { Metric } from '../entities/Metric.js';
 
 /**
  * Calculated sprint metrics
@@ -82,8 +83,12 @@ export class MetricsService {
     // Calculate MTTR (requires incidents)
     const mttr = IncidentAnalyzer.calculateMTTR([]);
 
-    // Aggregate all results
-    const results = {
+    // Create Metric entity
+    const metric = new Metric({
+      iterationId,
+      iterationTitle: iterationData.iteration.title,
+      startDate: iterationData.iteration.startDate,
+      endDate: iterationData.iteration.dueDate,
       velocityPoints: velocity.points,
       velocityStories: velocity.stories,
       throughput,
@@ -95,11 +100,21 @@ export class MetricsService {
       leadTimeP50: leadTime.p50,
       leadTimeP90: leadTime.p90,
       mttrAvg: mttr,
-    };
+      changeFailureRate: 0, // Not yet implemented
+      issueCount: iterationData.issues.length,
+      mrCount: 0, // Not yet implemented
+      deploymentCount: 0, // Not yet implemented
+      incidentCount: 0, // Not yet implemented
+      rawData: {
+        issues: iterationData.issues,
+        iteration: iterationData.iteration
+      }
+    });
 
     // Persist results via repository
-    await this.metricsRepository.save(results);
+    await this.metricsRepository.save(metric);
 
-    return results;
+    // Return calculated metrics
+    return metric.toJSON();
   }
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { MetricsService } from '../../../src/lib/core/services/MetricsService.js';
+import { Metric } from '../../../src/lib/core/entities/Metric.js';
 import { VelocityCalculator } from '../../../src/lib/core/services/VelocityCalculator.js';
 import { ThroughputCalculator } from '../../../src/lib/core/services/ThroughputCalculator.js';
 import { CycleTimeCalculator } from '../../../src/lib/core/services/CycleTimeCalculator.js';
@@ -48,6 +49,9 @@ describe('MetricsService', () => {
       incidents: [],
       iteration: {
         id: 'gid://gitlab/Iteration/123',
+        title: 'Sprint 2025-01',
+        startDate: '2025-01-01',
+        dueDate: '2025-01-14',
       },
     };
 
@@ -92,20 +96,29 @@ describe('MetricsService', () => {
       expect(CycleTimeCalculator.calculate).toHaveBeenCalledWith(mockIterationData.issues);
       expect(LeadTimeCalculator.calculate).toHaveBeenCalled(); // Will verify MRs passed
 
-      // Verify results structure contains all metrics
-      expect(result).toEqual({
-        velocityPoints: 42,
-        velocityStories: 5,
-        throughput: 15,
-        cycleTimeAvg: 3.5,
-        cycleTimeP50: 3.0,
-        cycleTimeP90: 5.0,
-        deploymentFrequency: 2.5,
-        leadTimeAvg: 2.0,
-        leadTimeP50: 1.5,
-        leadTimeP90: 3.0,
-        mttrAvg: 2.5,
-      });
+      // Verify results structure contains all metrics (as JSON, not entity)
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          iterationId: expect.any(String),
+          iterationTitle: expect.any(String),
+          startDate: expect.any(String),
+          endDate: expect.any(String),
+          velocityPoints: 42,
+          velocityStories: 5,
+          throughput: 15,
+          cycleTimeAvg: 3.5,
+          cycleTimeP50: 3.0,
+          cycleTimeP90: 5.0,
+          deploymentFrequency: 2.5,
+          leadTimeAvg: 2.0,
+          leadTimeP50: 1.5,
+          leadTimeP90: 3.0,
+          mttrAvg: 2.5,
+          issueCount: expect.any(Number),
+          createdAt: expect.any(String),
+        })
+      );
     });
 
     it('should persist results via repository after calculation', async () => {
@@ -116,16 +129,14 @@ describe('MetricsService', () => {
       // Verify repository.save() was called AFTER calculations
       expect(mockRepository.save).toHaveBeenCalledTimes(1);
 
-      // Verify save() received the calculated results
-      expect(mockRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          velocityPoints: 42,
-          velocityStories: 5,
-          throughput: 15,
-        })
-      );
+      // Verify save() received a Metric entity (not plain object)
+      const savedEntity = mockRepository.save.mock.calls[0][0];
+      expect(savedEntity).toBeInstanceOf(Metric);
+      expect(savedEntity.velocityPoints).toBe(42);
+      expect(savedEntity.velocityStories).toBe(5);
+      expect(savedEntity.throughput).toBe(15);
 
-      // Verify method still returns the results
+      // Verify method still returns the results (as JSON)
       expect(result).toEqual(
         expect.objectContaining({
           velocityPoints: 42,
@@ -162,7 +173,12 @@ describe('MetricsService', () => {
         mergeRequests: [],
         pipelines: [],
         incidents: [],
-        iteration: { id: iterationId },
+        iteration: {
+          id: iterationId,
+          title: 'Empty Sprint',
+          startDate: '2025-01-01',
+          dueDate: '2025-01-14',
+        },
       });
 
       // Mock calculators to return zero/empty results for empty data
@@ -184,22 +200,95 @@ describe('MetricsService', () => {
       expect(CycleTimeCalculator.calculate).toHaveBeenCalledWith([]);
 
       // Verify results have proper structure with zero values
-      expect(result).toEqual({
-        velocityPoints: 0,
-        velocityStories: 0,
-        throughput: 0,
-        cycleTimeAvg: 0,
-        cycleTimeP50: 0,
-        cycleTimeP90: 0,
-        deploymentFrequency: 0,
-        leadTimeAvg: 0,
-        leadTimeP50: 0,
-        leadTimeP90: 0,
-        mttrAvg: 0,
-      });
+      expect(result).toEqual(
+        expect.objectContaining({
+          velocityPoints: 0,
+          velocityStories: 0,
+          throughput: 0,
+          cycleTimeAvg: 0,
+          cycleTimeP50: 0,
+          cycleTimeP90: 0,
+          deploymentFrequency: 0,
+          leadTimeAvg: 0,
+          leadTimeP50: 0,
+          leadTimeP90: 0,
+          mttrAvg: 0,
+        })
+      );
 
       // Verify repository.save() still called (empty sprint is valid data)
       expect(mockRepository.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should save a proper Metric entity with toJSON method to repository (regression test)', async () => {
+      // REGRESSION TEST: Ensures service creates a Metric entity, not a plain object
+      // Bug: Previously saved plain object causing "metric.toJSON is not a function" error
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      await service.calculateMetrics(iterationId);
+
+      // Verify repository.save() was called
+      expect(mockRepository.save).toHaveBeenCalledTimes(1);
+
+      // Get the argument passed to save()
+      const savedEntity = mockRepository.save.mock.calls[0][0];
+
+      // CRITICAL: Verify it's a Metric entity, not a plain object
+      expect(savedEntity).toBeInstanceOf(Metric);
+
+      // CRITICAL: Verify the entity has toJSON method
+      expect(typeof savedEntity.toJSON).toBe('function');
+
+      // Verify toJSON() works and returns proper structure
+      const json = savedEntity.toJSON();
+      expect(json).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          iterationId: 'gid://gitlab/Iteration/123',
+          iterationTitle: 'Sprint 2025-01',
+          startDate: '2025-01-01',
+          endDate: '2025-01-14',
+          velocityPoints: 42,
+          velocityStories: 5,
+          throughput: 15,
+          cycleTimeAvg: 3.5,
+          cycleTimeP50: 3.0,
+          cycleTimeP90: 5.0,
+          issueCount: 1,
+          rawData: expect.any(Object),
+          createdAt: expect.any(String),
+        })
+      );
+
+      // Verify entity has all required Metric fields
+      expect(savedEntity.iterationId).toBe('gid://gitlab/Iteration/123');
+      expect(savedEntity.iterationTitle).toBe('Sprint 2025-01');
+      expect(savedEntity.startDate).toBe('2025-01-01');
+      expect(savedEntity.endDate).toBe('2025-01-14');
+    });
+
+    it('should return JSON representation of metrics, not Metric entity', async () => {
+      // Verify the service returns plain object (JSON), not Metric entity
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      const result = await service.calculateMetrics(iterationId);
+
+      // Result should be plain object, not Metric instance
+      expect(result).not.toBeInstanceOf(Metric);
+
+      // Result should have all metric fields
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          iterationId: 'gid://gitlab/Iteration/123',
+          velocityPoints: 42,
+          velocityStories: 5,
+          throughput: 15,
+        })
+      );
+
+      // Result should be JSON-serializable
+      expect(() => JSON.stringify(result)).not.toThrow();
     });
   });
 });

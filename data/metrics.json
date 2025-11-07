@@ -1,0 +1,1229 @@
+{
+  "metric-1762544276872-r3yc9juod": {
+    "id": "metric-1762544276872-r3yc9juod",
+    "iterationId": "gid://gitlab/Iteration/2663874",
+    "iterationTitle": "Sprint (title not yet fetched)",
+    "startDate": "2025-11-07T19:37:56.871Z",
+    "endDate": "2025-11-07T19:37:56.872Z",
+    "velocityPoints": 13,
+    "velocityStories": 7,
+    "throughput": 7,
+    "cycleTimeAvg": 17.764356812169314,
+    "cycleTimeP50": 16.043391203703703,
+    "cycleTimeP90": 28.235208333333333,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 7,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/173893997",
+          "iid": "26",
+          "title": "Investigate Linting for Smart Quotes",
+          "state": "closed",
+          "createdAt": "2025-09-24T13:28:53Z",
+          "closedAt": "2025-10-10T14:31:22Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Task"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Abe.Millett1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173795724",
+          "iid": "2",
+          "title": "Fix State Address Bug",
+          "state": "closed",
+          "createdAt": "2025-09-22T18:00:52Z",
+          "closedAt": "2025-10-03T20:43:17Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Daniel.Dong1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173634020",
+          "iid": "1",
+          "title": "Verify Share Exempt GH Logic With Respect To S2S",
+          "state": "closed",
+          "createdAt": "2025-09-18T21:41:06Z",
+          "closedAt": "2025-10-09T14:28:32Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Allocation"
+              },
+              {
+                "title": "MS Support"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Spike"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Wayne.Black"
+              },
+              {
+                "username": "Michael.ODonnell3"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/174282702",
+          "iid": "93",
+          "title": "Notes: add properties to PaperShareDetailsDto for paper members",
+          "state": "closed",
+          "createdAt": "2025-09-18T15:56:37Z",
+          "closedAt": "2025-10-03T16:37:30Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Shares"
+              },
+              {
+                "title": "Project::DigitalSharing"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Anthony.Almanza"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173628772",
+          "iid": "76",
+          "title": "DS: Prevent Changing Notification Preferences For Digital Sharing (frontend)",
+          "state": "closed",
+          "createdAt": "2025-09-18T14:55:16Z",
+          "closedAt": "2025-10-01T21:44:13Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Communication"
+              },
+              {
+                "title": "Project::DigitalSharing"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              },
+              {
+                "title": "for-caleb"
+              },
+              {
+                "title": "migrated-from-delta"
+              },
+              {
+                "title": "priority-work"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Anthony.Almanza"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173415746",
+          "iid": "91",
+          "title": "Research Adding Amount To TransactionLookup Table",
+          "state": "closed",
+          "createdAt": "2025-09-12T20:02:47Z",
+          "closedAt": "2025-10-02T18:46:38Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Shares"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Spike"
+              },
+              {
+                "title": "priority-work"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Michael.ODonnell3"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173177397",
+          "iid": "88",
+          "title": "DS: Update StateId Enum to Support all US Territories",
+          "state": "closed",
+          "createdAt": "2025-09-08T15:43:03Z",
+          "closedAt": "2025-10-06T21:21:45Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Abe.Millett1"
+              }
+            ]
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2663874",
+        "title": "Sprint (title not yet fetched)",
+        "startDate": "2025-11-07T19:37:56.871Z",
+        "dueDate": "2025-11-07T19:37:56.872Z"
+      }
+    },
+    "createdAt": "2025-11-07T19:37:56.872Z"
+  },
+  "metric-1762544310017-3okf9pj7e": {
+    "id": "metric-1762544310017-3okf9pj7e",
+    "iterationId": "gid://gitlab/Iteration/2663874",
+    "iterationTitle": "Sprint (title not yet fetched)",
+    "startDate": "2025-11-07T19:38:30.014Z",
+    "endDate": "2025-11-07T19:38:30.016Z",
+    "velocityPoints": 13,
+    "velocityStories": 7,
+    "throughput": 7,
+    "cycleTimeAvg": 17.764356812169314,
+    "cycleTimeP50": 16.043391203703703,
+    "cycleTimeP90": 28.235208333333333,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 7,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/173893997",
+          "iid": "26",
+          "title": "Investigate Linting for Smart Quotes",
+          "state": "closed",
+          "createdAt": "2025-09-24T13:28:53Z",
+          "closedAt": "2025-10-10T14:31:22Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Task"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Abe.Millett1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173795724",
+          "iid": "2",
+          "title": "Fix State Address Bug",
+          "state": "closed",
+          "createdAt": "2025-09-22T18:00:52Z",
+          "closedAt": "2025-10-03T20:43:17Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Daniel.Dong1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173634020",
+          "iid": "1",
+          "title": "Verify Share Exempt GH Logic With Respect To S2S",
+          "state": "closed",
+          "createdAt": "2025-09-18T21:41:06Z",
+          "closedAt": "2025-10-09T14:28:32Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Allocation"
+              },
+              {
+                "title": "MS Support"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Spike"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Wayne.Black"
+              },
+              {
+                "username": "Michael.ODonnell3"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/174282702",
+          "iid": "93",
+          "title": "Notes: add properties to PaperShareDetailsDto for paper members",
+          "state": "closed",
+          "createdAt": "2025-09-18T15:56:37Z",
+          "closedAt": "2025-10-03T16:37:30Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Shares"
+              },
+              {
+                "title": "Project::DigitalSharing"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Anthony.Almanza"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173628772",
+          "iid": "76",
+          "title": "DS: Prevent Changing Notification Preferences For Digital Sharing (frontend)",
+          "state": "closed",
+          "createdAt": "2025-09-18T14:55:16Z",
+          "closedAt": "2025-10-01T21:44:13Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Communication"
+              },
+              {
+                "title": "Project::DigitalSharing"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              },
+              {
+                "title": "for-caleb"
+              },
+              {
+                "title": "migrated-from-delta"
+              },
+              {
+                "title": "priority-work"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Anthony.Almanza"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173415746",
+          "iid": "91",
+          "title": "Research Adding Amount To TransactionLookup Table",
+          "state": "closed",
+          "createdAt": "2025-09-12T20:02:47Z",
+          "closedAt": "2025-10-02T18:46:38Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Shares"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Spike"
+              },
+              {
+                "title": "priority-work"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Michael.ODonnell3"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173177397",
+          "iid": "88",
+          "title": "DS: Update StateId Enum to Support all US Territories",
+          "state": "closed",
+          "createdAt": "2025-09-08T15:43:03Z",
+          "closedAt": "2025-10-06T21:21:45Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Abe.Millett1"
+              }
+            ]
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2663874",
+        "title": "Sprint (title not yet fetched)",
+        "startDate": "2025-11-07T19:38:30.014Z",
+        "dueDate": "2025-11-07T19:38:30.016Z"
+      }
+    },
+    "createdAt": "2025-11-07T19:38:30.017Z"
+  },
+  "metric-1762544335104-6tufv37ep": {
+    "id": "metric-1762544335104-6tufv37ep",
+    "iterationId": "gid://gitlab/Iteration/2663874",
+    "iterationTitle": "Sprint (title not yet fetched)",
+    "startDate": "2025-11-07T19:38:55.102Z",
+    "endDate": "2025-11-07T19:38:55.103Z",
+    "velocityPoints": 13,
+    "velocityStories": 7,
+    "throughput": 7,
+    "cycleTimeAvg": 17.764356812169314,
+    "cycleTimeP50": 16.043391203703703,
+    "cycleTimeP90": 28.235208333333333,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 7,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/173893997",
+          "iid": "26",
+          "title": "Investigate Linting for Smart Quotes",
+          "state": "closed",
+          "createdAt": "2025-09-24T13:28:53Z",
+          "closedAt": "2025-10-10T14:31:22Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Task"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Abe.Millett1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173795724",
+          "iid": "2",
+          "title": "Fix State Address Bug",
+          "state": "closed",
+          "createdAt": "2025-09-22T18:00:52Z",
+          "closedAt": "2025-10-03T20:43:17Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Daniel.Dong1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173634020",
+          "iid": "1",
+          "title": "Verify Share Exempt GH Logic With Respect To S2S",
+          "state": "closed",
+          "createdAt": "2025-09-18T21:41:06Z",
+          "closedAt": "2025-10-09T14:28:32Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Allocation"
+              },
+              {
+                "title": "MS Support"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Spike"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Wayne.Black"
+              },
+              {
+                "username": "Michael.ODonnell3"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/174282702",
+          "iid": "93",
+          "title": "Notes: add properties to PaperShareDetailsDto for paper members",
+          "state": "closed",
+          "createdAt": "2025-09-18T15:56:37Z",
+          "closedAt": "2025-10-03T16:37:30Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Shares"
+              },
+              {
+                "title": "Project::DigitalSharing"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Anthony.Almanza"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173628772",
+          "iid": "76",
+          "title": "DS: Prevent Changing Notification Preferences For Digital Sharing (frontend)",
+          "state": "closed",
+          "createdAt": "2025-09-18T14:55:16Z",
+          "closedAt": "2025-10-01T21:44:13Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Communication"
+              },
+              {
+                "title": "Project::DigitalSharing"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              },
+              {
+                "title": "for-caleb"
+              },
+              {
+                "title": "migrated-from-delta"
+              },
+              {
+                "title": "priority-work"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Anthony.Almanza"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173415746",
+          "iid": "91",
+          "title": "Research Adding Amount To TransactionLookup Table",
+          "state": "closed",
+          "createdAt": "2025-09-12T20:02:47Z",
+          "closedAt": "2025-10-02T18:46:38Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Shares"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Spike"
+              },
+              {
+                "title": "priority-work"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Michael.ODonnell3"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173177397",
+          "iid": "88",
+          "title": "DS: Update StateId Enum to Support all US Territories",
+          "state": "closed",
+          "createdAt": "2025-09-08T15:43:03Z",
+          "closedAt": "2025-10-06T21:21:45Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Team::Alpha"
+              },
+              {
+                "title": "Type::Bug"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Abe.Millett1"
+              }
+            ]
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2663874",
+        "title": "Sprint (title not yet fetched)",
+        "startDate": "2025-11-07T19:38:55.102Z",
+        "dueDate": "2025-11-07T19:38:55.103Z"
+      }
+    },
+    "createdAt": "2025-11-07T19:38:55.104Z"
+  },
+  "metric-1762544476928-4zk7in78e": {
+    "id": "metric-1762544476928-4zk7in78e",
+    "iterationId": "gid://gitlab/Iteration/2700497",
+    "iterationTitle": "Sprint (title not yet fetched)",
+    "startDate": "2025-11-07T19:41:16.926Z",
+    "endDate": "2025-11-07T19:41:16.927Z",
+    "velocityPoints": 26,
+    "velocityStories": 16,
+    "throughput": 16,
+    "cycleTimeAvg": 12.230227141203704,
+    "cycleTimeP50": 5.62425925925926,
+    "cycleTimeP90": 56.08318287037037,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 16,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/176653308",
+          "iid": "86",
+          "title": "Data Change Insert Allocation Received Rounds Amount",
+          "state": "closed",
+          "createdAt": "2025-11-06T17:31:16Z",
+          "closedAt": "2025-11-06T21:33:29Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Accounting"
+              },
+              {
+                "title": "devs"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Joe.Geyer"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176638796",
+          "iid": "29",
+          "title": "Allocation Splunk Error loading C# v9",
+          "state": "closed",
+          "createdAt": "2025-11-06T14:47:06Z",
+          "closedAt": "2025-11-06T22:39:38Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Allocation"
+              },
+              {
+                "title": "Lane::To Do"
+              },
+              {
+                "title": "devs"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176636917",
+          "iid": "85",
+          "title": "Credit Reversals a13880743",
+          "state": "closed",
+          "createdAt": "2025-11-06T14:26:52Z",
+          "closedAt": "2025-11-06T21:32:20Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Accounting"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Joe.Geyer"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176509753",
+          "iid": "105",
+          "title": "Investigate Allocation Received Records",
+          "state": "closed",
+          "createdAt": "2025-11-04T16:05:34Z",
+          "closedAt": "2025-11-04T17:23:55Z",
+          "weight": null,
+          "labels": {
+            "nodes": []
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176494437",
+          "iid": "83",
+          "title": "Accounting DS Fee Payment Sync missing payments",
+          "state": "closed",
+          "createdAt": "2025-11-04T14:12:15Z",
+          "closedAt": "2025-11-04T21:26:38Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Accounting"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Joe.Geyer"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176416805",
+          "iid": "2",
+          "title": "Missing Configuration in All The Config",
+          "state": "closed",
+          "createdAt": "2025-11-03T17:01:50Z",
+          "closedAt": "2025-11-05T21:19:53Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176264840",
+          "iid": "104",
+          "title": "Adjust LL lookup to assume we don't have DtD shares when not paid",
+          "state": "closed",
+          "createdAt": "2025-10-31T19:18:04Z",
+          "closedAt": "2025-11-04T22:38:25Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Shares"
+              },
+              {
+                "title": "Type::Bug"
+              },
+              {
+                "title": "devs"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Wayne.Black"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176219191",
+          "iid": "38",
+          "title": "Work with Devops to remove hash routes",
+          "state": "closed",
+          "createdAt": "2025-10-30T21:14:41Z",
+          "closedAt": "2025-11-07T17:12:44Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Com Support"
+              },
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Type::Story"
+              },
+              {
+                "title": "devs"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "jchensmith-smi"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176213576",
+          "iid": "37",
+          "title": "Exposure of old decommissioned applications under reachable routes",
+          "state": "closed",
+          "createdAt": "2025-10-30T19:12:22Z",
+          "closedAt": "2025-11-04T21:29:45Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Tristan.Barrow"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176139202",
+          "iid": "1165",
+          "title": "Spike: .net security vulnerability investigation",
+          "state": "closed",
+          "createdAt": "2025-10-28T17:03:43Z",
+          "closedAt": "2025-11-06T21:04:47Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Type::Spike"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176049473",
+          "iid": "22",
+          "title": "Spellchecker is busted!",
+          "state": "closed",
+          "createdAt": "2025-10-28T17:01:56Z",
+          "closedAt": "2025-11-03T20:42:25Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/175982054",
+          "iid": "79",
+          "title": "Allocations Already Paid Donor Invoices",
+          "state": "closed",
+          "createdAt": "2025-10-27T20:00:20Z",
+          "closedAt": "2025-11-03T14:17:08Z",
+          "weight": 5,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Accounting"
+              },
+              {
+                "title": "Stakeholder::Accounting"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Joe.Geyer"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/175592014",
+          "iid": "1",
+          "title": "Miss Configured Connection String for Membership Api",
+          "state": "closed",
+          "createdAt": "2025-10-20T21:32:12Z",
+          "closedAt": "2025-11-06T20:32:15Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Brad.Jones"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/175155920",
+          "iid": "1020",
+          "title": "Do we have unused _services_?",
+          "state": "closed",
+          "createdAt": "2025-10-13T18:07:01Z",
+          "closedAt": "2025-11-03T23:10:43Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Spike"
+              },
+              {
+                "title": "devs"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "bboolean-smi"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/176572389",
+          "iid": "106",
+          "title": "Received record already exists for allocation id",
+          "state": "closed",
+          "createdAt": "2025-09-11T14:31:17Z",
+          "closedAt": "2025-11-06T16:31:04Z",
+          "weight": 3,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Allocation"
+              },
+              {
+                "title": "Member Alerts"
+              },
+              {
+                "title": "Project::DigitalSharing"
+              },
+              {
+                "title": "Stakeholder::Program"
+              },
+              {
+                "title": "Type::Bug"
+              },
+              {
+                "title": "devs"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Anthony.Almanza"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/173271837",
+          "iid": "16",
+          "title": "Due 10/28: Hash URLs to Non-Hash URLs",
+          "state": "closed",
+          "createdAt": "2025-09-09T18:17:07Z",
+          "closedAt": "2025-11-07T17:12:53Z",
+          "weight": 6,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Com Support"
+              },
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Stakeholder::Program"
+              },
+              {
+                "title": "devs"
+              },
+              {
+                "title": "migrated-from-delta"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "jchensmith-smi"
+              }
+            ]
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2700497",
+        "title": "Sprint (title not yet fetched)",
+        "startDate": "2025-11-07T19:41:16.926Z",
+        "dueDate": "2025-11-07T19:41:16.927Z"
+      }
+    },
+    "createdAt": "2025-11-07T19:41:16.928Z"
+  }
+}
