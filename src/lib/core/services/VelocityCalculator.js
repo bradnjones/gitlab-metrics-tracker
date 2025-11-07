@@ -16,8 +16,14 @@ export class VelocityCalculator {
    * @param {string} issues[].state - Issue state (closed, opened)
    * @param {number} issues[].weight - Story points assigned to issue
    * @returns {{points: number, stories: number}} Total points completed and count of closed stories
+   * @throws {TypeError} If issues is not an array
    */
   static calculate(issues) {
+    // Input validation
+    if (!Array.isArray(issues)) {
+      throw new TypeError('issues must be an array');
+    }
+
     const closedIssues = issues.filter((issue) => issue.state === 'closed');
 
     return {

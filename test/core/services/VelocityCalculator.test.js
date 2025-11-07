@@ -74,5 +74,15 @@ describe('VelocityCalculator', () => {
 
       expect(velocity).toEqual({ points: 3, stories: 3 }); // 3 points from 3 stories (zeros don't reduce count)
     });
+
+    it('should throw TypeError when issues is not an array', () => {
+      expect(() => VelocityCalculator.calculate(null)).toThrow(TypeError);
+      expect(() => VelocityCalculator.calculate(null)).toThrow('issues must be an array');
+
+      expect(() => VelocityCalculator.calculate(undefined)).toThrow(TypeError);
+      expect(() => VelocityCalculator.calculate('not an array')).toThrow(TypeError);
+      expect(() => VelocityCalculator.calculate({})).toThrow(TypeError);
+      expect(() => VelocityCalculator.calculate(42)).toThrow(TypeError);
+    });
   });
 });
