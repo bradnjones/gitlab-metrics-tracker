@@ -30,17 +30,19 @@ describe('GET /api/metrics/velocity', () => {
 
   it('should calculate velocity for single iteration', async () => {
     const mockMetrics = {
-      velocity: {
-        points: 42,
-        stories: 8
-      },
-      throughput: {
-        issues_closed: 8
-      },
-      cycle_time: {
-        average_days: 3.5,
-        p50_days: 3.0,
-        p90_days: 5.0
+      iterationId: 'gid://gitlab/Iteration/123',
+      iterationTitle: 'Sprint 1',
+      startDate: '2025-01-01',
+      endDate: '2025-01-14',
+      velocityPoints: 42,
+      velocityStories: 8,
+      issueCount: 10,
+      rawData: {
+        issues: [
+          { state: 'closed', weight: 5 },
+          { state: 'closed', weight: 3 },
+          { state: 'opened', weight: 2 }
+        ]
       }
     };
 
@@ -54,28 +56,40 @@ describe('GET /api/metrics/velocity', () => {
     // Verify MetricsService was called with iteration ID
     expect(mockMetricsService.calculateMetrics).toHaveBeenCalledWith('gid://gitlab/Iteration/123');
 
-    // Verify response structure
-    expect(response.body).toEqual({
-      metrics: [
-        {
-          iteration_id: 'gid://gitlab/Iteration/123',
-          velocity_points: 42,
-          velocity_stories: 8
-        }
-      ],
-      count: 1
+    // Verify response structure matches new format
+    expect(response.body.metrics[0]).toMatchObject({
+      iterationId: 'gid://gitlab/Iteration/123',
+      iterationTitle: 'Sprint 1',
+      completedPoints: 42,
+      completedStories: 8
     });
+    expect(response.body.count).toBe(1);
   });
 
   it('should calculate velocity for multiple iterations (comma-separated IDs)', async () => {
     const mockMetrics1 = {
-      velocity: { points: 42, stories: 8 }
+      iterationId: 'gid://gitlab/Iteration/123',
+      iterationTitle: 'Sprint 1',
+      velocityPoints: 42,
+      velocityStories: 8,
+      issueCount: 10,
+      rawData: { issues: [] }
     };
     const mockMetrics2 = {
-      velocity: { points: 38, stories: 7 }
+      iterationId: 'gid://gitlab/Iteration/124',
+      iterationTitle: 'Sprint 2',
+      velocityPoints: 38,
+      velocityStories: 7,
+      issueCount: 9,
+      rawData: { issues: [] }
     };
     const mockMetrics3 = {
-      velocity: { points: 45, stories: 9 }
+      iterationId: 'gid://gitlab/Iteration/125',
+      iterationTitle: 'Sprint 3',
+      velocityPoints: 45,
+      velocityStories: 9,
+      issueCount: 11,
+      rawData: { issues: [] }
     };
 
     mockMetricsService.calculateMetrics
@@ -94,28 +108,14 @@ describe('GET /api/metrics/velocity', () => {
     expect(mockMetricsService.calculateMetrics).toHaveBeenNthCalledWith(2, 'gid://gitlab/Iteration/124');
     expect(mockMetricsService.calculateMetrics).toHaveBeenNthCalledWith(3, 'gid://gitlab/Iteration/125');
 
-    // Verify response structure
-    expect(response.body).toEqual({
-      metrics: [
-        {
-          iteration_id: 'gid://gitlab/Iteration/123',
-          velocity_points: 42,
-          velocity_stories: 8
-        },
-        {
-          iteration_id: 'gid://gitlab/Iteration/124',
-          velocity_points: 38,
-          velocity_stories: 7
-        },
-        {
-          iteration_id: 'gid://gitlab/Iteration/125',
-          velocity_points: 45,
-          velocity_stories: 9
-        }
-      ],
-      count: 3
-    });
+    // Verify response structure has all iterations
+    expect(response.body.metrics).toHaveLength(3);
+    expect(response.body.metrics[0].completedPoints).toBe(42);
+    expect(response.body.metrics[1].completedPoints).toBe(38);
+    expect(response.body.metrics[2].completedPoints).toBe(45);
+    expect(response.body.count).toBe(3);
   });
+
 
   it('should return 400 when iterations query param is missing', async () => {
     const response = await request(app)
@@ -137,7 +137,12 @@ describe('GET /api/metrics/velocity', () => {
 
   it('should return 500 when MetricsService throws error for any iteration', async () => {
     mockMetricsService.calculateMetrics
-      .mockResolvedValueOnce({ velocity: { points: 42, stories: 8 } })
+      .mockResolvedValueOnce({
+        iterationId: 'gid://gitlab/Iteration/123',
+        velocityPoints: 42,
+        velocityStories: 8,
+        rawData: { issues: [] }
+      })
       .mockRejectedValueOnce(new Error('Failed to fetch iteration data: Iteration not found'));
 
     const response = await request(app)
