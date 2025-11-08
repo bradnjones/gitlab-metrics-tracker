@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 
 /**
@@ -452,33 +452,36 @@ const IterationSelector = ({ onSelectionChange }) => {
   const uniqueCadences = [...new Set(iterations.map(i => i.iterationCadence?.title))].filter(Boolean);
 
   // Filter iterations by state, cadence, and search
-  const filteredIterations = iterations.filter(iteration => {
-    // State filter
-    if (stateFilter && iteration.state !== stateFilter) {
-      return false;
-    }
-
-    // Cadence filter
-    if (cadenceFilter && iteration.iterationCadence?.title !== cadenceFilter) {
-      return false;
-    }
-
-    // Search filter
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      const title = (iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}`).toLowerCase();
-      const startDate = formatDate(iteration.startDate).toLowerCase();
-      const dueDate = formatDate(iteration.dueDate).toLowerCase();
-
-      if (!title.includes(searchLower) &&
-          !startDate.includes(searchLower) &&
-          !dueDate.includes(searchLower)) {
+  // useMemo prevents unnecessary recalculation when other state changes
+  const filteredIterations = useMemo(() => {
+    return iterations.filter(iteration => {
+      // State filter
+      if (stateFilter && iteration.state !== stateFilter) {
         return false;
       }
-    }
 
-    return true;
-  });
+      // Cadence filter
+      if (cadenceFilter && iteration.iterationCadence?.title !== cadenceFilter) {
+        return false;
+      }
+
+      // Search filter
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const title = (iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}`).toLowerCase();
+        const startDate = formatDate(iteration.startDate).toLowerCase();
+        const dueDate = formatDate(iteration.dueDate).toLowerCase();
+
+        if (!title.includes(searchLower) &&
+            !startDate.includes(searchLower) &&
+            !dueDate.includes(searchLower)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [iterations, stateFilter, cadenceFilter, searchQuery]);
 
   if (loading) {
     return (
