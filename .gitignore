@@ -8,6 +8,7 @@ package-lock.json
 # Data
 src/data/*.json
 !src/data/.gitkeep
+data/
 
 # Build
 dist/

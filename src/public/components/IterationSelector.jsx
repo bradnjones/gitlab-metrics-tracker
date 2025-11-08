@@ -173,6 +173,193 @@ const IterationState = styled.span`
 `;
 
 /**
+ * Header section for iteration list controls
+ * Contains filters and controls
+ * @component
+ */
+const IterationHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
+/**
+ * Container for filter dropdowns
+ * @component
+ */
+const FilterControls = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+`;
+
+/**
+ * Individual filter group (label + dropdown)
+ * @component
+ */
+const FilterGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+`;
+
+/**
+ * Filter label text
+ * @component
+ */
+const FilterLabel = styled.label`
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+`;
+
+/**
+ * Filter dropdown select element
+ * @component
+ */
+const FilterSelect = styled.select`
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--bg-primary);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: border-color 0.2s;
+  min-width: 150px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:hover {
+    border-color: var(--primary);
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+`;
+
+/**
+ * Container for search input with icon
+ * @component
+ */
+const SearchContainer = styled.div`
+  position: relative;
+  margin: 1rem 1rem 0 1rem;
+`;
+
+/**
+ * Search input field
+ * @component
+ */
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:hover:not(:focus) {
+    border-color: var(--primary);
+  }
+`;
+
+/**
+ * Search icon (magnifying glass)
+ * @component
+ */
+const SearchIcon = styled.span`
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+  font-size: 1rem;
+
+  &::before {
+    content: '🔍';
+  }
+`;
+
+/**
+ * Clear button (X icon)
+ * @component
+ */
+const ClearButton = styled.button`
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.25rem;
+  transition: color 0.2s;
+  display: ${props => props.$visible ? 'block' : 'none'};
+
+  &:hover {
+    color: var(--primary);
+  }
+
+  &:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    color: var(--primary);
+  }
+
+  &::before {
+    content: '✕';
+  }
+`;
+
+/**
  * IterationSelector Component
  * Displays a list of GitLab iterations and allows multi-selection
  *
@@ -183,6 +370,8 @@ const IterationState = styled.span`
 const IterationSelector = ({ onSelectionChange }) => {
   const [iterations, setIterations] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [stateFilter, setStateFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -241,6 +430,40 @@ const IterationSelector = ({ onSelectionChange }) => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  /**
+   * Clear search handler
+   */
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
+  // Get unique states from iterations
+  const uniqueStates = [...new Set(iterations.map(i => i.state))].filter(Boolean);
+
+  // Filter iterations by state and search
+  const filteredIterations = iterations.filter(iteration => {
+    // State filter
+    if (stateFilter && iteration.state !== stateFilter) {
+      return false;
+    }
+
+    // Search filter
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      const title = (iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}`).toLowerCase();
+      const startDate = formatDate(iteration.startDate).toLowerCase();
+      const dueDate = formatDate(iteration.dueDate).toLowerCase();
+
+      if (!title.includes(searchLower) &&
+          !startDate.includes(searchLower) &&
+          !dueDate.includes(searchLower)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
   if (loading) {
     return (
       <Container>
@@ -268,7 +491,42 @@ const IterationSelector = ({ onSelectionChange }) => {
   return (
     <Container>
       <IterationList>
-        {iterations.map(iteration => (
+        <SearchContainer>
+          <SearchIcon />
+          <SearchInput
+            type="search"
+            placeholder="Search iterations by title or dates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search iterations"
+          />
+          <ClearButton
+            $visible={searchQuery.length > 0}
+            onClick={handleClearSearch}
+            aria-label="Clear search"
+            type="button"
+          />
+        </SearchContainer>
+        <IterationHeader>
+          <FilterControls>
+            <FilterGroup>
+              <FilterLabel htmlFor="state-filter">Filter by State:</FilterLabel>
+              <FilterSelect
+                id="state-filter"
+                value={stateFilter}
+                onChange={(e) => setStateFilter(e.target.value)}
+              >
+                <option value="">All States</option>
+                {uniqueStates.map(state => (
+                  <option key={state} value={state}>
+                    {state.charAt(0).toUpperCase() + state.slice(1)}
+                  </option>
+                ))}
+              </FilterSelect>
+            </FilterGroup>
+          </FilterControls>
+        </IterationHeader>
+        {filteredIterations.map(iteration => (
           <IterationItem key={iteration.id}>
             <input
               type="checkbox"
