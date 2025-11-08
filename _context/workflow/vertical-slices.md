@@ -178,9 +178,46 @@ npm run test:coverage
 # Validates code quality, security, patterns
 ```
 
-### 4. Manual Verification Phase
+### 4. Pull Request Strategy
 
-**CRITICAL: User must test before commit**
+**IMPORTANT: Create Multiple Small PRs**
+
+Instead of one large PR per story, create smaller PRs at logical breakpoints:
+
+**PR Breakpoints:**
+- After Infrastructure layer complete + tested
+- After Core layer complete + tested
+- After API endpoints complete + tested
+- After each UI component complete + tested
+- After bug fix or isolated improvement
+
+**Benefits:**
+- Minimize merge conflicts (smaller changesets)
+- Easier code review (< 200 lines per PR)
+- Faster feedback loop
+- Reduced risk per merge
+
+**Process:**
+```bash
+# After each logical unit (e.g., one component):
+npm test && npm run test:coverage  # Verify ≥85%
+git add .
+git commit -m "feat: add IterationSelector component (#N)"
+git push
+gh pr create --title "Story V1: IterationSelector Component" \
+  --body "Part of Story V1..." \
+  --label "story,in-progress"
+gh pr merge --squash --delete-branch=false  # Keep branch alive
+
+# Continue to next unit...
+# Repeat until story complete
+```
+
+**See:** `_context/workflow/story-management.md` section 4 for detailed PR guidelines and examples.
+
+### 5. Manual Verification Phase
+
+**CRITICAL: User must test before final PR**
 
 ```bash
 # Stop any background processes
@@ -201,9 +238,9 @@ npm run dev
 - [ ] Verify numbers match GitLab
 - [ ] No console errors
 
-**User approval required before commit!**
+**User approval required before final PR merge!**
 
-### 5. Completion
+### 6. Completion
 
 ```bash
 # Commit changes

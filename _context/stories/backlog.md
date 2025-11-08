@@ -8,9 +8,11 @@
 
 ## 🎯 NEXT STORY TO START
 
-**Story V1: Velocity Tracking - Complete Feature**
+**Story V1.1: IterationSelector UX/UI Improvements**
 
 See below for full details.
+
+**Note:** Story V1 is complete and in PR #12. Story V1.1 addresses UX feedback from V1 testing.
 
 ---
 
@@ -97,6 +99,144 @@ After V3, users can:
 - **State management**: useState/useEffect (defer Redux/Context until needed)
 - **Styling**: styled-components (migrate from prototype's inline styles)
 - **Error handling**: Display user-friendly messages in UI (no silent failures)
+
+---
+
+### Story V1.1: IterationSelector UX/UI Improvements
+
+**User Story:** As a team lead, I want an improved iteration selector with filtering and search capabilities so I can quickly find and select the iterations I need to analyze.
+
+**Priority:** HIGH (Quality of Life for MVP)
+**Complexity:** SMALL (UI Enhancement)
+**Estimate:** 3-5 hours
+**Prerequisites:** V1 complete ✅
+
+#### Context
+Story V1 delivered basic velocity tracking functionality, but the iteration selector has UX issues that make it difficult to use with many iterations:
+
+**Current Issues (from user feedback):**
+1. **Poor alignment**: Checkbox is far left, text is right-aligned - awkward spacing
+2. **No state filtering**: Can't filter by closed/current/upcoming iterations
+3. **No search**: Hard to find specific iterations in long lists
+4. **No cadence filtering**: Can't filter to show only "Devs Sprint" or other specific cadences
+5. **Visual hierarchy unclear**: Iteration names, dates, and states have poor visual hierarchy
+
+#### Acceptance Criteria
+
+**1. Fix Layout and Alignment**
+- [ ] Checkbox and iteration details are left-aligned together (no gap)
+- [ ] Iteration title uses `<strong>` for proper hierarchy
+- [ ] Dates are secondary text (smaller, gray)
+- [ ] State badge is visually distinct (colored pill/badge)
+- [ ] Better spacing between iteration items (8-12px)
+- [ ] Hover states provide visual feedback (background color change)
+
+**2. Add State Filter**
+- [ ] Dropdown or button group UI to filter by state
+- [ ] Options: "All", "Closed", "Current", "Upcoming"
+- [ ] Default to "All" (preserve current behavior)
+- [ ] Selection persists during session (useState)
+- [ ] Combines with other filters (AND logic)
+
+**3. Add Search Functionality**
+- [ ] Search input field above iteration list
+- [ ] Placeholder: "Search iterations..."
+- [ ] Real-time filtering as user types (debounced 300ms)
+- [ ] Searches iteration title AND cadence name
+- [ ] Clear button (X icon) to reset search
+- [ ] Case-insensitive matching
+
+**4. Add Cadence Filter**
+- [ ] Dropdown showing all unique cadences from iterations
+- [ ] First option: "All Cadences" (default)
+- [ ] Extract unique cadences: `[...new Set(iterations.map(i => i.iterationCadence?.title))]`
+- [ ] Only show iterations from selected cadence
+- [ ] Combine with state filter and search (AND logic)
+
+**5. Maintain Existing Functionality**
+- [ ] Multi-select still works (checkboxes)
+- [ ] Selected iterations tracked correctly in state
+- [ ] Velocity chart updates automatically on selection change
+- [ ] All existing tests pass
+- [ ] New tests for filters and search (8-10 tests total)
+
+#### Technical Implementation
+
+**State Management:**
+```jsx
+const [searchTerm, setSearchTerm] = useState('');
+const [selectedState, setSelectedState] = useState('all');
+const [selectedCadence, setSelectedCadence] = useState('');
+const [selectedIds, setSelectedIds] = useState([]);
+```
+
+**Filtering Logic:**
+```jsx
+const filteredIterations = iterations.filter(iteration => {
+  // Search filter (title or cadence)
+  const matchesSearch = !searchTerm ||
+    iteration.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    iteration.iterationCadence?.title?.toLowerCase().includes(searchTerm.toLowerCase());
+
+  // State filter
+  const matchesState = selectedState === 'all' ||
+    iteration.state === selectedState;
+
+  // Cadence filter
+  const matchesCadence = !selectedCadence ||
+    iteration.iterationCadence?.title === selectedCadence;
+
+  return matchesSearch && matchesState && matchesCadence;
+});
+
+// Extract unique cadences for dropdown
+const uniqueCadences = [...new Set(
+  iterations
+    .map(i => i.iterationCadence?.title)
+    .filter(Boolean)
+)].sort();
+```
+
+**UI Components to Add:**
+- SearchInput (styled input with clear button)
+- StateFilter (dropdown or button group)
+- CadenceFilter (dropdown)
+- Improved IterationItem styling
+
+#### Testing Strategy
+
+**New Tests (8-10 total):**
+1. Search filters iterations by title
+2. Search filters iterations by cadence name
+3. Search is case-insensitive
+4. Clear button resets search
+5. State filter shows only matching iterations
+6. Cadence filter shows only matching iterations
+7. All filters combine with AND logic
+8. Clearing all filters shows all iterations
+9. UI layout snapshot test (proper alignment)
+10. Hover states apply correctly
+
+**Existing Tests:**
+- All 212 existing tests must pass
+- Coverage stays ≥85%
+
+#### UI Reference
+Check prototype: `/Users/brad/dev/smi/gitlab-sprint-metrics/src/public/index.html`
+- Lines 58-90: Iteration selector with filters
+- Lines 64-72: Filter controls layout
+- Lines 76-88: Iteration item structure
+
+#### Definition of Done
+- [ ] All acceptance criteria met
+- [ ] Tests written first (TDD where possible)
+- [ ] All tests passing (≥85% coverage)
+- [ ] Clean Architecture Agent approved (if architecture changes)
+- [ ] Code Review Agent approved
+- [ ] Manual testing completed by user
+- [ ] Commit and push
+
+**Note:** This is a UI-only enhancement - no backend changes needed.
 
 ---
 

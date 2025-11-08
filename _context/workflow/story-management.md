@@ -155,15 +155,167 @@ Manual Verification Checklist for Story X.X:
 7. Verify: Loading states display correctly
 ```
 
-### 4. Completed
+### 4. Pull Request Strategy (NEW - MANDATORY)
+
+**IMPORTANT: Make PRs Small and Frequent**
+
+Create multiple small PRs rather than one large PR per story to:
+- **Minimize merge conflicts** - Smaller changes integrate faster
+- **Improve reviewability** - Easier to review 50 lines than 500
+- **Get faster feedback** - Quick reviews on focused changes
+- **Reduce risk** - Isolate issues to smaller changesets
+
+#### When to Create a PR Within a Story
+
+Look for **logical breakpoints** during implementation:
+
+**Good PR Breakpoints:**
+1. **After Backend Complete** - Infrastructure + Core layers tested
+2. **After API Endpoints** - REST API tested and working
+3. **After UI Component** - One component fully tested
+4. **After Bug Fix** - Isolated fix with tests
+5. **After Test Coverage Milestone** - All tests passing for a layer
+
+**Example: Story V1 Could Be Split Into:**
+- PR #1: Infrastructure layer (GitLabClient methods) + tests
+- PR #2: API endpoints (GET /api/iterations, /api/metrics/velocity) + tests
+- PR #3: UI components (IterationSelector) + tests
+- PR #4: UI components (VelocityChart) + tests
+
+**Example: Story V1.1 Could Be Split Into:**
+- PR #1: Fix checkbox alignment
+- PR #2: Add state filter
+- PR #3: Add search functionality
+- PR #4: Add cadence filter
+
+#### PR Creation Guidelines
+
+**When to Commit and PR:**
+```bash
+# After each logical unit of work:
+# 1. All tests for that unit pass
+npm test
+
+# 2. Coverage maintained (≥85%)
+npm run test:coverage
+
+# 3. Commit with descriptive message
+git add .
+git commit -m "feat: add IterationSelector alignment fix (#N)
+
+- Fix checkbox/label alignment issues
+- Add proper flexbox layout
+- Update tests for new structure
+- Coverage: 88%
+"
+
+# 4. Push to feature branch
+git push
+
+# 5. Create PR immediately (don't wait for full story)
+gh pr create --title "Story V1.1: Fix IterationSelector Alignment" \
+  --body "Part of Story V1.1 (UX/UI Improvements)
+
+## Summary
+Fixes checkbox and label alignment in IterationSelector.
+
+## Changes
+- Updated IterationItem styled-component with flexbox
+- Aligned checkbox to left, text to left (not stretched)
+- Proper spacing between elements
+
+## Testing
+- ✅ Tests pass (npm test)
+- ✅ Coverage: 88%
+- ✅ Manual verification: alignment looks correct
+
+## Next PRs
+- PR #2 will add state filter
+- PR #3 will add search
+- PR #4 will add cadence filter
+" \
+  --label "story,in-progress,ux-ui"
+
+# 6. Merge immediately (or after quick review)
+gh pr merge --squash --delete-branch=false  # Keep branch for next PR
+```
+
+**Key Points:**
+- ✅ Create PR after each logical unit (don't wait for full story)
+- ✅ Keep feature branch alive across multiple PRs
+- ✅ Use `--delete-branch=false` until story complete
+- ✅ Reference parent story in each PR
+- ✅ Small PRs (< 200 lines preferred, < 500 max)
+- ✅ Each PR is independently testable and mergeable
+
+#### Final PR (Story Complete)
+
+```bash
+# After last component/layer of story:
+git add .
+git commit -m "feat: complete Story V1.1 - IterationSelector UX improvements (#N)
+
+Final PR for Story V1.1.
+
+Previous PRs:
+- #A: Fixed alignment
+- #B: Added state filter
+- #C: Added search
+
+This PR:
+- Cadence filter functionality
+- Integration testing
+- Manual validation completed
+"
+
+# Push
+git push
+
+# Create final PR
+gh pr create --title "Story V1.1: Complete - Add Cadence Filter" \
+  --body "Completes Story V1.1 (UX/UI Improvements)
+
+## Summary
+Final PR for Story V1.1. Adds cadence filter to IterationSelector.
+
+## This PR
+- Cadence filter dropdown
+- Integration with existing filters
+- Manual validation completed
+
+## Previous PRs (Story V1.1)
+- #A: Fixed checkbox/label alignment
+- #B: Added state filter (Active/Closed)
+- #C: Added search functionality
+
+## Manual Validation ✅
+- [x] Alignment is correct
+- [x] State filter works
+- [x] Search filters iterations
+- [x] Cadence filter works
+- [x] All filters work together
+
+## Testing
+- ✅ All tests pass (npm test)
+- ✅ Coverage: 89% (exceeds 85% target)
+" \
+  --label "story,completed,ux-ui"
+
+# Merge final PR and delete branch
+gh pr merge --squash --delete-branch
+```
+
+### 5. Completed
 Story is verified and meets all acceptance criteria.
 
 **Status:** Completed
 **Actions:**
 - User has verified all acceptance criteria are met
+- All PRs for story have been merged
 - Ensure all tests pass
 - Update documentation
 - Archive story (keep for reference)
+- Feature branch deleted
 
 ## Acceptance Criteria Guidelines
 
