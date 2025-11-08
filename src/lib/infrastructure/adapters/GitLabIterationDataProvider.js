@@ -36,22 +36,24 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    */
   async fetchIterationData(iterationId) {
     try {
-      // Fetch iteration details (includes issues)
+      // Fetch iteration details (includes issues and iteration metadata)
       const iterationDetails = await this.gitlabClient.fetchIterationDetails(iterationId);
+
+      // Extract iteration metadata from GitLab response
+      const iteration = iterationDetails.iteration || {};
 
       // For now, return basic structure
       // TODO: Fetch additional data (MRs, pipelines, incidents) in future stories
-      // TODO: Fetch full iteration metadata (title, dates) from GitLab API
       return {
         issues: iterationDetails.issues || [],
         mergeRequests: iterationDetails.mergeRequests || [],
         pipelines: [], // TODO: Implement pipeline fetching
         incidents: [], // TODO: Implement incident fetching
         iteration: {
-          id: iterationId,
-          title: 'Sprint (title not yet fetched)', // TODO: Fetch from GitLab
-          startDate: new Date().toISOString(), // TODO: Fetch actual start date
-          dueDate: new Date().toISOString(), // TODO: Fetch actual due date
+          id: iteration.id || iterationId,
+          title: iteration.title || 'Unknown Sprint',
+          startDate: iteration.startDate || new Date().toISOString(),
+          dueDate: iteration.dueDate || new Date().toISOString(),
         },
       };
     } catch (error) {

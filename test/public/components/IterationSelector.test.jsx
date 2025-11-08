@@ -1,0 +1,135 @@
+/**
+ * @jest-environment jsdom
+ */
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import IterationSelector from '../../../src/public/components/IterationSelector.jsx';
+
+describe('IterationSelector', () => {
+  const mockIterations = [
+    {
+      id: 'gid://gitlab/Iteration/1',
+      iid: '1',
+      title: 'Sprint 1',
+      startDate: '2025-01-01',
+      dueDate: '2025-01-14',
+      state: 'closed',
+      iterationCadence: { title: 'Q1 2025' }
+    },
+    {
+      id: 'gid://gitlab/Iteration/2',
+      iid: '2',
+      title: 'Sprint 2',
+      startDate: '2025-01-15',
+      dueDate: '2025-01-28',
+      state: 'current',
+      iterationCadence: { title: 'Q1 2025' }
+    },
+    {
+      id: 'gid://gitlab/Iteration/3',
+      iid: '3',
+      title: 'Sprint 3',
+      startDate: '2025-01-29',
+      dueDate: '2025-02-11',
+      state: 'upcoming',
+      iterationCadence: { title: 'Q1 2025' }
+    }
+  ];
+
+  beforeEach(() => {
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('fetches iterations from API on mount and displays them', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: mockIterations })
+    });
+
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Should show loading state initially
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+    // Wait for iterations to load
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Verify all iterations are displayed
+    expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 3')).toBeInTheDocument();
+
+    // Verify fetch was called correctly
+    expect(global.fetch).toHaveBeenCalledWith('/api/iterations');
+  });
+
+  test('calls onSelectionChange callback when iterations are selected', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: mockIterations })
+    });
+
+    const onSelectionChange = jest.fn();
+    const user = userEvent.setup();
+
+    render(<IterationSelector onSelectionChange={onSelectionChange} />);
+
+    // Wait for iterations to load
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Select first iteration
+    const checkbox1 = screen.getByLabelText(/Sprint 1/i);
+    await user.click(checkbox1);
+
+    // Callback should be called with selected iteration IDs
+    await waitFor(() => {
+      expect(onSelectionChange).toHaveBeenCalledWith(['gid://gitlab/Iteration/1']);
+    });
+
+    // Select second iteration
+    const checkbox2 = screen.getByLabelText(/Sprint 2/i);
+    await user.click(checkbox2);
+
+    // Callback should be called with both IDs
+    await waitFor(() => {
+      expect(onSelectionChange).toHaveBeenCalledWith([
+        'gid://gitlab/Iteration/1',
+        'gid://gitlab/Iteration/2'
+      ]);
+    });
+  });
+
+  test('displays error message when API fetch fails', async () => {
+    global.fetch.mockRejectedValueOnce(new Error('Network error'));
+
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for error to appear
+    await waitFor(() => {
+      expect(screen.getByText(/error.*loading iterations/i)).toBeInTheDocument();
+    });
+  });
+
+  test('displays empty state when no iterations are returned', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: [] })
+    });
+
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for empty state message
+    await waitFor(() => {
+      expect(screen.getByText(/no iterations found/i)).toBeInTheDocument();
+    });
+  });
+});

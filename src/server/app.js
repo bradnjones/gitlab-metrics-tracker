@@ -10,6 +10,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import metricsRoutes from './routes/metrics.js';
+import iterationsRoutes from './routes/iterations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,7 @@ export function createApp() {
   app.use(express.static(publicPath));
 
   // Routes
+  app.use('/api/iterations', iterationsRoutes);
   app.use('/api/metrics', metricsRoutes);
 
   // Health check

@@ -14,7 +14,7 @@ export class VelocityCalculator {
    *
    * @param {Array<Object>} issues - Issues from a sprint
    * @param {string} issues[].state - Issue state (closed, opened)
-   * @param {number} issues[].weight - Story points assigned to issue
+   * @param {number|null|undefined} issues[].weight - Story points assigned to issue (null/undefined treated as 1 point)
    * @returns {{points: number, stories: number}} Total points completed and count of closed stories
    * @throws {TypeError} If issues is not an array
    */
@@ -27,7 +27,7 @@ export class VelocityCalculator {
     const closedIssues = issues.filter((issue) => issue.state === 'closed');
 
     return {
-      points: closedIssues.reduce((sum, issue) => sum + (issue.weight || 0), 0),
+      points: closedIssues.reduce((sum, issue) => sum + (issue.weight ?? 1), 0),
       stories: closedIssues.length
     };
   }

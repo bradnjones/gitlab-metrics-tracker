@@ -51,7 +51,7 @@ describe('VelocityCalculator', () => {
       expect(velocity).toEqual({ points: 5, stories: 2 }); // Only 5 points from 2 closed stories
     });
 
-    it('should handle null or missing weights', () => {
+    it('should handle null or missing weights as 1 point (standard agile practice)', () => {
       const issues = [
         {
           id: 'gid://gitlab/Issue/1',
@@ -61,18 +61,18 @@ describe('VelocityCalculator', () => {
         {
           id: 'gid://gitlab/Issue/2',
           state: 'closed',
-          weight: null, // Null weight - treat as 0
+          weight: null, // Null weight - treat as 1 point
         },
         {
           id: 'gid://gitlab/Issue/3',
           state: 'closed',
-          // No weight field - treat as 0
+          // No weight field - treat as 1 point
         },
       ];
 
       const velocity = VelocityCalculator.calculate(issues);
 
-      expect(velocity).toEqual({ points: 3, stories: 3 }); // 3 points from 3 stories (zeros don't reduce count)
+      expect(velocity).toEqual({ points: 5, stories: 3 }); // 5 points from 3 stories (3 + 1 + 1)
     });
 
     it('should throw TypeError when issues is not an array', () => {

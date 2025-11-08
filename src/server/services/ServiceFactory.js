@@ -21,6 +21,31 @@ import { MetricsService } from '../../lib/core/services/MetricsService.js';
  */
 export class ServiceFactory {
   /**
+   * Create GitLabClient with configuration
+   *
+   * @param {Object} [config] - Optional configuration override
+   * @returns {GitLabClient} Configured GitLabClient instance
+   */
+  static createGitLabClient(config = null) {
+    // Use provided config or load from environment
+    const gitlabConfig = config || {
+      url: process.env.GITLAB_URL || 'https://gitlab.com',
+      token: process.env.GITLAB_TOKEN,
+      projectPath: process.env.GITLAB_PROJECT_PATH,
+    };
+
+    // Validate required config
+    if (!gitlabConfig.token) {
+      throw new Error('GITLAB_TOKEN is required');
+    }
+    if (!gitlabConfig.projectPath) {
+      throw new Error('GITLAB_PROJECT_PATH is required');
+    }
+
+    return new GitLabClient(gitlabConfig);
+  }
+
+  /**
    * Create MetricsService with all dependencies
    *
    * @param {Object} [config] - Optional configuration override
