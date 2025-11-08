@@ -52,9 +52,14 @@ router.get('/velocity', async (req, res) => {
       const metrics = await metricsService.calculateMetrics(iterationId);
 
       metricsResults.push({
-        iteration_id: iterationId,
-        velocity_points: metrics.velocity.points,
-        velocity_stories: metrics.velocity.stories
+        iterationId: metrics.iterationId,
+        iterationTitle: metrics.iterationTitle,
+        startDate: metrics.startDate,
+        dueDate: metrics.endDate,
+        totalPoints: metrics.velocityPoints + (metrics.rawData?.issues.filter(i => i.state !== 'closed').reduce((sum, i) => sum + (i.weight || 1), 0) || 0),
+        completedPoints: metrics.velocityPoints,
+        totalStories: metrics.issueCount,
+        completedStories: metrics.velocityStories
       });
     }
 
