@@ -378,6 +378,7 @@ const IterationSelector = ({ onSelectionChange }) => {
   const [iterations, setIterations] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [stateFilter, setStateFilter] = useState('');
+  const [cadenceFilter, setCadenceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -447,10 +448,18 @@ const IterationSelector = ({ onSelectionChange }) => {
   // Get unique states from iterations
   const uniqueStates = [...new Set(iterations.map(i => i.state))].filter(Boolean);
 
-  // Filter iterations by state and search
+  // Get unique cadences from iterations
+  const uniqueCadences = [...new Set(iterations.map(i => i.iterationCadence?.title))].filter(Boolean);
+
+  // Filter iterations by state, cadence, and search
   const filteredIterations = iterations.filter(iteration => {
     // State filter
     if (stateFilter && iteration.state !== stateFilter) {
+      return false;
+    }
+
+    // Cadence filter
+    if (cadenceFilter && iteration.iterationCadence?.title !== cadenceFilter) {
       return false;
     }
 
@@ -529,6 +538,20 @@ const IterationSelector = ({ onSelectionChange }) => {
             {uniqueStates.map(state => (
               <option key={state} value={state}>
                 {state.charAt(0).toUpperCase() + state.slice(1)}
+              </option>
+            ))}
+          </FilterSelect>
+
+          <FilterLabel htmlFor="cadence-filter">Cadence:</FilterLabel>
+          <FilterSelect
+            id="cadence-filter"
+            value={cadenceFilter}
+            onChange={(e) => setCadenceFilter(e.target.value)}
+          >
+            <option value="">All Cadences</option>
+            {uniqueCadences.map(cadence => (
+              <option key={cadence} value={cadence}>
+                {cadence}
               </option>
             ))}
           </FilterSelect>
