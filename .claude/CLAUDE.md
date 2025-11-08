@@ -55,13 +55,18 @@ FOR EACH LAYER (Infrastructure → Core → Presentation/API → Presentation/UI
 7. 🟢 GREEN: Minimal implementation to pass
 8. 🔄 REFACTOR: Clean up code
 
+AFTER EACH LOGICAL UNIT (Component/Layer):
+9. ✅ Run tests and verify coverage ≥85%
+10. ✅ Commit and push to feature branch
+11. 🔀 Create Small PR (< 200 lines preferred)
+12. ✅ Merge PR (keep branch with --delete-branch=false)
+
 AFTER ALL LAYERS COMPLETE:
-9. 🤖 Clean Architecture Agent - Validate layer separation
-10. 🤖 Code Review Agent - Final review
-11. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
-12. ✅ Commit and push to feature branch
-13. 🔀 Create Pull Request (using gh CLI)
-14. ✅ Merge PR and close issue
+13. 🤖 Clean Architecture Agent - Validate layer separation
+14. 🤖 Code Review Agent - Final review
+15. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
+16. 🔀 Create Final PR (closes issue)
+17. ✅ Merge Final PR and close issue
 ```
 
 **IMPORTANT: Vertical Slice Characteristics**
@@ -91,7 +96,7 @@ AFTER ALL LAYERS COMPLETE:
 7. **📊 Coverage ≥85%** - Verify with `npm run test:coverage`
 8. **🏗️ Clean Architecture** - Core → Infrastructure → Presentation
 9. **📝 JSDoc Everything** - Type annotations for all functions, classes, parameters
-10. **🔀 Pull Requests** - Create PR with `gh` when feature is complete
+10. **🔀 Small, Frequent PRs** - Create multiple small PRs per story (< 200 lines preferred)
 11. **🚀 Defer Decisions** - Make architecture decisions when circumstances require it
 
 ---
