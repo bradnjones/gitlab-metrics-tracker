@@ -5708,5 +5708,1353 @@
       }
     },
     "createdAt": "2025-11-08T11:32:43.387Z"
+  },
+  "metric-1762601592617-bo2a9avya": {
+    "id": "metric-1762601592617-bo2a9avya",
+    "iterationId": "gid://gitlab/Iteration/2647154",
+    "iterationTitle": "Unknown Sprint",
+    "startDate": "2025-11-08T11:33:12.617Z",
+    "endDate": "2025-11-08T11:33:12.617Z",
+    "velocityPoints": 0,
+    "velocityStories": 0,
+    "throughput": 0,
+    "cycleTimeAvg": 0,
+    "cycleTimeP50": 0,
+    "cycleTimeP90": 0,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 0,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2647154",
+        "title": "Unknown Sprint",
+        "startDate": "2025-11-08T11:33:12.617Z",
+        "dueDate": "2025-11-08T11:33:12.617Z"
+      }
+    },
+    "createdAt": "2025-11-08T11:33:12.617Z"
+  },
+  "metric-1762601595889-34byvwiuo": {
+    "id": "metric-1762601595889-34byvwiuo",
+    "iterationId": "gid://gitlab/Iteration/2635048",
+    "iterationTitle": "Unknown Sprint",
+    "startDate": "2025-11-08T11:33:15.889Z",
+    "endDate": "2025-11-08T11:33:15.889Z",
+    "velocityPoints": 25,
+    "velocityStories": 9,
+    "throughput": 9,
+    "cycleTimeAvg": 111.78038580246914,
+    "cycleTimeP50": 3.9621643518518517,
+    "cycleTimeP90": 872.2150462962964,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 9,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/171919871",
+          "iid": "984",
+          "title": "Get List of Connection Strings",
+          "state": "closed",
+          "createdAt": "2025-08-14T19:20:03Z",
+          "closedAt": "2025-08-15T14:09:34Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171754972",
+          "iid": "125",
+          "title": "Base.Memberships.Api: Absorb it",
+          "state": "closed",
+          "createdAt": "2025-08-11T16:32:23Z",
+          "closedAt": "2025-08-12T16:17:31Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171754843",
+          "iid": "124",
+          "title": "Sm2.Membership.Api: Absorb it",
+          "state": "closed",
+          "createdAt": "2025-08-11T16:28:30Z",
+          "closedAt": "2025-08-12T16:17:35Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171750092",
+          "iid": "983",
+          "title": "Release Everything",
+          "state": "closed",
+          "createdAt": "2025-08-11T15:04:05Z",
+          "closedAt": "2025-08-15T14:09:14Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171750076",
+          "iid": "982",
+          "title": "Root Support",
+          "state": "closed",
+          "createdAt": "2025-08-11T15:03:47Z",
+          "closedAt": "2025-08-15T14:09:18Z",
+          "weight": 4,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170809210",
+          "iid": "52",
+          "title": "CLV App: Migrate to SmiApi",
+          "state": "closed",
+          "createdAt": "2025-07-14T16:17:28Z",
+          "closedAt": "2025-08-11T20:20:25Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807630",
+          "iid": "99",
+          "title": "IC.ContinuationProcessing - Update DMC v1.10.5 to latest",
+          "state": "closed",
+          "createdAt": "2025-07-14T15:49:24Z",
+          "closedAt": "2025-08-15T14:09:23Z",
+          "weight": 6,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Eligibility"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807440",
+          "iid": "956",
+          "title": "Smi.OnlineNeeds.Api - Update DMC v1.10.5 to latest",
+          "state": "closed",
+          "createdAt": "2025-06-13T13:42:40Z",
+          "closedAt": "2025-08-15T14:09:28Z",
+          "weight": 6,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171763394",
+          "iid": "129",
+          "title": "Sm2.Memberships.Api: Dash Mongo Is referenced but not used along with the Mongodb libs Should be removed as a reference",
+          "state": "closed",
+          "createdAt": "2023-03-24T14:32:17Z",
+          "closedAt": "2025-08-12T19:41:57Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2635048",
+        "title": "Unknown Sprint",
+        "startDate": "2025-11-08T11:33:15.889Z",
+        "dueDate": "2025-11-08T11:33:15.889Z"
+      }
+    },
+    "createdAt": "2025-11-08T11:33:15.889Z"
+  },
+  "metric-1762601596973-w0h54ytfk": {
+    "id": "metric-1762601596973-w0h54ytfk",
+    "iterationId": "gid://gitlab/Iteration/2635048",
+    "iterationTitle": "Unknown Sprint",
+    "startDate": "2025-11-08T11:33:16.973Z",
+    "endDate": "2025-11-08T11:33:16.973Z",
+    "velocityPoints": 25,
+    "velocityStories": 9,
+    "throughput": 9,
+    "cycleTimeAvg": 111.78038580246914,
+    "cycleTimeP50": 3.9621643518518517,
+    "cycleTimeP90": 872.2150462962964,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 9,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/171919871",
+          "iid": "984",
+          "title": "Get List of Connection Strings",
+          "state": "closed",
+          "createdAt": "2025-08-14T19:20:03Z",
+          "closedAt": "2025-08-15T14:09:34Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171754972",
+          "iid": "125",
+          "title": "Base.Memberships.Api: Absorb it",
+          "state": "closed",
+          "createdAt": "2025-08-11T16:32:23Z",
+          "closedAt": "2025-08-12T16:17:31Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171754843",
+          "iid": "124",
+          "title": "Sm2.Membership.Api: Absorb it",
+          "state": "closed",
+          "createdAt": "2025-08-11T16:28:30Z",
+          "closedAt": "2025-08-12T16:17:35Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171750092",
+          "iid": "983",
+          "title": "Release Everything",
+          "state": "closed",
+          "createdAt": "2025-08-11T15:04:05Z",
+          "closedAt": "2025-08-15T14:09:14Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171750076",
+          "iid": "982",
+          "title": "Root Support",
+          "state": "closed",
+          "createdAt": "2025-08-11T15:03:47Z",
+          "closedAt": "2025-08-15T14:09:18Z",
+          "weight": 4,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170809210",
+          "iid": "52",
+          "title": "CLV App: Migrate to SmiApi",
+          "state": "closed",
+          "createdAt": "2025-07-14T16:17:28Z",
+          "closedAt": "2025-08-11T20:20:25Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807630",
+          "iid": "99",
+          "title": "IC.ContinuationProcessing - Update DMC v1.10.5 to latest",
+          "state": "closed",
+          "createdAt": "2025-07-14T15:49:24Z",
+          "closedAt": "2025-08-15T14:09:23Z",
+          "weight": 6,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Eligibility"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807440",
+          "iid": "956",
+          "title": "Smi.OnlineNeeds.Api - Update DMC v1.10.5 to latest",
+          "state": "closed",
+          "createdAt": "2025-06-13T13:42:40Z",
+          "closedAt": "2025-08-15T14:09:28Z",
+          "weight": 6,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171763394",
+          "iid": "129",
+          "title": "Sm2.Memberships.Api: Dash Mongo Is referenced but not used along with the Mongodb libs Should be removed as a reference",
+          "state": "closed",
+          "createdAt": "2023-03-24T14:32:17Z",
+          "closedAt": "2025-08-12T19:41:57Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2635048",
+        "title": "Unknown Sprint",
+        "startDate": "2025-11-08T11:33:16.973Z",
+        "dueDate": "2025-11-08T11:33:16.973Z"
+      }
+    },
+    "createdAt": "2025-11-08T11:33:16.973Z"
+  },
+  "metric-1762601597280-gio2y0xhc": {
+    "id": "metric-1762601597280-gio2y0xhc",
+    "iterationId": "gid://gitlab/Iteration/2631700",
+    "iterationTitle": "Unknown Sprint",
+    "startDate": "2025-11-08T11:33:17.280Z",
+    "endDate": "2025-11-08T11:33:17.280Z",
+    "velocityPoints": 23,
+    "velocityStories": 6,
+    "throughput": 6,
+    "cycleTimeAvg": 5.931851851851852,
+    "cycleTimeP50": 2.9097627314814813,
+    "cycleTimeP90": 24.895844907407408,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 6,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/171663056",
+          "iid": "981",
+          "title": "Document Root Job Description",
+          "state": "closed",
+          "createdAt": "2025-08-07T16:45:54Z",
+          "closedAt": "2025-08-08T13:15:40Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Communication"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171563242",
+          "iid": "980",
+          "title": "Setup Kerberos with dev machines and pairing container",
+          "state": "closed",
+          "createdAt": "2025-08-05T18:14:38Z",
+          "closedAt": "2025-08-07T16:38:54Z",
+          "weight": 9,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Task"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171502203",
+          "iid": "979",
+          "title": "Fork Dash App for Scot",
+          "state": "closed",
+          "createdAt": "2025-08-04T16:32:36Z",
+          "closedAt": "2025-08-04T19:47:37Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Identity"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171501461",
+          "iid": "978",
+          "title": "Root Support",
+          "state": "closed",
+          "createdAt": "2025-08-04T16:17:35Z",
+          "closedAt": "2025-08-08T13:33:26Z",
+          "weight": 4,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171501450",
+          "iid": "977",
+          "title": "Release Everything",
+          "state": "closed",
+          "createdAt": "2025-08-04T16:17:06Z",
+          "closedAt": "2025-08-08T13:33:23Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807629",
+          "iid": "100",
+          "title": "Payment.Invoices.Api - Update DMC v1.10.5 to latest",
+          "state": "closed",
+          "createdAt": "2025-07-14T16:03:11Z",
+          "closedAt": "2025-08-08T13:33:12Z",
+          "weight": 5,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Accounting"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2631700",
+        "title": "Unknown Sprint",
+        "startDate": "2025-11-08T11:33:17.280Z",
+        "dueDate": "2025-11-08T11:33:17.280Z"
+      }
+    },
+    "createdAt": "2025-11-08T11:33:17.280Z"
+  },
+  "metric-1762601598303-86pcb8m9w": {
+    "id": "metric-1762601598303-86pcb8m9w",
+    "iterationId": "gid://gitlab/Iteration/2635048",
+    "iterationTitle": "Unknown Sprint",
+    "startDate": "2025-11-08T11:33:18.303Z",
+    "endDate": "2025-11-08T11:33:18.303Z",
+    "velocityPoints": 25,
+    "velocityStories": 9,
+    "throughput": 9,
+    "cycleTimeAvg": 111.78038580246914,
+    "cycleTimeP50": 3.9621643518518517,
+    "cycleTimeP90": 872.2150462962964,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 9,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/171919871",
+          "iid": "984",
+          "title": "Get List of Connection Strings",
+          "state": "closed",
+          "createdAt": "2025-08-14T19:20:03Z",
+          "closedAt": "2025-08-15T14:09:34Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171754972",
+          "iid": "125",
+          "title": "Base.Memberships.Api: Absorb it",
+          "state": "closed",
+          "createdAt": "2025-08-11T16:32:23Z",
+          "closedAt": "2025-08-12T16:17:31Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171754843",
+          "iid": "124",
+          "title": "Sm2.Membership.Api: Absorb it",
+          "state": "closed",
+          "createdAt": "2025-08-11T16:28:30Z",
+          "closedAt": "2025-08-12T16:17:35Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171750092",
+          "iid": "983",
+          "title": "Release Everything",
+          "state": "closed",
+          "createdAt": "2025-08-11T15:04:05Z",
+          "closedAt": "2025-08-15T14:09:14Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171750076",
+          "iid": "982",
+          "title": "Root Support",
+          "state": "closed",
+          "createdAt": "2025-08-11T15:03:47Z",
+          "closedAt": "2025-08-15T14:09:18Z",
+          "weight": 4,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170809210",
+          "iid": "52",
+          "title": "CLV App: Migrate to SmiApi",
+          "state": "closed",
+          "createdAt": "2025-07-14T16:17:28Z",
+          "closedAt": "2025-08-11T20:20:25Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Platform"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807630",
+          "iid": "99",
+          "title": "IC.ContinuationProcessing - Update DMC v1.10.5 to latest",
+          "state": "closed",
+          "createdAt": "2025-07-14T15:49:24Z",
+          "closedAt": "2025-08-15T14:09:23Z",
+          "weight": 6,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Eligibility"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807440",
+          "iid": "956",
+          "title": "Smi.OnlineNeeds.Api - Update DMC v1.10.5 to latest",
+          "state": "closed",
+          "createdAt": "2025-06-13T13:42:40Z",
+          "closedAt": "2025-08-15T14:09:28Z",
+          "weight": 6,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171763394",
+          "iid": "129",
+          "title": "Sm2.Memberships.Api: Dash Mongo Is referenced but not used along with the Mongodb libs Should be removed as a reference",
+          "state": "closed",
+          "createdAt": "2023-03-24T14:32:17Z",
+          "closedAt": "2025-08-12T19:41:57Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2635048",
+        "title": "Unknown Sprint",
+        "startDate": "2025-11-08T11:33:18.303Z",
+        "dueDate": "2025-11-08T11:33:18.303Z"
+      }
+    },
+    "createdAt": "2025-11-08T11:33:18.303Z"
+  },
+  "metric-1762601598614-j90h5ieza": {
+    "id": "metric-1762601598614-j90h5ieza",
+    "iterationId": "gid://gitlab/Iteration/2631700",
+    "iterationTitle": "Unknown Sprint",
+    "startDate": "2025-11-08T11:33:18.614Z",
+    "endDate": "2025-11-08T11:33:18.614Z",
+    "velocityPoints": 23,
+    "velocityStories": 6,
+    "throughput": 6,
+    "cycleTimeAvg": 5.931851851851852,
+    "cycleTimeP50": 2.9097627314814813,
+    "cycleTimeP90": 24.895844907407408,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 6,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/171663056",
+          "iid": "981",
+          "title": "Document Root Job Description",
+          "state": "closed",
+          "createdAt": "2025-08-07T16:45:54Z",
+          "closedAt": "2025-08-08T13:15:40Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Communication"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171563242",
+          "iid": "980",
+          "title": "Setup Kerberos with dev machines and pairing container",
+          "state": "closed",
+          "createdAt": "2025-08-05T18:14:38Z",
+          "closedAt": "2025-08-07T16:38:54Z",
+          "weight": 9,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Task"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171502203",
+          "iid": "979",
+          "title": "Fork Dash App for Scot",
+          "state": "closed",
+          "createdAt": "2025-08-04T16:32:36Z",
+          "closedAt": "2025-08-04T19:47:37Z",
+          "weight": 1,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Identity"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171501461",
+          "iid": "978",
+          "title": "Root Support",
+          "state": "closed",
+          "createdAt": "2025-08-04T16:17:35Z",
+          "closedAt": "2025-08-08T13:33:26Z",
+          "weight": 4,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171501450",
+          "iid": "977",
+          "title": "Release Everything",
+          "state": "closed",
+          "createdAt": "2025-08-04T16:17:06Z",
+          "closedAt": "2025-08-08T13:33:23Z",
+          "weight": 2,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807629",
+          "iid": "100",
+          "title": "Payment.Invoices.Api - Update DMC v1.10.5 to latest",
+          "state": "closed",
+          "createdAt": "2025-07-14T16:03:11Z",
+          "closedAt": "2025-08-08T13:33:12Z",
+          "weight": 5,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Accounting"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2631700",
+        "title": "Unknown Sprint",
+        "startDate": "2025-11-08T11:33:18.614Z",
+        "dueDate": "2025-11-08T11:33:18.614Z"
+      }
+    },
+    "createdAt": "2025-11-08T11:33:18.614Z"
+  },
+  "metric-1762601599124-bbxs9sk9r": {
+    "id": "metric-1762601599124-bbxs9sk9r",
+    "iterationId": "gid://gitlab/Iteration/2631699",
+    "iterationTitle": "Unknown Sprint",
+    "startDate": "2025-11-08T11:33:19.124Z",
+    "endDate": "2025-11-08T11:33:19.124Z",
+    "velocityPoints": 5,
+    "velocityStories": 5,
+    "throughput": 5,
+    "cycleTimeAvg": 9.385444444444445,
+    "cycleTimeP50": 10.031469907407407,
+    "cycleTimeP90": 13.99806712962963,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 5,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/171205599",
+          "iid": "976",
+          "title": "Fix `git.samaritanministries.org`",
+          "state": "closed",
+          "createdAt": "2025-07-28T16:39:53Z",
+          "closedAt": "2025-08-01T15:05:13Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Spike"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Tristan.Barrow"
+              },
+              {
+                "username": "jchensmith-smi"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171004186",
+          "iid": "975",
+          "title": "`57` group id (also `111176595`)",
+          "state": "closed",
+          "createdAt": "2025-07-23T16:02:15Z",
+          "closedAt": "2025-07-28T16:14:13Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Task"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170939933",
+          "iid": "974",
+          "title": "Make GitLab Cloud Great Again",
+          "state": "closed",
+          "createdAt": "2025-07-22T14:19:20Z",
+          "closedAt": "2025-08-01T15:04:39Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Development"
+              },
+              {
+                "title": "Team::Root"
+              },
+              {
+                "title": "Type::Spike"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "bboolean-smi"
+              },
+              {
+                "username": "Tristan.Barrow"
+              },
+              {
+                "username": "jchensmith-smi"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170808141",
+          "iid": "113",
+          "title": "internal_need_creation_api: Rolled back without secrets",
+          "state": "closed",
+          "createdAt": "2025-07-18T15:26:52Z",
+          "closedAt": "2025-08-01T14:22:14Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170808139",
+          "iid": "112",
+          "title": "internal_need_processing_api: SecureCallerConfiguration is missing",
+          "state": "closed",
+          "createdAt": "2025-07-18T15:01:00Z",
+          "closedAt": "2025-08-01T14:58:13Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Team::Root"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": []
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2631699",
+        "title": "Unknown Sprint",
+        "startDate": "2025-11-08T11:33:19.124Z",
+        "dueDate": "2025-11-08T11:33:19.124Z"
+      }
+    },
+    "createdAt": "2025-11-08T11:33:19.124Z"
   }
 }

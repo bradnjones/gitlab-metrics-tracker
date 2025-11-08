@@ -132,4 +132,68 @@ describe('IterationSelector', () => {
       expect(screen.getByText(/no iterations found/i)).toBeInTheDocument();
     });
   });
+
+  test('filters iterations by state when state filter is changed', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: mockIterations })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for iterations to load
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // All iterations should be visible initially
+    expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 3')).toBeInTheDocument();
+
+    // Select "current" state filter
+    const stateFilter = screen.getByLabelText(/filter by state/i);
+    await user.selectOptions(stateFilter, 'current');
+
+    // Only Sprint 2 (current) should be visible
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.queryByText('Sprint 3')).not.toBeInTheDocument();
+  });
+
+  test('shows all iterations when "All States" is selected', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: mockIterations })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for iterations to load
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Filter to current
+    const stateFilter = screen.getByLabelText(/filter by state/i);
+    await user.selectOptions(stateFilter, 'current');
+
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+    });
+
+    // Reset to "All States"
+    await user.selectOptions(stateFilter, '');
+
+    // All iterations should be visible again
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 3')).toBeInTheDocument();
+  });
 });

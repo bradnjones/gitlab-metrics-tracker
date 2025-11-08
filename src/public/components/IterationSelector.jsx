@@ -173,6 +173,101 @@ const IterationState = styled.span`
 `;
 
 /**
+ * Header section for iteration list controls
+ * Contains filters and controls
+ * @component
+ */
+const IterationHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
+/**
+ * Container for filter dropdowns
+ * @component
+ */
+const FilterControls = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+`;
+
+/**
+ * Individual filter group (label + dropdown)
+ * @component
+ */
+const FilterGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+`;
+
+/**
+ * Filter label text
+ * @component
+ */
+const FilterLabel = styled.label`
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+`;
+
+/**
+ * Filter dropdown select element
+ * @component
+ */
+const FilterSelect = styled.select`
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--bg-primary);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: border-color 0.2s;
+  min-width: 150px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:hover {
+    border-color: var(--primary);
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+`;
+
+/**
  * IterationSelector Component
  * Displays a list of GitLab iterations and allows multi-selection
  *
@@ -183,6 +278,7 @@ const IterationState = styled.span`
 const IterationSelector = ({ onSelectionChange }) => {
   const [iterations, setIterations] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [stateFilter, setStateFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -241,6 +337,14 @@ const IterationSelector = ({ onSelectionChange }) => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  // Get unique states from iterations
+  const uniqueStates = [...new Set(iterations.map(i => i.state))].filter(Boolean);
+
+  // Filter iterations by state
+  const filteredIterations = stateFilter
+    ? iterations.filter(i => i.state === stateFilter)
+    : iterations;
+
   if (loading) {
     return (
       <Container>
@@ -268,7 +372,26 @@ const IterationSelector = ({ onSelectionChange }) => {
   return (
     <Container>
       <IterationList>
-        {iterations.map(iteration => (
+        <IterationHeader>
+          <FilterControls>
+            <FilterGroup>
+              <FilterLabel htmlFor="state-filter">Filter by State:</FilterLabel>
+              <FilterSelect
+                id="state-filter"
+                value={stateFilter}
+                onChange={(e) => setStateFilter(e.target.value)}
+              >
+                <option value="">All States</option>
+                {uniqueStates.map(state => (
+                  <option key={state} value={state}>
+                    {state.charAt(0).toUpperCase() + state.slice(1)}
+                  </option>
+                ))}
+              </FilterSelect>
+            </FilterGroup>
+          </FilterControls>
+        </IterationHeader>
+        {filteredIterations.map(iteration => (
           <IterationItem key={iteration.id}>
             <input
               type="checkbox"
