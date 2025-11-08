@@ -5386,5 +5386,327 @@
       }
     },
     "createdAt": "2025-11-08T01:35:22.454Z"
+  },
+  "metric-1762601563387-5xkn95ppj": {
+    "id": "metric-1762601563387-5xkn95ppj",
+    "iterationId": "gid://gitlab/Iteration/2646446",
+    "iterationTitle": "Unknown Sprint",
+    "startDate": "2025-11-08T11:32:43.387Z",
+    "endDate": "2025-11-08T11:32:43.387Z",
+    "velocityPoints": 9,
+    "velocityStories": 9,
+    "throughput": 9,
+    "cycleTimeAvg": 50.946575360082306,
+    "cycleTimeP50": 28.92010416666667,
+    "cycleTimeP90": 144.98446759259258,
+    "deploymentFrequency": 0,
+    "leadTimeAvg": 0,
+    "leadTimeP50": 0,
+    "leadTimeP90": 0,
+    "mttrAvg": 0,
+    "changeFailureRate": 0,
+    "issueCount": 9,
+    "mrCount": 0,
+    "deploymentCount": 0,
+    "incidentCount": 0,
+    "rawData": {
+      "issues": [
+        {
+          "id": "gid://gitlab/Issue/171501107",
+          "iid": "46",
+          "title": "CheckProAPI: Remove concurrency restrictions on DSFeePaymentSyncer",
+          "state": "closed",
+          "createdAt": "2025-08-04T16:07:04Z",
+          "closedAt": "2025-08-14T19:58:22Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Accounting"
+              },
+              {
+                "title": "Lane::Deploying"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Spike"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Daniel.Ging"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171091109",
+          "iid": "121",
+          "title": "Payment.Invoices.Api - Utilize Vault Secrets",
+          "state": "closed",
+          "createdAt": "2025-07-25T03:02:34Z",
+          "closedAt": "2025-08-15T14:11:57Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Accounting"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "geoffery-smi"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/171090870",
+          "iid": "6",
+          "title": "Smi.Memberships - Utilize Vault Secrets",
+          "state": "closed",
+          "createdAt": "2025-07-25T02:41:22Z",
+          "closedAt": "2025-08-15T19:27:29Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Membership"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Robert.Paradis"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170809216",
+          "iid": "6",
+          "title": "Batch Builder - Json Config",
+          "state": "closed",
+          "createdAt": "2025-07-18T18:41:17Z",
+          "closedAt": "2025-08-18T13:38:43Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Troy.Taft"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170808133",
+          "iid": "109",
+          "title": "Internal Need Processing: Remove instances of Dash Stream publishing",
+          "state": "closed",
+          "createdAt": "2025-07-15T16:06:53Z",
+          "closedAt": "2025-08-13T14:11:50Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Troy.Taft"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170808132",
+          "iid": "108",
+          "title": "Internal Scan Processing: Remove instances of Dash Stream publishing",
+          "state": "closed",
+          "createdAt": "2025-07-15T16:06:36Z",
+          "closedAt": "2025-08-13T14:11:52Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Troy.Taft"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170808125",
+          "iid": "105",
+          "title": "Internal Bill Validations: Remove instances of Dash Stream publishing",
+          "state": "closed",
+          "createdAt": "2025-07-15T16:04:00Z",
+          "closedAt": "2025-08-12T13:20:03Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Robert.Paradis"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170808274",
+          "iid": "20",
+          "title": "Member.Need.Service - Utilize Vault Secrets",
+          "state": "closed",
+          "createdAt": "2025-03-21T20:39:53Z",
+          "closedAt": "2025-08-12T13:19:22Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Needs"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Story"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Robert.Paradis"
+              }
+            ]
+          }
+        },
+        {
+          "id": "gid://gitlab/Issue/170807465",
+          "iid": "8",
+          "title": "Groundhog - Utilize Vault Secrets: Initial Spike",
+          "state": "closed",
+          "createdAt": "2025-03-21T20:39:35Z",
+          "closedAt": "2025-08-13T20:17:13Z",
+          "weight": null,
+          "labels": {
+            "nodes": [
+              {
+                "title": "Domain::Identity"
+              },
+              {
+                "title": "Project::SoftwareSecurityInitiative"
+              },
+              {
+                "title": "Team::Echo"
+              },
+              {
+                "title": "Type::Spike"
+              }
+            ]
+          },
+          "assignees": {
+            "nodes": [
+              {
+                "username": "Joe.Geyer"
+              }
+            ]
+          }
+        }
+      ],
+      "iteration": {
+        "id": "gid://gitlab/Iteration/2646446",
+        "title": "Unknown Sprint",
+        "startDate": "2025-11-08T11:32:43.387Z",
+        "dueDate": "2025-11-08T11:32:43.387Z"
+      }
+    },
+    "createdAt": "2025-11-08T11:32:43.387Z"
   }
 }

@@ -1,90 +1,174 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 
+/**
+ * Container for the entire iteration selector component
+ * @component
+ */
 const Container = styled.div`
-  padding: 20px;
+  padding: 0;
 `;
 
+/**
+ * Loading state message
+ * @component
+ */
 const LoadingMessage = styled.div`
   text-align: center;
-  padding: 40px;
-  color: #666;
+  padding: 3rem 1rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
 `;
 
+/**
+ * Error message display
+ * @component
+ */
 const ErrorMessage = styled.div`
-  padding: 20px;
+  padding: 1rem;
   background-color: #fee;
   border: 1px solid #fcc;
-  border-radius: 4px;
+  border-radius: 8px;
   color: #c33;
+  font-size: 0.95rem;
 `;
 
+/**
+ * Empty state message when no iterations found
+ * @component
+ */
 const EmptyState = styled.div`
   text-align: center;
-  padding: 40px;
-  color: #666;
+  padding: 3rem 1rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
 `;
 
+/**
+ * Scrollable list container for iterations
+ * Matches prototype max-height and border styling
+ * @component
+ */
 const IterationList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 20px 0;
+  margin: 1.5rem 0;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
 `;
 
+/**
+ * Individual iteration item with checkbox
+ * Fixed alignment: checkbox and details are siblings in flex container
+ * Checkbox aligns to top via align-items: center with single-line flex
+ * @component
+ */
 const IterationItem = styled.label`
   display: flex;
   align-items: center;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
+  transition: background 0.2s;
+  background: var(--bg-primary);
 
-  &:hover {
-    background-color: #f5f5f5;
+  /* Remove border from last item */
+  &:last-child {
+    border-bottom: none;
   }
 
+  /* Hover state - smooth background transition */
+  &:hover {
+    background: var(--bg-secondary);
+  }
+
+  /* Focus-within for keyboard accessibility */
+  &:focus-within {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+
+  /* Checkbox styling */
   input[type="checkbox"] {
-    margin-right: 12px;
+    margin: 0 1rem 0 0;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    flex-shrink: 0; /* Prevent checkbox from shrinking */
+
+    /* Align checkbox to optical center of first line */
+    align-self: flex-start;
+    margin-top: 2px; /* Optical alignment with title text */
   }
 `;
 
+/**
+ * Container for iteration text details (title, dates, state)
+ * Uses column layout for vertical stacking
+ * @component
+ */
 const IterationDetails = styled.div`
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
+  min-width: 0; /* Allow text truncation if needed */
 `;
 
+/**
+ * Iteration title - primary identifier
+ * Bold, larger text for clear hierarchy
+ * @component
+ */
 const IterationTitle = styled.strong`
-  font-size: 14px;
-  color: #333;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.5;
 `;
 
+/**
+ * Date range display
+ * Secondary text, smaller and grayed
+ * @component
+ */
 const IterationDates = styled.span`
-  font-size: 12px;
-  color: #666;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
 `;
 
+/**
+ * State badge (closed, current, upcoming)
+ * Uppercase, colored background, inline-block for width fit-content
+ * @component
+ */
 const IterationState = styled.span`
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 3px;
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
   text-transform: uppercase;
   width: fit-content;
+  line-height: 1;
 
+  /* State color variants */
   &.closed {
-    background-color: #e0e0e0;
-    color: #666;
+    background: var(--secondary);
+    color: white;
   }
 
-  &.current {
-    background-color: #e3f2fd;
-    color: #1976d2;
+  &.current,
+  &.active {
+    background: var(--success);
+    color: white;
   }
 
   &.upcoming {
-    background-color: #fff3e0;
-    color: #f57c00;
+    background: var(--warning);
+    color: white;
   }
 `;
 
