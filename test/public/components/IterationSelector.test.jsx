@@ -153,7 +153,7 @@ describe('IterationSelector', () => {
     expect(screen.getByText('Sprint 3')).toBeInTheDocument();
 
     // Select "current" state filter
-    const stateFilter = screen.getByLabelText(/filter by state/i);
+    const stateFilter = screen.getByLabelText(/state:/i);
     await user.selectOptions(stateFilter, 'current');
 
     // Only Sprint 2 (current) should be visible
@@ -179,7 +179,7 @@ describe('IterationSelector', () => {
     });
 
     // Filter to current
-    const stateFilter = screen.getByLabelText(/filter by state/i);
+    const stateFilter = screen.getByLabelText(/state:/i);
     await user.selectOptions(stateFilter, 'current');
 
     await waitFor(() => {
@@ -294,7 +294,7 @@ describe('IterationSelector', () => {
     });
 
     // Filter to current state (Sprint 2)
-    const stateFilter = screen.getByLabelText(/filter by state/i);
+    const stateFilter = screen.getByLabelText(/state:/i);
     await user.selectOptions(stateFilter, 'current');
 
     await waitFor(() => {

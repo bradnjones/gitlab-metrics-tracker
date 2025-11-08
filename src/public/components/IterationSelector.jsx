@@ -46,11 +46,11 @@ const EmptyState = styled.div`
 
 /**
  * Scrollable list container for iterations
- * Matches prototype max-height and border styling
+ * Removed top border-radius since controls are now separate
  * @component
  */
 const IterationList = styled.div`
-  margin: 1.5rem 0;
+  margin: 0 1rem 1.5rem 1rem;
   max-height: 500px;
   overflow-y: auto;
   border: 1px solid var(--border);
@@ -173,84 +173,91 @@ const IterationState = styled.span`
 `;
 
 /**
- * Header section for iteration list controls
- * Contains filters and controls
+ * Unified controls bar containing search and filters
+ * Horizontal layout with consistent spacing and visual treatment
  * @component
  */
-const IterationHeader = styled.div`
+const ControlsBar = styled.div`
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border);
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-  flex-wrap: wrap;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 1rem;
 
-  @media (max-width: 768px) {
+  /* Mobile: Stack vertically */
+  @media (max-width: 640px) {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.75rem;
   }
 `;
 
 /**
- * Container for filter dropdowns
+ * Search input wrapper - grows to fill available space
  * @component
  */
-const FilterControls = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+const SearchWrapper = styled.div`
+  position: relative;
+  flex: 1;
+  min-width: 200px;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
+    min-width: 0;
     width: 100%;
   }
 `;
 
 /**
- * Individual filter group (label + dropdown)
+ * Filter controls section - compact horizontal layout
  * @component
  */
-const FilterGroup = styled.div`
+const FilterSection = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: flex-start;
+  @media (max-width: 640px) {
     width: 100%;
+    justify-content: space-between;
   }
 `;
 
 /**
- * Filter label text
+ * Filter label - concise text
  * @component
  */
 const FilterLabel = styled.label`
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
+  font-weight: 500;
   white-space: nowrap;
+  user-select: none;
 `;
 
 /**
- * Filter dropdown select element
+ * Filter dropdown select
+ * Matches search input height and style
  * @component
  */
 const FilterSelect = styled.select`
-  padding: 0.5rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   background: var(--bg-primary);
-  cursor: pointer;
   color: var(--text-primary);
   font-family: inherit;
-  transition: border-color 0.2s;
-  min-width: 150px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  min-width: 140px;
 
   &:focus {
     outline: none;
@@ -258,38 +265,31 @@ const FilterSelect = styled.select`
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
-  &:hover {
-    border-color: var(--primary);
+  &:hover:not(:focus) {
+    border-color: #cbd5e1;
   }
 
-  @media (max-width: 768px) {
-    width: 100%;
+  @media (max-width: 640px) {
+    flex: 1;
+    min-width: 0;
   }
 `;
 
 /**
- * Container for search input with icon
- * @component
- */
-const SearchContainer = styled.div`
-  position: relative;
-  margin: 1rem 1rem 0 1rem;
-`;
-
-/**
- * Search input field
+ * Search input field with icon spacing
+ * Removed heavy border styling - relies on parent container
  * @component
  */
 const SearchInput = styled.input`
   width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 2.5rem;
+  padding: 0.5rem 2rem 0.5rem 2.25rem;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-family: inherit;
   color: var(--text-primary);
   background: var(--bg-primary);
-  transition: border-color 0.2s;
+  transition: all 0.2s ease-out;
 
   &::placeholder {
     color: var(--text-secondary);
@@ -303,22 +303,24 @@ const SearchInput = styled.input`
   }
 
   &:hover:not(:focus) {
-    border-color: var(--primary);
+    border-color: #cbd5e1;
   }
 `;
 
 /**
- * Search icon (magnifying glass)
+ * Search icon positioned inside input
  * @component
  */
 const SearchIcon = styled.span`
   position: absolute;
-  left: 0.75rem;
+  left: 0.625rem;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-secondary);
   pointer-events: none;
-  font-size: 1rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
 
   &::before {
     content: '🔍';
@@ -326,26 +328,31 @@ const SearchIcon = styled.span`
 `;
 
 /**
- * Clear button (X icon)
+ * Clear button for search input
+ * Only visible when search has content
  * @component
  */
 const ClearButton = styled.button`
   position: absolute;
-  right: 0.75rem;
+  right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 1.25rem;
+  font-size: 1rem;
   line-height: 1;
   padding: 0.25rem;
-  transition: color 0.2s;
-  display: ${props => props.$visible ? 'block' : 'none'};
+  border-radius: 4px;
+  transition: all 0.2s ease-out;
+  display: ${props => props.$visible ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    color: var(--primary);
+    color: var(--text-primary);
+    background: var(--bg-secondary);
   }
 
   &:focus {
@@ -490,12 +497,14 @@ const IterationSelector = ({ onSelectionChange }) => {
 
   return (
     <Container>
-      <IterationList>
-        <SearchContainer>
+      {/* Unified Controls Bar */}
+      <ControlsBar>
+        {/* Search Section */}
+        <SearchWrapper>
           <SearchIcon />
           <SearchInput
             type="search"
-            placeholder="Search iterations by title or dates..."
+            placeholder="Search iterations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search iterations"
@@ -506,26 +515,28 @@ const IterationSelector = ({ onSelectionChange }) => {
             aria-label="Clear search"
             type="button"
           />
-        </SearchContainer>
-        <IterationHeader>
-          <FilterControls>
-            <FilterGroup>
-              <FilterLabel htmlFor="state-filter">Filter by State:</FilterLabel>
-              <FilterSelect
-                id="state-filter"
-                value={stateFilter}
-                onChange={(e) => setStateFilter(e.target.value)}
-              >
-                <option value="">All States</option>
-                {uniqueStates.map(state => (
-                  <option key={state} value={state}>
-                    {state.charAt(0).toUpperCase() + state.slice(1)}
-                  </option>
-                ))}
-              </FilterSelect>
-            </FilterGroup>
-          </FilterControls>
-        </IterationHeader>
+        </SearchWrapper>
+
+        {/* Filter Section */}
+        <FilterSection>
+          <FilterLabel htmlFor="state-filter">State:</FilterLabel>
+          <FilterSelect
+            id="state-filter"
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+          >
+            <option value="">All States</option>
+            {uniqueStates.map(state => (
+              <option key={state} value={state}>
+                {state.charAt(0).toUpperCase() + state.slice(1)}
+              </option>
+            ))}
+          </FilterSelect>
+        </FilterSection>
+      </ControlsBar>
+
+      {/* Iteration List */}
+      <IterationList>
         {filteredIterations.map(iteration => (
           <IterationItem key={iteration.id}>
             <input
