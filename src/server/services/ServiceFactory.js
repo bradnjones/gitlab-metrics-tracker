@@ -31,15 +31,15 @@ export class ServiceFactory {
     const gitlabConfig = config || {
       url: process.env.GITLAB_URL || 'https://gitlab.com',
       token: process.env.GITLAB_TOKEN,
-      groupPath: process.env.GITLAB_GROUP_PATH,
+      projectPath: process.env.GITLAB_PROJECT_PATH,
     };
 
     // Validate required config
     if (!gitlabConfig.token) {
       throw new Error('GITLAB_TOKEN is required');
     }
-    if (!gitlabConfig.groupPath) {
-      throw new Error('GITLAB_GROUP_PATH is required');
+    if (!gitlabConfig.projectPath) {
+      throw new Error('GITLAB_PROJECT_PATH is required');
     }
 
     return new GitLabClient(gitlabConfig);
