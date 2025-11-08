@@ -196,4 +196,119 @@ describe('IterationSelector', () => {
     expect(screen.getByText('Sprint 2')).toBeInTheDocument();
     expect(screen.getByText('Sprint 3')).toBeInTheDocument();
   });
+
+  test('filters iterations by search query', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: mockIterations })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for iterations to load
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Search for "Sprint 2"
+    const searchInput = screen.getByPlaceholderText(/search iterations/i);
+    await user.type(searchInput, 'Sprint 2');
+
+    // Only Sprint 2 should be visible
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.queryByText('Sprint 3')).not.toBeInTheDocument();
+  });
+
+  test('search is case-insensitive', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: mockIterations })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Search with lowercase
+    const searchInput = screen.getByPlaceholderText(/search iterations/i);
+    await user.type(searchInput, 'sprint 2');
+
+    // Should still find Sprint 2
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+  });
+
+  test('clear button resets search', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: mockIterations })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Search for Sprint 2
+    const searchInput = screen.getByPlaceholderText(/search iterations/i);
+    await user.type(searchInput, 'Sprint 2');
+
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+    });
+
+    // Click clear button
+    const clearButton = screen.getByLabelText(/clear search/i);
+    await user.click(clearButton);
+
+    // All iterations should be visible again
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 3')).toBeInTheDocument();
+  });
+
+  test('search combines with state filter', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: mockIterations })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Filter to current state (Sprint 2)
+    const stateFilter = screen.getByLabelText(/filter by state/i);
+    await user.selectOptions(stateFilter, 'current');
+
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+
+    // Search for "Sprint" (should still only show Sprint 2)
+    const searchInput = screen.getByPlaceholderText(/search iterations/i);
+    await user.type(searchInput, 'Sprint');
+
+    // Sprint 2 should still be visible (matches both filters)
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sprint 3')).not.toBeInTheDocument();
+  });
 });

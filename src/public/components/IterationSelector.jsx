@@ -268,6 +268,98 @@ const FilterSelect = styled.select`
 `;
 
 /**
+ * Container for search input with icon
+ * @component
+ */
+const SearchContainer = styled.div`
+  position: relative;
+  margin: 1rem 1rem 0 1rem;
+`;
+
+/**
+ * Search input field
+ * @component
+ */
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:hover:not(:focus) {
+    border-color: var(--primary);
+  }
+`;
+
+/**
+ * Search icon (magnifying glass)
+ * @component
+ */
+const SearchIcon = styled.span`
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+  font-size: 1rem;
+
+  &::before {
+    content: '🔍';
+  }
+`;
+
+/**
+ * Clear button (X icon)
+ * @component
+ */
+const ClearButton = styled.button`
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.25rem;
+  transition: color 0.2s;
+  display: ${props => props.$visible ? 'block' : 'none'};
+
+  &:hover {
+    color: var(--primary);
+  }
+
+  &:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    color: var(--primary);
+  }
+
+  &::before {
+    content: '✕';
+  }
+`;
+
+/**
  * IterationSelector Component
  * Displays a list of GitLab iterations and allows multi-selection
  *
@@ -279,6 +371,7 @@ const IterationSelector = ({ onSelectionChange }) => {
   const [iterations, setIterations] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [stateFilter, setStateFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -337,13 +430,39 @@ const IterationSelector = ({ onSelectionChange }) => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  /**
+   * Clear search handler
+   */
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
   // Get unique states from iterations
   const uniqueStates = [...new Set(iterations.map(i => i.state))].filter(Boolean);
 
-  // Filter iterations by state
-  const filteredIterations = stateFilter
-    ? iterations.filter(i => i.state === stateFilter)
-    : iterations;
+  // Filter iterations by state and search
+  const filteredIterations = iterations.filter(iteration => {
+    // State filter
+    if (stateFilter && iteration.state !== stateFilter) {
+      return false;
+    }
+
+    // Search filter
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      const title = (iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}`).toLowerCase();
+      const startDate = formatDate(iteration.startDate).toLowerCase();
+      const dueDate = formatDate(iteration.dueDate).toLowerCase();
+
+      if (!title.includes(searchLower) &&
+          !startDate.includes(searchLower) &&
+          !dueDate.includes(searchLower)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   if (loading) {
     return (
@@ -372,6 +491,22 @@ const IterationSelector = ({ onSelectionChange }) => {
   return (
     <Container>
       <IterationList>
+        <SearchContainer>
+          <SearchIcon />
+          <SearchInput
+            type="search"
+            placeholder="Search iterations by title or dates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search iterations"
+          />
+          <ClearButton
+            $visible={searchQuery.length > 0}
+            onClick={handleClearSearch}
+            aria-label="Clear search"
+            type="button"
+          />
+        </SearchContainer>
         <IterationHeader>
           <FilterControls>
             <FilterGroup>
