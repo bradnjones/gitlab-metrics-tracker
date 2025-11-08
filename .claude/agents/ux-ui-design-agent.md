@@ -342,6 +342,44 @@ export const StyledComponent = styled.div`
 - **Accessibility is mandatory** - WCAG AA, keyboard nav, ARIA labels
 - **Reference prototype** - Provide file names and line numbers
 
+## UX Review Checklist (Catch Common Issues)
+
+When reviewing or designing components, ALWAYS check for these common UX issues:
+
+### Layout & Alignment
+- [ ] **Checkbox alignment** - Checkboxes should be left-aligned with their labels (no awkward gaps)
+- [ ] **Text alignment** - Text content should be left-aligned (not right-aligned unless intentional)
+- [ ] **Vertical alignment** - Elements in a row should align vertically (baseline, center, or top)
+- [ ] **Consistent spacing** - Use spacing tokens (8px, 12px, 16px) not arbitrary values
+- [ ] **Visual grouping** - Related items are visually grouped with proper spacing/borders
+
+### Typography & Hierarchy
+- [ ] **Visual hierarchy** - Important text is bold/larger, secondary text is smaller/gray
+- [ ] **Readable contrast** - Text has ≥4.5:1 contrast ratio with background
+- [ ] **Font sizes** - Use design system tokens (12px, 14px, 16px) not random sizes
+- [ ] **Line height** - Text is readable with proper line-height (1.5 for body, 1.25 for headings)
+
+### Interactive Elements
+- [ ] **Touch targets** - Clickable elements are ≥44px tall (iOS HIG)
+- [ ] **Hover states** - All interactive elements have visible hover feedback
+- [ ] **Focus states** - All interactive elements have visible focus indicators
+- [ ] **Disabled states** - Disabled elements are visually distinct (opacity 0.6, no hover)
+
+### Spacing & Whitespace
+- [ ] **Padding consistency** - Similar elements have consistent padding
+- [ ] **Margin consistency** - Consistent spacing between sections/cards
+- [ ] **Breathing room** - UI doesn't feel cramped (use spacing-md/spacing-lg)
+- [ ] **Gap in flex/grid** - Use `gap` property instead of manual margins
+
+### Common Anti-Patterns to Avoid
+- ❌ Checkbox far left, text right-aligned (awkward gap)
+- ❌ Using `justify-content: space-between` when items should be left-aligned
+- ❌ Inconsistent spacing (8px here, 10px there, 15px elsewhere)
+- ❌ No visual hierarchy (all text same size/weight)
+- ❌ Missing hover/focus states
+- ❌ Touch targets < 44px tall
+- ❌ Poor color contrast (light text on light background)
+
 ## Success Criteria
 
 Your design spec should enable:
