@@ -1,9 +1,10 @@
 # CLAUDE.md
 
-**Version:** 2.0
-**Last Updated:** 2025-11-07
+**Version:** 2.1
+**Last Updated:** 2025-11-08
 **Project:** GitLab Sprint Metrics Tracker - Clean Architecture Edition
 **Development Approach:** Vertical Slices (delivering complete user value per story)
+**Branch Strategy:** Short-lived branches (one branch per PR, delete after merge)
 
 ---
 
@@ -45,29 +46,44 @@ Each story delivers a complete feature touching all layers:
 
 ```
 1. 📋 Create GitHub Issue for vertical slice story (using gh CLI)
-2. 🌿 Create feature branch (feat/vN-description)
-3. 🤖 Product Owner Agent - Validate requirements against prototype
-4. 🤖 Launch other agents as needed (GitLab, UX/UI, etc.)
+2. 🤖 Product Owner Agent - Validate requirements against prototype
+3. 🤖 Launch other agents as needed (GitLab, UX/UI, etc.)
 
-FOR EACH LAYER (Infrastructure → Core → Presentation/API → Presentation/UI):
-5. 🔴 Test Coverage Agent - Plan TDD for this layer
-6. 🔴 RED: Write failing tests for layer
+FOR EACH LOGICAL UNIT (Component/Layer/Feature):
+4. 🌿 Create SHORT-LIVED feature branch from main (feat/ISSUE-description)
+   git checkout main && git pull origin main
+   git checkout -b feat/14-new-feature
+5. 🔴 Test Coverage Agent - Plan TDD for this unit
+6. 🔴 RED: Write failing tests
 7. 🟢 GREEN: Minimal implementation to pass
 8. 🔄 REFACTOR: Clean up code
-
-AFTER EACH LOGICAL UNIT (Component/Layer):
 9. ✅ Run tests and verify coverage ≥85%
 10. ✅ Commit and push to feature branch
 11. 🔀 Create Small PR (< 200 lines preferred)
-12. ✅ Merge PR (keep branch with --delete-branch=false)
+12. ✅ Merge PR with --squash --delete-branch
+13. 🔄 Return to step 4 for next unit (new branch from main)
 
-AFTER ALL LAYERS COMPLETE:
-13. 🤖 Clean Architecture Agent - Validate layer separation
-14. 🤖 Code Review Agent - Final review
-15. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
-16. 🔀 Create Final PR (closes issue)
-17. ✅ Merge Final PR and close issue
+AFTER ALL UNITS COMPLETE:
+14. 🤖 Clean Architecture Agent - Validate layer separation
+15. 🤖 Code Review Agent - Final review
+16. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
+17. ✅ Close GitHub issue
 ```
+
+**CRITICAL: Short-Lived Branches**
+- ✅ Create NEW branch from `main` for EACH PR
+- ✅ Delete branch after PR merge (use --delete-branch)
+- ✅ Pull latest `main` before creating next branch
+- ❌ NEVER reuse branches across multiple PRs
+- ❌ NEVER merge `main` into feature branches
+- ❌ NEVER use long-lived feature branches
+
+**Why Short-Lived Branches?**
+- Prevents merge conflicts between your own PRs
+- Clean, linear git history
+- Each PR is independent and easy to review
+- Matches "small, frequent PRs" philosophy
+- Avoids complex merge scenarios
 
 **IMPORTANT: Vertical Slice Characteristics**
 - Each story delivers COMPLETE user value (not just a layer)
@@ -90,14 +106,15 @@ AFTER ALL LAYERS COMPLETE:
 1. **🔒 Security First** - NEVER access .env files, credentials, or secrets
 2. **🤖 Agents First** - Launch agents BEFORE proposing work
 3. **📋 GitHub Issues First** - Create issue BEFORE starting work (using `gh`)
-4. **🌿 Feature Branches** - Always work on feature branches (feat/issue-number-description)
+4. **🌿 Short-Lived Branches** - Create NEW branch from `main` for EACH PR, delete after merge
 5. **🔴 TDD MANDATORY** - Write tests FIRST (RED-GREEN-REFACTOR)
 6. **✅ All Tests Must Pass** - Run all tests before EVERY commit
 7. **📊 Coverage ≥85%** - Verify with `npm run test:coverage`
 8. **🏗️ Clean Architecture** - Core → Infrastructure → Presentation
 9. **📝 JSDoc Everything** - Type annotations for all functions, classes, parameters
-10. **🔀 Small, Frequent PRs** - Create multiple small PRs per story (< 200 lines preferred)
+10. **🔀 Small, Frequent PRs** - < 200 lines preferred, one branch per PR
 11. **🚀 Defer Decisions** - Make architecture decisions when circumstances require it
+12. **❌ NO Long-Lived Branches** - Never reuse branches, never merge main into feature branches
 
 ---
 
@@ -214,10 +231,17 @@ gh issue create --title "Story 0.1: Project Foundation" \
 # This returns an issue number (e.g., #1)
 ```
 
-#### 2. Create Feature Branch
+#### 2. Create Feature Branch (Short-Lived!)
 ```bash
+# ALWAYS start from latest main
+git checkout main
+git pull origin main
+
+# Create new branch for THIS PR only
+git checkout -b feat/14-alignment-fixes
+
 # Naming convention: feat/ISSUE-short-description
-git checkout -b feat/1-project-foundation
+# Each PR gets its own branch - no reusing branches!
 ```
 
 #### 3. Work on Feature (TDD Cycle)
@@ -284,20 +308,38 @@ gh pr create --title "Story 0.1: Project Foundation" \
 
 #### 6. Merge PR and Close Issue
 ```bash
-# Merge PR (squash commits)
+# Merge PR (squash commits and DELETE branch)
 gh pr merge --squash --delete-branch
 
 # Issue closes automatically via "Closes #1" in PR body
 ```
 
+#### 7. Start Next PR (Clean Slate)
+```bash
+# Pull latest main (includes your merged PR)
+git checkout main
+git pull origin main
+
+# Create NEW branch for next PR
+git checkout -b feat/14-next-feature
+
+# Repeat cycle - NEVER reuse old branch!
+```
+
 ### Branch Naming Convention
 
-- **Vertical Slice:** `feat/vN-description` (e.g., feat/v1-velocity-tracking)
-- **Bugfix:** `fix/123-short-description`
-- **Refactor:** `refactor/123-short-description`
-- **Docs:** `docs/123-short-description`
+**SHORT-LIVED BRANCHES ONLY:**
+- **Feature/Story:** `feat/ISSUE-short-description` (e.g., feat/14-alignment-fixes)
+- **Bugfix:** `fix/ISSUE-short-description`
+- **Refactor:** `refactor/ISSUE-short-description`
+- **Docs:** `docs/ISSUE-short-description`
 
-For vertical slices, use vN notation. For other work, include issue number for traceability.
+**Rules:**
+- ✅ Always include issue number for traceability
+- ✅ One branch per PR (create new branch for each PR)
+- ✅ Delete branch after merge (--delete-branch)
+- ❌ NO long-lived branches (like feat/v1-velocity-tracking)
+- ❌ NO reusing branches across PRs
 
 ### Commit Guidelines
 
