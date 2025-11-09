@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-**Version:** 2.1
-**Last Updated:** 2025-11-08
+**Version:** 2.2
+**Last Updated:** 2025-11-09
 **Project:** GitLab Sprint Metrics Tracker - Clean Architecture Edition
 **Development Approach:** Vertical Slices (delivering complete user value per story)
 **Branch Strategy:** Short-lived branches (one branch per PR, delete after merge)
@@ -115,7 +115,8 @@ AFTER ALL UNITS COMPLETE:
 10. **🔀 Small, Frequent PRs** - < 200 lines preferred, one branch per PR
 11. **🚀 Defer Decisions** - Make architecture decisions when circumstances require it
 12. **❌ NO Long-Lived Branches** - Never reuse branches, never merge main into feature branches
-13. **⏸️ WAIT After PR Creation** - STOP and ask user if PR is merged before creating new branches/PRs
+13. **⏸️ MANDATORY: ASK After PR Creation** - MUST ask "Have you merged PR #X?" and WAIT for confirmation before ANY new work
+14. **🚫 NEVER Add to Existing PR Branch** - One branch = One PR = One feature. Create NEW branch for new features
 
 ---
 
@@ -307,11 +308,25 @@ gh pr create --title "Story 0.1: Project Foundation" \
   --label "story,phase-0"
 ```
 
-**⚠️ IMPORTANT: After Creating PR**
-- **STOP and wait for user confirmation that PR is merged**
-- **DO NOT** create new branches or PRs until user confirms merge
-- Ask: "Have you merged PR #X yet?"
-- Only proceed with next work after user confirms merge
+**⚠️ CRITICAL: After Creating PR - MANDATORY WORKFLOW**
+- **STOP IMMEDIATELY** - Do not continue with any other work
+- **ASK THE USER:** "Have you merged PR #X yet?" - This is MANDATORY, not optional
+- **WAIT** for user to confirm merge before doing ANYTHING else
+- **DO NOT:**
+  - Create new branches until PR is merged
+  - Add more features to the existing PR branch
+  - Start new work on the same branch
+  - Assume the PR will be merged - always ask first
+- **ONLY AFTER** user confirms merge:
+  - Pull latest main: `git checkout main && git pull origin main`
+  - Delete old branch: `git branch -d old-branch-name`
+  - Create new branch for next work
+
+**Why This Matters:**
+- One branch = One PR = One feature/fix
+- Adding to an existing PR branch violates short-lived branch policy
+- Multiple features in one PR makes review harder
+- Prevents clean git history
 
 #### 6. Merge PR and Close Issue
 ```bash
