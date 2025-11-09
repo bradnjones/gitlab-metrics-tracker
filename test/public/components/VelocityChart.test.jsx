@@ -98,8 +98,8 @@ describe('VelocityChart', () => {
     const chartElement = screen.getByTestId('velocity-chart');
     const chartData = JSON.parse(chartElement.getAttribute('data-chart-data'));
 
-    // Verify chart labels use formatted due dates
-    expect(chartData.labels).toEqual(['Jan 13, 2025', 'Jan 27, 2025']);
+    // Verify chart labels use formatted due dates in MM/DD format
+    expect(chartData.labels).toEqual(['1/13', '1/27']);
 
     // Verify datasets for story points and story count
     expect(chartData.datasets).toHaveLength(2);
