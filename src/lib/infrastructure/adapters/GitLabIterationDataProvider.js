@@ -36,11 +36,12 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    */
   async fetchIterationData(iterationId) {
     try {
-      // Fetch iteration details (includes issues and iteration metadata)
-      const iterationDetails = await this.gitlabClient.fetchIterationDetails(iterationId);
+      // Fetch iteration list to get metadata (includes dates)
+      const iterations = await this.gitlabClient.fetchIterations();
+      const iterationMetadata = iterations.find(it => it.id === iterationId);
 
-      // Extract iteration metadata from GitLab response
-      const iteration = iterationDetails.iteration || {};
+      // Fetch iteration details (includes issues)
+      const iterationDetails = await this.gitlabClient.fetchIterationDetails(iterationId);
 
       // For now, return basic structure
       // TODO: Fetch additional data (MRs, pipelines, incidents) in future stories
@@ -50,10 +51,10 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
         pipelines: [], // TODO: Implement pipeline fetching
         incidents: [], // TODO: Implement incident fetching
         iteration: {
-          id: iteration.id || iterationId,
-          title: iteration.title || 'Unknown Sprint',
-          startDate: iteration.startDate || new Date().toISOString(),
-          dueDate: iteration.dueDate || new Date().toISOString(),
+          id: iterationMetadata?.id || iterationId,
+          title: iterationMetadata?.title || 'Unknown Sprint',
+          startDate: iterationMetadata?.startDate || new Date().toISOString(),
+          dueDate: iterationMetadata?.dueDate || new Date().toISOString(),
         },
       };
     } catch (error) {

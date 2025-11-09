@@ -31,8 +31,8 @@ describe('VelocityChart', () => {
       {
         iterationId: 'gid://gitlab/Iteration/1',
         iterationTitle: 'Sprint 1',
-        startDate: '2025-01-01',
-        dueDate: '2025-01-14',
+        startDate: '2025-01-01T00:00:00Z',
+        dueDate: '2025-01-14T00:00:00Z',
         totalPoints: 21,
         completedPoints: 18,
         totalStories: 8,
@@ -41,8 +41,8 @@ describe('VelocityChart', () => {
       {
         iterationId: 'gid://gitlab/Iteration/2',
         iterationTitle: 'Sprint 2',
-        startDate: '2025-01-15',
-        dueDate: '2025-01-28',
+        startDate: '2025-01-15T00:00:00Z',
+        dueDate: '2025-01-28T00:00:00Z',
         totalPoints: 25,
         completedPoints: 23,
         totalStories: 10,
@@ -98,8 +98,8 @@ describe('VelocityChart', () => {
     const chartElement = screen.getByTestId('velocity-chart');
     const chartData = JSON.parse(chartElement.getAttribute('data-chart-data'));
 
-    // Verify chart labels match iteration titles
-    expect(chartData.labels).toEqual(['Sprint 1', 'Sprint 2']);
+    // Verify chart labels use formatted due dates in MM/DD format
+    expect(chartData.labels).toEqual(['1/13', '1/27']);
 
     // Verify datasets for story points and story count
     expect(chartData.datasets).toHaveLength(2);
