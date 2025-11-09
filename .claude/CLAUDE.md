@@ -115,6 +115,7 @@ AFTER ALL UNITS COMPLETE:
 10. **🔀 Small, Frequent PRs** - < 200 lines preferred, one branch per PR
 11. **🚀 Defer Decisions** - Make architecture decisions when circumstances require it
 12. **❌ NO Long-Lived Branches** - Never reuse branches, never merge main into feature branches
+13. **⏸️ WAIT After PR Creation** - STOP and ask user if PR is merged before creating new branches/PRs
 
 ---
 
@@ -305,6 +306,12 @@ gh pr create --title "Story 0.1: Project Foundation" \
 - [x] Code review passed" \
   --label "story,phase-0"
 ```
+
+**⚠️ IMPORTANT: After Creating PR**
+- **STOP and wait for user confirmation that PR is merged**
+- **DO NOT** create new branches or PRs until user confirms merge
+- Ask: "Have you merged PR #X yet?"
+- Only proceed with next work after user confirms merge
 
 #### 6. Merge PR and Close Issue
 ```bash
