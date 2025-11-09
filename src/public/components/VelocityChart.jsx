@@ -102,12 +102,26 @@ const VelocityChart = ({ iterationIds }) => {
   }, [iterationIds]);
 
   /**
+   * Format date to short format (e.g., "Nov 9, 2025")
+   * @param {string} dateString - ISO date string
+   * @returns {string} Formatted date string
+   */
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  /**
    * Transform API response to Chart.js data format
    * @param {Object} apiData - Raw API response
    * @returns {Object} Chart.js compatible data object
    */
   const transformToChartData = (apiData) => {
-    const labels = apiData.metrics.map(m => m.iterationTitle);
+    const labels = apiData.metrics.map(m => formatDate(m.dueDate));
     const pointsData = apiData.metrics.map(m => m.completedPoints);
     const storiesData = apiData.metrics.map(m => m.completedStories);
 
