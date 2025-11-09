@@ -358,14 +358,64 @@ git checkout -b feat/14-next-feature
 
 ### GitHub Labels
 
-Use these labels for issues/PRs:
+**Type labels** (what kind of work):
 - `story` - User story
 - `bug` - Bug fix
+- `enhancement` - New feature or improvement
 - `refactor` - Code refactoring
 - `docs` - Documentation
-- `phase-0`, `phase-1`, etc. - Story phases
+- `test` - Test-related changes
+
+**Phase labels** (which phase):
+- `phase-0`, `phase-1`, `phase-2`, `phase-3`, `phase-4` - Story phases
+
+**Layer labels** (Clean Architecture):
+- `layer:core` - Core business logic (domain/use cases)
+- `layer:infrastructure` - Infrastructure (GitLab API, storage)
+- `layer:presentation` - Presentation (UI/API endpoints)
+
+**Component labels** (what part changed):
+- `component:ui` - React component or UI-related
+- `component:api` - API endpoint or route
+- `component:service` - Service/business logic
+
+**Feature labels** (which feature):
+- `feature:metrics` - Metrics calculation
+- `feature:annotations` - Annotation system
+- `feature:visualization` - Charts/visualization
+- `feature:gitlab-integration` - GitLab API integration
+
+**Quality labels** (TDD/testing):
+- `tdd-approved` - TDD approach validated by agent
+- `coverage-85+` - Test coverage ≥85%
+- `needs-tests` - Missing tests or low coverage
+
+**Agent review labels** (which agents approved):
+- `agent:product-owner` - Reviewed by Product Owner agent
+- `agent:clean-arch` - Reviewed by Clean Architecture agent
+- `agent:code-review` - Reviewed by Code Review agent
+- `agent:test-coverage` - Reviewed by Test Coverage agent
+- `agent:ux-ui` - Reviewed by UX/UI Design agent
+- `agent:gitlab` - Reviewed by GitLab Integration agent
+
+**Size labels** (PR size):
+- `size:xs` - < 50 lines changed
+- `size:s` - 50-200 lines changed (preferred!)
+- `size:m` - 200-500 lines changed
+- `size:l` - 500-1000 lines changed
+- `size:xl` - > 1000 lines changed (avoid!)
+
+**Workflow labels** (status):
+- `work-in-progress` - Still being worked on
+- `ready-for-review` - Ready for manual review
+- `ready-to-merge` - Approved and ready to merge
 - `blocked` - Blocked by another issue
-- `help-wanted` - Needs discussion
+- `needs-rebase` - Needs rebase with main
+
+**Priority labels**:
+- `priority-high` - High priority
+- `priority-medium` - Medium priority
+- `priority-low` - Low priority
 
 ---
 
