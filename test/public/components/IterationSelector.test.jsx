@@ -153,7 +153,7 @@ describe('IterationSelector', () => {
     expect(screen.getByText('Sprint 3')).toBeInTheDocument();
 
     // Select "current" state filter
-    const stateFilter = screen.getByLabelText(/filter by state/i);
+    const stateFilter = screen.getByLabelText(/state:/i);
     await user.selectOptions(stateFilter, 'current');
 
     // Only Sprint 2 (current) should be visible
@@ -179,7 +179,7 @@ describe('IterationSelector', () => {
     });
 
     // Filter to current
-    const stateFilter = screen.getByLabelText(/filter by state/i);
+    const stateFilter = screen.getByLabelText(/state:/i);
     await user.selectOptions(stateFilter, 'current');
 
     await waitFor(() => {
@@ -294,7 +294,7 @@ describe('IterationSelector', () => {
     });
 
     // Filter to current state (Sprint 2)
-    const stateFilter = screen.getByLabelText(/filter by state/i);
+    const stateFilter = screen.getByLabelText(/state:/i);
     await user.selectOptions(stateFilter, 'current');
 
     await waitFor(() => {
@@ -310,5 +310,181 @@ describe('IterationSelector', () => {
     expect(screen.getByText('Sprint 2')).toBeInTheDocument();
     expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
     expect(screen.queryByText('Sprint 3')).not.toBeInTheDocument();
+  });
+
+  test('filters iterations by cadence when cadence filter is changed', async () => {
+    const iterationsWithCadences = [
+      {
+        id: 'gid://gitlab/Iteration/1',
+        iid: '1',
+        title: 'Sprint 1',
+        startDate: '2025-01-01',
+        dueDate: '2025-01-14',
+        state: 'closed',
+        iterationCadence: { title: 'Q1 2025' }
+      },
+      {
+        id: 'gid://gitlab/Iteration/2',
+        iid: '2',
+        title: 'Sprint 2',
+        startDate: '2025-01-15',
+        dueDate: '2025-01-28',
+        state: 'current',
+        iterationCadence: { title: 'Q1 2025' }
+      },
+      {
+        id: 'gid://gitlab/Iteration/3',
+        iid: '3',
+        title: 'Sprint 3',
+        startDate: '2025-04-01',
+        dueDate: '2025-04-14',
+        state: 'upcoming',
+        iterationCadence: { title: 'Q2 2025' }
+      }
+    ];
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: iterationsWithCadences })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // All iterations should be visible initially
+    expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 3')).toBeInTheDocument();
+
+    // Select "Q1 2025" cadence filter
+    const cadenceFilter = screen.getByLabelText(/cadence:/i);
+    await user.selectOptions(cadenceFilter, 'Q1 2025');
+
+    // Only Sprint 1 and 2 (Q1 2025) should be visible
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 3')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+  });
+
+  test('shows all iterations when "All Cadences" is selected', async () => {
+    const iterationsWithCadences = [
+      {
+        id: 'gid://gitlab/Iteration/1',
+        iid: '1',
+        title: 'Sprint 1',
+        startDate: '2025-01-01',
+        dueDate: '2025-01-14',
+        state: 'closed',
+        iterationCadence: { title: 'Q1 2025' }
+      },
+      {
+        id: 'gid://gitlab/Iteration/2',
+        iid: '2',
+        title: 'Sprint 2',
+        startDate: '2025-04-01',
+        dueDate: '2025-04-14',
+        state: 'current',
+        iterationCadence: { title: 'Q2 2025' }
+      }
+    ];
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: iterationsWithCadences })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Filter to Q1 2025
+    const cadenceFilter = screen.getByLabelText(/cadence:/i);
+    await user.selectOptions(cadenceFilter, 'Q1 2025');
+
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 2')).not.toBeInTheDocument();
+    });
+
+    // Reset to "All Cadences"
+    await user.selectOptions(cadenceFilter, '');
+
+    // All iterations should be visible again
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+  });
+
+  test('cadence filter combines with state filter and search', async () => {
+    const iterationsWithCadences = [
+      {
+        id: 'gid://gitlab/Iteration/1',
+        iid: '1',
+        title: 'Sprint 1',
+        startDate: '2025-01-01',
+        dueDate: '2025-01-14',
+        state: 'closed',
+        iterationCadence: { title: 'Q1 2025' }
+      },
+      {
+        id: 'gid://gitlab/Iteration/2',
+        iid: '2',
+        title: 'Sprint 2',
+        startDate: '2025-01-15',
+        dueDate: '2025-01-28',
+        state: 'current',
+        iterationCadence: { title: 'Q1 2025' }
+      },
+      {
+        id: 'gid://gitlab/Iteration/3',
+        iid: '3',
+        title: 'Sprint 3',
+        startDate: '2025-04-01',
+        dueDate: '2025-04-14',
+        state: 'current',
+        iterationCadence: { title: 'Q2 2025' }
+      }
+    ];
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ iterations: iterationsWithCadences })
+    });
+
+    const user = userEvent.setup();
+    render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
+
+    // Filter to current state (Sprint 2 and 3)
+    const stateFilter = screen.getByLabelText(/state:/i);
+    await user.selectOptions(stateFilter, 'current');
+
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.getByText('Sprint 3')).toBeInTheDocument();
+
+    // Add cadence filter for Q1 2025 (should show only Sprint 2)
+    const cadenceFilter = screen.getByLabelText(/cadence:/i);
+    await user.selectOptions(cadenceFilter, 'Q1 2025');
+
+    await waitFor(() => {
+      expect(screen.queryByText('Sprint 3')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
   });
 });
