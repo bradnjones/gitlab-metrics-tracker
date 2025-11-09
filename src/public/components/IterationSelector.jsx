@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 
 /**
@@ -371,6 +371,43 @@ const ClearButton = styled.button`
 `;
 
 /**
+ * Select All checkbox section
+ * Positioned at the start of the controls bar
+ * @component
+ */
+const SelectAllSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+`;
+
+/**
+ * Select All label with checkbox styling
+ * @component
+ */
+const SelectAllLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+`;
+
+/**
  * IterationSelector Component
  * Displays a list of GitLab iterations and allows multi-selection
  *
@@ -386,6 +423,7 @@ const IterationSelector = ({ onSelectionChange }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const selectAllRef = useRef(null);
 
   // Fetch iterations on mount
   useEffect(() => {
@@ -449,6 +487,23 @@ const IterationSelector = ({ onSelectionChange }) => {
     setSearchQuery('');
   };
 
+  /**
+   * Handle Select All checkbox change
+   * Selects or deselects all filtered iterations
+   * @param {boolean} checked - Whether the checkbox is checked
+   */
+  const handleSelectAll = (checked) => {
+    const filteredIds = filteredIterations.map(iteration => iteration.id);
+
+    if (checked) {
+      // Select all filtered iterations
+      setSelectedIds(filteredIds);
+    } else {
+      // Deselect all filtered iterations
+      setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)));
+    }
+  };
+
   // Get unique states from iterations
   const uniqueStates = [...new Set(iterations.map(i => i.state))].filter(Boolean);
 
@@ -487,6 +542,28 @@ const IterationSelector = ({ onSelectionChange }) => {
     });
   }, [iterations, stateFilter, cadenceFilter, searchQuery]);
 
+  // Update Select All checkbox state (checked/unchecked/indeterminate)
+  useEffect(() => {
+    if (!selectAllRef.current || filteredIterations.length === 0) return;
+
+    const filteredIds = filteredIterations.map(iteration => iteration.id);
+    const selectedFilteredCount = filteredIds.filter(id => selectedIds.includes(id)).length;
+
+    if (selectedFilteredCount === 0) {
+      // None selected
+      selectAllRef.current.checked = false;
+      selectAllRef.current.indeterminate = false;
+    } else if (selectedFilteredCount === filteredIds.length) {
+      // All selected
+      selectAllRef.current.checked = true;
+      selectAllRef.current.indeterminate = false;
+    } else {
+      // Some selected
+      selectAllRef.current.checked = false;
+      selectAllRef.current.indeterminate = true;
+    }
+  }, [selectedIds, filteredIterations]);
+
   if (loading) {
     return (
       <Container>
@@ -515,6 +592,19 @@ const IterationSelector = ({ onSelectionChange }) => {
     <Container>
       {/* Unified Controls Bar */}
       <ControlsBar>
+        {/* Select All Section */}
+        <SelectAllSection>
+          <SelectAllLabel>
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              onChange={(e) => handleSelectAll(e.target.checked)}
+              aria-label="Select All"
+            />
+            Select All
+          </SelectAllLabel>
+        </SelectAllSection>
+
         {/* Search Section */}
         <SearchWrapper>
           <SearchIcon />

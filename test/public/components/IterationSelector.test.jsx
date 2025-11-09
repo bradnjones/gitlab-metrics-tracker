@@ -487,4 +487,272 @@ describe('IterationSelector', () => {
     expect(screen.getByText('Sprint 2')).toBeInTheDocument();
     expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
   });
+
+  // Select All Checkbox Tests
+  describe('Select All checkbox', () => {
+    test('renders Select All checkbox in the controls bar', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iterations: mockIterations })
+      });
+
+      render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      });
+
+      // Select All checkbox should be present
+      const selectAllCheckbox = screen.getByLabelText(/select all/i);
+      expect(selectAllCheckbox).toBeInTheDocument();
+      expect(selectAllCheckbox).not.toBeChecked();
+    });
+
+    test('selects all visible iterations when Select All is checked', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iterations: mockIterations })
+      });
+
+      const onSelectionChange = jest.fn();
+      const user = userEvent.setup();
+
+      render(<IterationSelector onSelectionChange={onSelectionChange} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      });
+
+      // Click Select All
+      const selectAllCheckbox = screen.getByLabelText(/select all/i);
+      await user.click(selectAllCheckbox);
+
+      // All iterations should be selected
+      await waitFor(() => {
+        expect(onSelectionChange).toHaveBeenCalledWith([
+          'gid://gitlab/Iteration/1',
+          'gid://gitlab/Iteration/2',
+          'gid://gitlab/Iteration/3'
+        ]);
+      });
+
+      // Individual checkboxes should be checked
+      expect(screen.getByLabelText(/Sprint 1/i)).toBeChecked();
+      expect(screen.getByLabelText(/Sprint 2/i)).toBeChecked();
+      expect(screen.getByLabelText(/Sprint 3/i)).toBeChecked();
+    });
+
+    test('deselects all iterations when Select All is unchecked', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iterations: mockIterations })
+      });
+
+      const onSelectionChange = jest.fn();
+      const user = userEvent.setup();
+
+      render(<IterationSelector onSelectionChange={onSelectionChange} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      });
+
+      const selectAllCheckbox = screen.getByLabelText(/select all/i);
+
+      // First, select all
+      await user.click(selectAllCheckbox);
+
+      await waitFor(() => {
+        expect(selectAllCheckbox).toBeChecked();
+      });
+
+      // Then, unselect all
+      await user.click(selectAllCheckbox);
+
+      await waitFor(() => {
+        expect(onSelectionChange).toHaveBeenCalledWith([]);
+      });
+
+      // Individual checkboxes should be unchecked
+      expect(screen.getByLabelText(/Sprint 1/i)).not.toBeChecked();
+      expect(screen.getByLabelText(/Sprint 2/i)).not.toBeChecked();
+      expect(screen.getByLabelText(/Sprint 3/i)).not.toBeChecked();
+    });
+
+    test('shows indeterminate state when some but not all iterations are selected', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iterations: mockIterations })
+      });
+
+      const user = userEvent.setup();
+      render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      });
+
+      // Select only Sprint 1
+      const checkbox1 = screen.getByLabelText(/Sprint 1/i);
+      await user.click(checkbox1);
+
+      await waitFor(() => {
+        expect(checkbox1).toBeChecked();
+      });
+
+      // Select All should be indeterminate
+      const selectAllCheckbox = screen.getByLabelText(/select all/i);
+      expect(selectAllCheckbox.indeterminate).toBe(true);
+      expect(selectAllCheckbox).not.toBeChecked();
+    });
+
+    test('selects only filtered iterations when filters are active', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iterations: mockIterations })
+      });
+
+      const onSelectionChange = jest.fn();
+      const user = userEvent.setup();
+
+      render(<IterationSelector onSelectionChange={onSelectionChange} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      });
+
+      // Filter to current state (only Sprint 2)
+      const stateFilter = screen.getByLabelText(/state:/i);
+      await user.selectOptions(stateFilter, 'current');
+
+      await waitFor(() => {
+        expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+      });
+
+      // Click Select All - should only select Sprint 2
+      const selectAllCheckbox = screen.getByLabelText(/select all/i);
+      await user.click(selectAllCheckbox);
+
+      await waitFor(() => {
+        expect(onSelectionChange).toHaveBeenCalledWith([
+          'gid://gitlab/Iteration/2'
+        ]);
+      });
+
+      // Only Sprint 2 should be checked
+      expect(screen.getByLabelText(/Sprint 2/i)).toBeChecked();
+    });
+
+    test('selects only searched iterations when search is active', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iterations: mockIterations })
+      });
+
+      const onSelectionChange = jest.fn();
+      const user = userEvent.setup();
+
+      render(<IterationSelector onSelectionChange={onSelectionChange} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      });
+
+      // Search for "Sprint 3"
+      const searchInput = screen.getByPlaceholderText(/search iterations/i);
+      await user.type(searchInput, 'Sprint 3');
+
+      await waitFor(() => {
+        expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+      });
+
+      // Click Select All - should only select Sprint 3
+      const selectAllCheckbox = screen.getByLabelText(/select all/i);
+      await user.click(selectAllCheckbox);
+
+      await waitFor(() => {
+        expect(onSelectionChange).toHaveBeenCalledWith([
+          'gid://gitlab/Iteration/3'
+        ]);
+      });
+
+      // Only Sprint 3 should be checked
+      expect(screen.getByLabelText(/Sprint 3/i)).toBeChecked();
+    });
+
+    test('updates Select All state when filters change', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iterations: mockIterations })
+      });
+
+      const user = userEvent.setup();
+      render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      });
+
+      // Select all iterations (no filters)
+      const selectAllCheckbox = screen.getByLabelText(/select all/i);
+      await user.click(selectAllCheckbox);
+
+      await waitFor(() => {
+        expect(selectAllCheckbox).toBeChecked();
+      });
+
+      // Now apply a filter to show only Sprint 2 (current)
+      const stateFilter = screen.getByLabelText(/state:/i);
+      await user.selectOptions(stateFilter, 'current');
+
+      await waitFor(() => {
+        expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+      });
+
+      // Select All should now show indeterminate (Sprint 1 and 3 are selected but not visible)
+      // or be checked if Sprint 2 is the only visible one and it's selected
+      expect(selectAllCheckbox).toBeChecked();
+    });
+
+    test('deselects all filtered iterations when unchecking Select All with active filters', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iterations: mockIterations })
+      });
+
+      const onSelectionChange = jest.fn();
+      const user = userEvent.setup();
+
+      render(<IterationSelector onSelectionChange={onSelectionChange} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      });
+
+      // Filter to current state (only Sprint 2)
+      const stateFilter = screen.getByLabelText(/state:/i);
+      await user.selectOptions(stateFilter, 'current');
+
+      await waitFor(() => {
+        expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
+      });
+
+      // Select all filtered iterations
+      const selectAllCheckbox = screen.getByLabelText(/select all/i);
+      await user.click(selectAllCheckbox);
+
+      await waitFor(() => {
+        expect(selectAllCheckbox).toBeChecked();
+      });
+
+      // Deselect all
+      await user.click(selectAllCheckbox);
+
+      await waitFor(() => {
+        expect(onSelectionChange).toHaveBeenCalledWith([]);
+      });
+
+      expect(screen.getByLabelText(/Sprint 2/i)).not.toBeChecked();
+    });
+  });
 });
