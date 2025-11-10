@@ -88,4 +88,108 @@ describe('GET /api/metrics/cycle-time', () => {
     expect(response.body.metrics[0].cycleTimeP50).toBeCloseTo(3, 1);
     expect(response.body.metrics[0].cycleTimeP90).toBeCloseTo(4, 1);
   });
+
+  it('should return 400 when iterations query param is missing', async () => {
+    const response = await request(app)
+      .get('/api/metrics/cycle-time')
+      .expect('Content-Type', /json/)
+      .expect(400);
+
+    // Verify error structure
+    expect(response.body.error).toMatchObject({
+      message: 'Missing required parameter: iterations',
+      details: expect.stringContaining('Provide comma-separated iteration IDs')
+    });
+
+    // Verify service was NOT called
+    expect(mockMetricsService.calculateMultipleMetrics).not.toHaveBeenCalled();
+  });
+
+  it('should calculate cycle time for multiple iterations (comma-separated IDs)', async () => {
+    const mockMetrics1 = {
+      iterationId: 'gid://gitlab/Iteration/123',
+      iterationTitle: 'Sprint 1',
+      startDate: '2025-01-01',
+      endDate: '2025-01-14',
+      rawData: {
+        issues: [
+          {
+            state: 'closed',
+            createdAt: '2025-01-01T00:00:00Z',
+            closedAt: '2025-01-03T00:00:00Z'
+          },
+          {
+            state: 'closed',
+            createdAt: '2025-01-01T00:00:00Z',
+            closedAt: '2025-01-05T00:00:00Z'
+          }
+        ]
+      }
+    };
+    const mockMetrics2 = {
+      iterationId: 'gid://gitlab/Iteration/124',
+      iterationTitle: 'Sprint 2',
+      startDate: '2025-01-15',
+      endDate: '2025-01-28',
+      rawData: {
+        issues: [
+          {
+            state: 'closed',
+            createdAt: '2025-01-15T00:00:00Z',
+            closedAt: '2025-01-17T00:00:00Z'
+          }
+        ]
+      }
+    };
+
+    mockMetricsService.calculateMultipleMetrics.mockResolvedValue([mockMetrics1, mockMetrics2]);
+
+    const response = await request(app)
+      .get('/api/metrics/cycle-time?iterations=gid://gitlab/Iteration/123,gid://gitlab/Iteration/124')
+      .expect('Content-Type', /json/)
+      .expect(200);
+
+    // Verify service was called with both IDs
+    expect(mockMetricsService.calculateMultipleMetrics).toHaveBeenCalledWith([
+      'gid://gitlab/Iteration/123',
+      'gid://gitlab/Iteration/124'
+    ]);
+
+    // Verify response has both iterations
+    expect(response.body.metrics).toHaveLength(2);
+    expect(response.body.count).toBe(2);
+
+    // Verify first iteration
+    expect(response.body.metrics[0]).toMatchObject({
+      iterationId: 'gid://gitlab/Iteration/123',
+      cycleTimeAvg: expect.any(Number),
+      cycleTimeP50: expect.any(Number),
+      cycleTimeP90: expect.any(Number)
+    });
+
+    // Verify second iteration
+    expect(response.body.metrics[1]).toMatchObject({
+      iterationId: 'gid://gitlab/Iteration/124',
+      cycleTimeAvg: 2,
+      cycleTimeP50: 2,
+      cycleTimeP90: 2
+    });
+  });
+
+  it('should return 500 when MetricsService throws error', async () => {
+    mockMetricsService.calculateMultipleMetrics.mockRejectedValue(
+      new Error('Failed to fetch iteration data')
+    );
+
+    const response = await request(app)
+      .get('/api/metrics/cycle-time?iterations=gid://gitlab/Iteration/123')
+      .expect('Content-Type', /json/)
+      .expect(500);
+
+    // Verify error structure
+    expect(response.body.error).toMatchObject({
+      message: 'Failed to calculate cycle time metrics',
+      details: 'Failed to fetch iteration data'
+    });
+  });
 });
