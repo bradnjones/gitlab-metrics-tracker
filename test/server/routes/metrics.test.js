@@ -5,10 +5,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from '../../../src/server/app.js';
-
-// Mock the ServiceFactory
-jest.mock('../../../src/server/services/ServiceFactory.js');
-
 import { ServiceFactory } from '../../../src/server/services/ServiceFactory.js';
 
 describe('POST /api/metrics/calculate', () => {
@@ -32,7 +28,6 @@ describe('POST /api/metrics/calculate', () => {
     const mockMetrics = {
       velocityPoints: 42,
       velocityStories: 5,
-      throughput: 15,
       cycleTimeAvg: 3.5,
       cycleTimeP50: 3.0,
       cycleTimeP90: 5.0,

@@ -16,7 +16,6 @@ describe('FileMetricsRepository', () => {
     endDate: '2024-01-14T23:59:59Z',
     velocityPoints: 25,
     velocityStories: 8,
-    throughput: 12,
     cycleTimeAvg: 3.5,
     cycleTimeP50: 3.0,
     cycleTimeP90: 7.0,

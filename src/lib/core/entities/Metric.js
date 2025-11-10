@@ -29,7 +29,6 @@ export class Metric {
    * @param {string} data.endDate - ISO 8601 end date
    * @param {number} data.velocityPoints - Story points completed
    * @param {number} data.velocityStories - Number of stories completed
-   * @param {number} data.throughput - Issues closed count
    * @param {number} data.cycleTimeAvg - Average cycle time (days)
    * @param {number} data.cycleTimeP50 - Median cycle time (days)
    * @param {number} data.cycleTimeP90 - 90th percentile cycle time (days)
@@ -54,7 +53,6 @@ export class Metric {
     this.endDate = data.endDate;
     this.velocityPoints = data.velocityPoints;
     this.velocityStories = data.velocityStories;
-    this.throughput = data.throughput;
     this.cycleTimeAvg = data.cycleTimeAvg;
     this.cycleTimeP50 = data.cycleTimeP50;
     this.cycleTimeP90 = data.cycleTimeP90;
@@ -99,9 +97,6 @@ export class Metric {
     if (typeof this.velocityPoints !== 'number' || this.velocityPoints < 0) {
       throw new Error('velocityPoints must be a non-negative number');
     }
-    if (typeof this.throughput !== 'number' || this.throughput < 0) {
-      throw new Error('throughput must be a non-negative number');
-    }
     if (typeof this.cycleTimeAvg !== 'number' || this.cycleTimeAvg < 0) {
       throw new Error('cycleTimeAvg must be a non-negative number');
     }
@@ -122,7 +117,6 @@ export class Metric {
       endDate: this.endDate,
       velocityPoints: this.velocityPoints,
       velocityStories: this.velocityStories,
-      throughput: this.throughput,
       cycleTimeAvg: this.cycleTimeAvg,
       cycleTimeP50: this.cycleTimeP50,
       cycleTimeP90: this.cycleTimeP90,
