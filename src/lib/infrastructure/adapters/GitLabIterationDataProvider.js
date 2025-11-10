@@ -62,4 +62,55 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
       throw new Error(`Failed to fetch iteration data: ${error.message}`);
     }
   }
+
+  /**
+   * Fetch data for multiple iterations efficiently in a single batch
+   * Performance optimized: fetches iteration metadata once, then parallelizes details fetching
+   *
+   * @param {Array<string>} iterationIds - Array of GitLab iteration IDs
+   * @returns {Promise<Array<IterationData>>} Array of iteration data in same order as input
+   * @throws {Error} If fetch fails for any iteration
+   */
+  async fetchMultipleIterations(iterationIds) {
+    try {
+      // Validate input
+      if (!Array.isArray(iterationIds) || iterationIds.length === 0) {
+        throw new Error('iterationIds must be a non-empty array');
+      }
+
+      // Fetch iteration list ONCE to get all metadata (leverages 10-minute cache)
+      const allIterations = await this.gitlabClient.fetchIterations();
+
+      // Create lookup map for O(1) access
+      const iterationMap = new Map(allIterations.map(it => [it.id, it]));
+
+      // Fetch details for all iterations IN PARALLEL
+      const detailsPromises = iterationIds.map(id =>
+        this.gitlabClient.fetchIterationDetails(id)
+      );
+      const allDetails = await Promise.all(detailsPromises);
+
+      // Combine metadata + details in original order
+      return iterationIds.map((id, index) => {
+        const metadata = iterationMap.get(id);
+        const details = allDetails[index];
+
+        return {
+          issues: details.issues || [],
+          mergeRequests: details.mergeRequests || [],
+          pipelines: [], // TODO: Implement pipeline fetching
+          incidents: [], // TODO: Implement incident fetching
+          iteration: {
+            id: metadata?.id || id,
+            title: metadata?.title || 'Unknown Sprint',
+            startDate: metadata?.startDate || new Date().toISOString(),
+            dueDate: metadata?.dueDate || new Date().toISOString(),
+          },
+        };
+      });
+    } catch (error) {
+      // Re-throw with context for Core layer
+      throw new Error(`Failed to fetch multiple iterations: ${error.message}`);
+    }
+  }
 }

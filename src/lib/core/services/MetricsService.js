@@ -117,4 +117,84 @@ export class MetricsService {
     // Return calculated metrics
     return metric.toJSON();
   }
+
+  /**
+   * Calculate metrics for multiple iterations efficiently in batch
+   * Optimized for performance by using batch data fetching
+   *
+   * @param {Array<string>} iterationIds - Array of iteration identifiers
+   * @returns {Promise<Array<CalculatedMetrics>>} Array of calculated metrics in same order
+   * @throws {Error} If data fetching fails
+   */
+  async calculateMultipleMetrics(iterationIds) {
+    // Fetch all iteration data in one efficient batch
+    let allIterationData;
+    try {
+      allIterationData = await this.dataProvider.fetchMultipleIterations(iterationIds);
+    } catch (error) {
+      throw new Error(`Failed to fetch multiple iterations: ${error.message}`);
+    }
+
+    // Calculate metrics for each iteration (calculations can be parallel, but saves must be sequential)
+    const metricsResults = [];
+
+    for (let i = 0; i < allIterationData.length; i++) {
+      const iterationData = allIterationData[i];
+      const iterationId = iterationIds[i];
+
+      // Calculate velocity (points and stories)
+      const velocity = VelocityCalculator.calculate(iterationData.issues);
+
+      // Calculate throughput (issues closed)
+      const throughput = ThroughputCalculator.calculate(iterationData.issues);
+
+      // Calculate cycle time (avg, p50, p90)
+      const cycleTime = CycleTimeCalculator.calculate(iterationData.issues);
+
+      // Calculate deployment frequency (requires pipelines - mock for now)
+      const deploymentFrequency = DeploymentFrequencyCalculator.calculate([], 14);
+
+      // Calculate lead time (avg, p50, p90) - requires merge requests
+      const leadTime = LeadTimeCalculator.calculate([]);
+
+      // Calculate MTTR (requires incidents)
+      const mttr = IncidentAnalyzer.calculateMTTR([]);
+
+      // Create Metric entity
+      const metric = new Metric({
+        iterationId,
+        iterationTitle: iterationData.iteration.title,
+        startDate: iterationData.iteration.startDate,
+        endDate: iterationData.iteration.dueDate,
+        velocityPoints: velocity.points,
+        velocityStories: velocity.stories,
+        throughput,
+        cycleTimeAvg: cycleTime.avg,
+        cycleTimeP50: cycleTime.p50,
+        cycleTimeP90: cycleTime.p90,
+        deploymentFrequency,
+        leadTimeAvg: leadTime.avg,
+        leadTimeP50: leadTime.p50,
+        leadTimeP90: leadTime.p90,
+        mttrAvg: mttr,
+        changeFailureRate: 0, // Not yet implemented
+        issueCount: iterationData.issues.length,
+        mrCount: 0, // Not yet implemented
+        deploymentCount: 0, // Not yet implemented
+        incidentCount: 0, // Not yet implemented
+        rawData: {
+          issues: iterationData.issues,
+          iteration: iterationData.iteration
+        }
+      });
+
+      // Persist results via repository (MUST be sequential to avoid file corruption)
+      await this.metricsRepository.save(metric);
+
+      // Add to results
+      metricsResults.push(metric.toJSON());
+    }
+
+    return metricsResults;
+  }
 }
