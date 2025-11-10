@@ -10,7 +10,6 @@ describe('Metric', () => {
     endDate: '2024-01-14T23:59:59Z',
     velocityPoints: 25,
     velocityStories: 8,
-    throughput: 12,
     cycleTimeAvg: 3.5,
     cycleTimeP50: 3.0,
     cycleTimeP90: 7.0,
@@ -43,7 +42,6 @@ describe('Metric', () => {
       expect(metric.endDate).toBe('2024-01-14T23:59:59Z');
       expect(metric.velocityPoints).toBe(25);
       expect(metric.velocityStories).toBe(8);
-      expect(metric.throughput).toBe(12);
       expect(metric.cycleTimeAvg).toBe(3.5);
       expect(metric.cycleTimeP50).toBe(3.0);
       expect(metric.cycleTimeP90).toBe(7.0);
@@ -122,12 +120,6 @@ describe('Metric', () => {
       expect(() => new Metric(invalidData)).toThrow('velocityPoints must be a non-negative number');
     });
 
-    test('throws error when throughput is negative', () => {
-      const invalidData = { ...validMetricData, throughput: -1 };
-
-      expect(() => new Metric(invalidData)).toThrow('throughput must be a non-negative number');
-    });
-
     test('throws error when cycleTimeAvg is negative', () => {
       const invalidData = { ...validMetricData, cycleTimeAvg: -1 };
 
@@ -139,7 +131,6 @@ describe('Metric', () => {
         ...validMetricData,
         velocityPoints: 0,
         velocityStories: 0,
-        throughput: 0,
         cycleTimeAvg: 0,
         deploymentFrequency: 0
       };
@@ -147,7 +138,7 @@ describe('Metric', () => {
       const metric = new Metric(zeroMetrics);
 
       expect(metric.velocityPoints).toBe(0);
-      expect(metric.throughput).toBe(0);
+      expect(metric.velocityStories).toBe(0);
     });
   });
 
@@ -164,7 +155,6 @@ describe('Metric', () => {
         endDate: metric.endDate,
         velocityPoints: metric.velocityPoints,
         velocityStories: metric.velocityStories,
-        throughput: metric.throughput,
         cycleTimeAvg: metric.cycleTimeAvg,
         cycleTimeP50: metric.cycleTimeP50,
         cycleTimeP90: metric.cycleTimeP90,

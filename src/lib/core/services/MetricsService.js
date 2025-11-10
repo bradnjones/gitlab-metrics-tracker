@@ -6,7 +6,6 @@
  */
 
 import { VelocityCalculator } from './VelocityCalculator.js';
-import { ThroughputCalculator } from './ThroughputCalculator.js';
 import { CycleTimeCalculator } from './CycleTimeCalculator.js';
 import { DeploymentFrequencyCalculator } from './DeploymentFrequencyCalculator.js';
 import { LeadTimeCalculator } from './LeadTimeCalculator.js';
@@ -18,7 +17,6 @@ import { Metric } from '../entities/Metric.js';
  * @typedef {Object} CalculatedMetrics
  * @property {number} velocityPoints - Story points completed
  * @property {number} velocityStories - Stories completed
- * @property {number} throughput - Issues closed
  * @property {number} cycleTimeAvg - Average cycle time (days)
  * @property {number} cycleTimeP50 - Median cycle time (days)
  * @property {number} cycleTimeP90 - 90th percentile cycle time (days)
@@ -68,9 +66,6 @@ export class MetricsService {
     // Calculate velocity (points and stories)
     const velocity = VelocityCalculator.calculate(iterationData.issues);
 
-    // Calculate throughput (issues closed)
-    const throughput = ThroughputCalculator.calculate(iterationData.issues);
-
     // Calculate cycle time (avg, p50, p90)
     const cycleTime = CycleTimeCalculator.calculate(iterationData.issues);
 
@@ -91,7 +86,6 @@ export class MetricsService {
       endDate: iterationData.iteration.dueDate,
       velocityPoints: velocity.points,
       velocityStories: velocity.stories,
-      throughput,
       cycleTimeAvg: cycleTime.avg,
       cycleTimeP50: cycleTime.p50,
       cycleTimeP90: cycleTime.p90,
@@ -145,9 +139,6 @@ export class MetricsService {
       // Calculate velocity (points and stories)
       const velocity = VelocityCalculator.calculate(iterationData.issues);
 
-      // Calculate throughput (issues closed)
-      const throughput = ThroughputCalculator.calculate(iterationData.issues);
-
       // Calculate cycle time (avg, p50, p90)
       const cycleTime = CycleTimeCalculator.calculate(iterationData.issues);
 
@@ -168,7 +159,6 @@ export class MetricsService {
         endDate: iterationData.iteration.dueDate,
         velocityPoints: velocity.points,
         velocityStories: velocity.stories,
-        throughput,
         cycleTimeAvg: cycleTime.avg,
         cycleTimeP50: cycleTime.p50,
         cycleTimeP90: cycleTime.p90,

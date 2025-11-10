@@ -106,7 +106,6 @@ describe('MetricsService', () => {
           endDate: expect.any(String),
           velocityPoints: 42,
           velocityStories: 5,
-          throughput: 15,
           cycleTimeAvg: 3.5,
           cycleTimeP50: 3.0,
           cycleTimeP90: 5.0,
@@ -141,7 +140,6 @@ describe('MetricsService', () => {
         expect.objectContaining({
           velocityPoints: 42,
           velocityStories: 5,
-          throughput: 15,
         })
       );
     });
@@ -204,7 +202,6 @@ describe('MetricsService', () => {
         expect.objectContaining({
           velocityPoints: 0,
           velocityStories: 0,
-          throughput: 0,
           cycleTimeAvg: 0,
           cycleTimeP50: 0,
           cycleTimeP90: 0,
@@ -250,7 +247,6 @@ describe('MetricsService', () => {
           endDate: '2025-01-14',
           velocityPoints: 42,
           velocityStories: 5,
-          throughput: 15,
           cycleTimeAvg: 3.5,
           cycleTimeP50: 3.0,
           cycleTimeP90: 5.0,
@@ -283,7 +279,6 @@ describe('MetricsService', () => {
           iterationId: 'gid://gitlab/Iteration/123',
           velocityPoints: 42,
           velocityStories: 5,
-          throughput: 15,
         })
       );
 

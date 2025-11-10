@@ -32,7 +32,6 @@ describe('POST /api/metrics/calculate', () => {
     const mockMetrics = {
       velocityPoints: 42,
       velocityStories: 5,
-      throughput: 15,
       cycleTimeAvg: 3.5,
       cycleTimeP50: 3.0,
       cycleTimeP90: 5.0,
