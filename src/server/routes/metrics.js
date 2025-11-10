@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { ServiceFactory } from '../services/ServiceFactory.js';
+import { CycleTimeCalculator } from '../../lib/core/services/CycleTimeCalculator.js';
 
 const router = express.Router();
 
@@ -75,6 +76,82 @@ router.get('/velocity', async (req, res) => {
     res.status(500).json({
       error: {
         message: 'Failed to calculate velocity metrics',
+        details: error.message
+      }
+    });
+  }
+});
+
+/**
+ * GET /api/metrics/cycle-time
+ * Calculate cycle time metrics for one or more iterations
+ *
+ * Query params:
+ *   iterations - Comma-separated iteration IDs (e.g., ?iterations=id1,id2,id3)
+ *
+ * Response:
+ * {
+ *   "metrics": [
+ *     { "iterationId": "...", "cycleTimeAvg": 3.5, "cycleTimeP50": 3.0, "cycleTimeP90": 5.2 },
+ *     ...
+ *   ],
+ *   "count": 2
+ * }
+ */
+router.get('/cycle-time', async (req, res) => {
+  try {
+    // Validate query params
+    const { iterations } = req.query;
+
+    if (!iterations) {
+      return res.status(400).json({
+        error: {
+          message: 'Missing required parameter: iterations',
+          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
+        }
+      });
+    }
+
+    // Parse comma-separated iteration IDs
+    const iterationIds = iterations.split(',').map(id => id.trim());
+
+    // Create service (will use environment variables)
+    const metricsService = ServiceFactory.createMetricsService();
+
+    // Calculate metrics for all iterations using BATCH method (performance optimization)
+    // This fetches iteration metadata ONCE and parallelizes issue fetching
+    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
+
+    // Transform results to response format with cycle time calculations
+    const metricsResults = allMetrics.map(metrics => {
+      // Calculate cycle time from raw issues data
+      const cycleTime = CycleTimeCalculator.calculate(metrics.rawData.issues);
+
+      return {
+        iterationId: metrics.iterationId,
+        iterationTitle: metrics.iterationTitle,
+        startDate: metrics.startDate,
+        dueDate: metrics.endDate,
+        cycleTimeAvg: cycleTime.avg,
+        cycleTimeP50: cycleTime.p50,
+        cycleTimeP90: cycleTime.p90
+      };
+    });
+
+    // Return results
+    res.json({
+      metrics: metricsResults,
+      count: metricsResults.length
+    });
+
+  } catch (error) {
+    // Log error for debugging
+    console.error('Failed to calculate cycle time metrics:', error.message);
+
+    // Return user-friendly error
+    res.status(500).json({
+      error: {
+        message: 'Failed to calculate cycle time metrics',
         details: error.message
       }
     });
