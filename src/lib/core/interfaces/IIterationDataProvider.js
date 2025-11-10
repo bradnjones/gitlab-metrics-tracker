@@ -45,4 +45,26 @@ export class IIterationDataProvider {
   async fetchIterationData(iterationId) {
     throw new Error('IIterationDataProvider.fetchIterationData() must be implemented by subclass');
   }
+
+  /**
+   * Fetch data for multiple iterations efficiently in a single batch
+   * Optimized for performance by fetching iteration metadata once and parallelizing details fetching
+   *
+   * @param {Array<string>} iterationIds - Array of iteration identifiers
+   * @returns {Promise<Array<IterationData>>} Array of iteration data objects in same order as input
+   * @throws {Error} If fetch fails for any iteration or iteration not found
+   *
+   * @example
+   * const data = await provider.fetchMultipleIterations([
+   *   'gid://gitlab/Iteration/123',
+   *   'gid://gitlab/Iteration/124'
+   * ]);
+   * // [
+   * //   { issues: [...], mergeRequests: [...], iteration: {...} },
+   * //   { issues: [...], mergeRequests: [...], iteration: {...} }
+   * // ]
+   */
+  async fetchMultipleIterations(iterationIds) {
+    throw new Error('IIterationDataProvider.fetchMultipleIterations() must be implemented by subclass');
+  }
 }

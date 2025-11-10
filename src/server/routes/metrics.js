@@ -45,23 +45,21 @@ router.get('/velocity', async (req, res) => {
     // Create service (will use environment variables)
     const metricsService = ServiceFactory.createMetricsService();
 
-    // Calculate metrics for each iteration
-    const metricsResults = [];
+    // Calculate metrics for all iterations using BATCH method (performance optimization)
+    // This fetches iteration metadata ONCE and parallelizes issue fetching
+    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
 
-    for (const iterationId of iterationIds) {
-      const metrics = await metricsService.calculateMetrics(iterationId);
-
-      metricsResults.push({
-        iterationId: metrics.iterationId,
-        iterationTitle: metrics.iterationTitle,
-        startDate: metrics.startDate,
-        dueDate: metrics.endDate,
-        totalPoints: metrics.velocityPoints + (metrics.rawData?.issues.filter(i => i.state !== 'closed').reduce((sum, i) => sum + (i.weight || 1), 0) || 0),
-        completedPoints: metrics.velocityPoints,
-        totalStories: metrics.issueCount,
-        completedStories: metrics.velocityStories
-      });
-    }
+    // Transform results to response format
+    const metricsResults = allMetrics.map(metrics => ({
+      iterationId: metrics.iterationId,
+      iterationTitle: metrics.iterationTitle,
+      startDate: metrics.startDate,
+      dueDate: metrics.endDate,
+      totalPoints: metrics.velocityPoints + (metrics.rawData?.issues.filter(i => i.state !== 'closed').reduce((sum, i) => sum + (i.weight || 1), 0) || 0),
+      completedPoints: metrics.velocityPoints,
+      totalStories: metrics.issueCount,
+      completedStories: metrics.velocityStories
+    }));
 
     // Return results
     res.json({
