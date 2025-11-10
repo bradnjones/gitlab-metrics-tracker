@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useIterations } from '../hooks/useIterations.js';
+import { useIterationFilters } from '../hooks/useIterationFilters.js';
 import {
   Container,
   LoadingMessage,
@@ -31,39 +33,28 @@ import {
  * @returns {JSX.Element} Rendered component
  */
 const IterationSelector = ({ onSelectionChange }) => {
-  const [iterations, setIterations] = useState([]);
+  // Use custom hooks for data fetching and filtering
+  const { iterations, loading, error } = useIterations();
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const {
+    stateFilter,
+    setStateFilter,
+    cadenceFilter,
+    setCadenceFilter,
+    searchQuery,
+    setSearchQuery,
+    uniqueStates,
+    uniqueCadences,
+    filteredIterations
+  } = useIterationFilters(iterations, formatDate);
+
   const [selectedIds, setSelectedIds] = useState([]);
-  const [stateFilter, setStateFilter] = useState('');
-  const [cadenceFilter, setCadenceFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const selectAllRef = useRef(null);
-
-  // Fetch iterations on mount
-  useEffect(() => {
-    const fetchIterations = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const response = await fetch('/api/iterations');
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setIterations(data.iterations || []);
-      } catch (err) {
-        setError(`Error loading iterations: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchIterations();
-  }, []);
 
   // Call onSelectionChange when selection changes
   useEffect(() => {
@@ -83,16 +74,6 @@ const IterationSelector = ({ onSelectionChange }) => {
         return prev.filter(id => id !== iterationId);
       }
     });
-  };
-
-  /**
-   * Format date string for display
-   * @param {string} dateString - ISO date string
-   * @returns {string} Formatted date
-   */
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   /**
@@ -118,44 +99,6 @@ const IterationSelector = ({ onSelectionChange }) => {
       setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)));
     }
   };
-
-  // Get unique states from iterations
-  const uniqueStates = [...new Set(iterations.map(i => i.state))].filter(Boolean);
-
-  // Get unique cadences from iterations
-  const uniqueCadences = [...new Set(iterations.map(i => i.iterationCadence?.title))].filter(Boolean);
-
-  // Filter iterations by state, cadence, and search
-  // useMemo prevents unnecessary recalculation when other state changes
-  const filteredIterations = useMemo(() => {
-    return iterations.filter(iteration => {
-      // State filter
-      if (stateFilter && iteration.state !== stateFilter) {
-        return false;
-      }
-
-      // Cadence filter
-      if (cadenceFilter && iteration.iterationCadence?.title !== cadenceFilter) {
-        return false;
-      }
-
-      // Search filter
-      if (searchQuery) {
-        const searchLower = searchQuery.toLowerCase();
-        const title = (iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}`).toLowerCase();
-        const startDate = formatDate(iteration.startDate).toLowerCase();
-        const dueDate = formatDate(iteration.dueDate).toLowerCase();
-
-        if (!title.includes(searchLower) &&
-            !startDate.includes(searchLower) &&
-            !dueDate.includes(searchLower)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [iterations, stateFilter, cadenceFilter, searchQuery]);
 
   // Update Select All checkbox state (checked/unchecked/indeterminate)
   useEffect(() => {
