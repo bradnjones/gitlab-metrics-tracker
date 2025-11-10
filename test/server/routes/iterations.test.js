@@ -5,10 +5,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from '../../../src/server/app.js';
-
-// Mock the ServiceFactory
-jest.mock('../../../src/server/services/ServiceFactory.js');
-
 import { ServiceFactory } from '../../../src/server/services/ServiceFactory.js';
 
 describe('GET /api/iterations', () => {

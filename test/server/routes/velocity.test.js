@@ -5,10 +5,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from '../../../src/server/app.js';
-
-// Mock the ServiceFactory
-jest.mock('../../../src/server/services/ServiceFactory.js');
-
 import { ServiceFactory } from '../../../src/server/services/ServiceFactory.js';
 
 describe('GET /api/metrics/velocity', () => {
@@ -18,7 +14,8 @@ describe('GET /api/metrics/velocity', () => {
   beforeEach(() => {
     // Create mock MetricsService
     mockMetricsService = {
-      calculateMetrics: jest.fn()
+      calculateMetrics: jest.fn(),
+      calculateMultipleMetrics: jest.fn()
     };
 
     // Mock ServiceFactory to return our mock service
@@ -46,15 +43,15 @@ describe('GET /api/metrics/velocity', () => {
       }
     };
 
-    mockMetricsService.calculateMetrics.mockResolvedValue(mockMetrics);
+    mockMetricsService.calculateMultipleMetrics.mockResolvedValue([mockMetrics]);
 
     const response = await request(app)
       .get('/api/metrics/velocity?iterations=gid://gitlab/Iteration/123')
       .expect('Content-Type', /json/)
       .expect(200);
 
-    // Verify MetricsService was called with iteration ID
-    expect(mockMetricsService.calculateMetrics).toHaveBeenCalledWith('gid://gitlab/Iteration/123');
+    // Verify MetricsService was called with iteration IDs array
+    expect(mockMetricsService.calculateMultipleMetrics).toHaveBeenCalledWith(['gid://gitlab/Iteration/123']);
 
     // Verify response structure matches new format
     expect(response.body.metrics[0]).toMatchObject({
@@ -92,21 +89,16 @@ describe('GET /api/metrics/velocity', () => {
       rawData: { issues: [] }
     };
 
-    mockMetricsService.calculateMetrics
-      .mockResolvedValueOnce(mockMetrics1)
-      .mockResolvedValueOnce(mockMetrics2)
-      .mockResolvedValueOnce(mockMetrics3);
+    mockMetricsService.calculateMultipleMetrics.mockResolvedValue([mockMetrics1, mockMetrics2, mockMetrics3]);
 
     const response = await request(app)
       .get('/api/metrics/velocity?iterations=gid://gitlab/Iteration/123,gid://gitlab/Iteration/124,gid://gitlab/Iteration/125')
       .expect('Content-Type', /json/)
       .expect(200);
 
-    // Verify MetricsService was called for each iteration
-    expect(mockMetricsService.calculateMetrics).toHaveBeenCalledTimes(3);
-    expect(mockMetricsService.calculateMetrics).toHaveBeenNthCalledWith(1, 'gid://gitlab/Iteration/123');
-    expect(mockMetricsService.calculateMetrics).toHaveBeenNthCalledWith(2, 'gid://gitlab/Iteration/124');
-    expect(mockMetricsService.calculateMetrics).toHaveBeenNthCalledWith(3, 'gid://gitlab/Iteration/125');
+    // Verify MetricsService was called once with all iteration IDs in batch
+    expect(mockMetricsService.calculateMultipleMetrics).toHaveBeenCalledTimes(1);
+    expect(mockMetricsService.calculateMultipleMetrics).toHaveBeenCalledWith(['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124', 'gid://gitlab/Iteration/125']);
 
     // Verify response structure has all iterations
     expect(response.body.metrics).toHaveLength(3);
@@ -115,8 +107,6 @@ describe('GET /api/metrics/velocity', () => {
     expect(response.body.metrics[2].completedPoints).toBe(45);
     expect(response.body.count).toBe(3);
   });
-
-
   it('should return 400 when iterations query param is missing', async () => {
     const response = await request(app)
       .get('/api/metrics/velocity')
@@ -132,18 +122,11 @@ describe('GET /api/metrics/velocity', () => {
     });
 
     // Verify service was NOT called
-    expect(mockMetricsService.calculateMetrics).not.toHaveBeenCalled();
+    expect(mockMetricsService.calculateMultipleMetrics).not.toHaveBeenCalled();
   });
 
   it('should return 500 when MetricsService throws error for any iteration', async () => {
-    mockMetricsService.calculateMetrics
-      .mockResolvedValueOnce({
-        iterationId: 'gid://gitlab/Iteration/123',
-        velocityPoints: 42,
-        velocityStories: 8,
-        rawData: { issues: [] }
-      })
-      .mockRejectedValueOnce(new Error('Failed to fetch iteration data: Iteration not found'));
+    mockMetricsService.calculateMultipleMetrics.mockRejectedValue(new Error('Failed to fetch multiple iterations: Iteration not found'));
 
     const response = await request(app)
       .get('/api/metrics/velocity?iterations=gid://gitlab/Iteration/123,gid://gitlab/Iteration/999')
@@ -154,7 +137,7 @@ describe('GET /api/metrics/velocity', () => {
     expect(response.body).toEqual({
       error: {
         message: 'Failed to calculate velocity metrics',
-        details: 'Failed to fetch iteration data: Iteration not found'
+        details: 'Failed to fetch multiple iterations: Iteration not found'
       }
     });
   });

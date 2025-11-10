@@ -2,19 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import { MetricsService } from '../../../src/lib/core/services/MetricsService.js';
 import { Metric } from '../../../src/lib/core/entities/Metric.js';
 import { VelocityCalculator } from '../../../src/lib/core/services/VelocityCalculator.js';
-import { ThroughputCalculator } from '../../../src/lib/core/services/ThroughputCalculator.js';
 import { CycleTimeCalculator } from '../../../src/lib/core/services/CycleTimeCalculator.js';
 import { DeploymentFrequencyCalculator } from '../../../src/lib/core/services/DeploymentFrequencyCalculator.js';
 import { LeadTimeCalculator } from '../../../src/lib/core/services/LeadTimeCalculator.js';
 import { IncidentAnalyzer } from '../../../src/lib/core/services/IncidentAnalyzer.js';
 
 // Mock all calculator modules
-jest.mock('../../../src/lib/core/services/VelocityCalculator.js');
-jest.mock('../../../src/lib/core/services/ThroughputCalculator.js');
-jest.mock('../../../src/lib/core/services/CycleTimeCalculator.js');
-jest.mock('../../../src/lib/core/services/DeploymentFrequencyCalculator.js');
-jest.mock('../../../src/lib/core/services/LeadTimeCalculator.js');
-jest.mock('../../../src/lib/core/services/IncidentAnalyzer.js');
 
 describe('MetricsService', () => {
   let service;
@@ -67,7 +60,6 @@ describe('MetricsService', () => {
 
     // Setup calculator mocks to return expected values
     VelocityCalculator.calculate = jest.fn().mockReturnValue({ points: 42, stories: 5 });
-    ThroughputCalculator.calculate = jest.fn().mockReturnValue(15);
     CycleTimeCalculator.calculate = jest.fn().mockReturnValue({ avg: 3.5, p50: 3.0, p90: 5.0 });
     DeploymentFrequencyCalculator.calculate = jest.fn().mockReturnValue(2.5);
     LeadTimeCalculator.calculate = jest.fn().mockReturnValue({ avg: 2.0, p50: 1.5, p90: 3.0 });
@@ -92,7 +84,6 @@ describe('MetricsService', () => {
 
       // Verify all calculators called with correct data
       expect(VelocityCalculator.calculate).toHaveBeenCalledWith(mockIterationData.issues);
-      expect(ThroughputCalculator.calculate).toHaveBeenCalledWith(mockIterationData.issues);
       expect(CycleTimeCalculator.calculate).toHaveBeenCalledWith(mockIterationData.issues);
       expect(LeadTimeCalculator.calculate).toHaveBeenCalled(); // Will verify MRs passed
 
@@ -133,7 +124,6 @@ describe('MetricsService', () => {
       expect(savedEntity).toBeInstanceOf(Metric);
       expect(savedEntity.velocityPoints).toBe(42);
       expect(savedEntity.velocityStories).toBe(5);
-      expect(savedEntity.throughput).toBe(15);
 
       // Verify method still returns the results (as JSON)
       expect(result).toEqual(
@@ -158,7 +148,6 @@ describe('MetricsService', () => {
 
       // Verify calculators were NOT called when fetch fails
       expect(VelocityCalculator.calculate).not.toHaveBeenCalled();
-      expect(ThroughputCalculator.calculate).not.toHaveBeenCalled();
       expect(CycleTimeCalculator.calculate).not.toHaveBeenCalled();
     });
 
@@ -181,7 +170,6 @@ describe('MetricsService', () => {
 
       // Mock calculators to return zero/empty results for empty data
       VelocityCalculator.calculate.mockReturnValue({ points: 0, stories: 0 });
-      ThroughputCalculator.calculate.mockReturnValue(0);
       CycleTimeCalculator.calculate.mockReturnValue({ avg: 0, p50: 0, p90: 0 });
       DeploymentFrequencyCalculator.calculate.mockReturnValue(0);
       LeadTimeCalculator.calculate.mockReturnValue({ avg: 0, p50: 0, p90: 0 });
@@ -194,7 +182,6 @@ describe('MetricsService', () => {
 
       // Verify all calculators still called (with empty arrays)
       expect(VelocityCalculator.calculate).toHaveBeenCalledWith([]);
-      expect(ThroughputCalculator.calculate).toHaveBeenCalledWith([]);
       expect(CycleTimeCalculator.calculate).toHaveBeenCalledWith([]);
 
       // Verify results have proper structure with zero values
