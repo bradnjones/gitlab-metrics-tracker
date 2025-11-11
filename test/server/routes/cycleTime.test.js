@@ -34,6 +34,12 @@ describe('GET /api/metrics/cycle-time', () => {
       velocityPoints: 42,
       velocityStories: 8,
       issueCount: 10,
+      // Cycle time metrics are pre-calculated by MetricsService
+      // Issue 1: 2 days (Jan 1 -> Jan 3), Issue 2: 4 days (Jan 1 -> Jan 5)
+      // Avg: (2+4)/2 = 3 days, P50 (median of [2,4]) = 3, P90 = 4
+      cycleTimeAvg: 3,
+      cycleTimeP50: 3,
+      cycleTimeP90: 4,
       rawData: {
         issues: [
           {
@@ -111,6 +117,10 @@ describe('GET /api/metrics/cycle-time', () => {
       iterationTitle: 'Sprint 1',
       startDate: '2025-01-01',
       endDate: '2025-01-14',
+      // Cycle time metrics are pre-calculated by MetricsService
+      cycleTimeAvg: 3.5,
+      cycleTimeP50: 3.0,
+      cycleTimeP90: 4.0,
       rawData: {
         issues: [
           {
@@ -131,6 +141,10 @@ describe('GET /api/metrics/cycle-time', () => {
       iterationTitle: 'Sprint 2',
       startDate: '2025-01-15',
       endDate: '2025-01-28',
+      // Cycle time metrics are pre-calculated by MetricsService
+      cycleTimeAvg: 2,
+      cycleTimeP50: 2,
+      cycleTimeP90: 2,
       rawData: {
         issues: [
           {
