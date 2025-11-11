@@ -5,7 +5,7 @@ import VelocityChart from './VelocityChart.jsx';
 import CycleTimeChart from './CycleTimeChart.jsx';
 
 const AppContainer = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
 `;
@@ -35,10 +35,54 @@ const Section = styled.section`
   margin-bottom: 20px;
 `;
 
-const MetricsGrid = styled.div`
+const SectionTitle = styled.h2`
+  color: #333;
+  margin: 0 0 20px 0;
+  font-size: 24px;
+`;
+
+const AnalyzeButton = styled.button`
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 20px;
+  width: 100%;
+
+  &:hover:not(:disabled) {
+    background: #4338ca;
+  }
+
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+`;
+
+const BackButton = styled.button`
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 20px;
+
+  &:hover {
+    background: #4b5563;
+  }
+`;
+
+const ChartsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
   margin-bottom: 20px;
 
   @media (max-width: 1200px) {
@@ -46,20 +90,14 @@ const MetricsGrid = styled.div`
   }
 `;
 
-const MetricCard = styled.div`
+const ChartCard = styled.div`
   background: white;
-  padding: 30px;
+  padding: 24px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
 
-const SectionTitle = styled.h2`
-  color: #333;
-  margin: 0 0 20px 0;
-  font-size: 24px;
-`;
-
-const CardTitle = styled.h3`
+const ChartTitle = styled.h3`
   color: #333;
   margin: 0 0 20px 0;
   font-size: 20px;
@@ -68,11 +106,12 @@ const CardTitle = styled.h3`
 /**
  * VelocityApp Component
  * Main application for velocity tracking
- * Combines iteration selection and velocity chart display
+ * Two-view flow: iteration selection → dashboard with metrics
  *
  * @returns {JSX.Element} Rendered application
  */
 const VelocityApp = () => {
+  const [view, setView] = useState('selector'); // 'selector' or 'dashboard'
   const [selectedIterationIds, setSelectedIterationIds] = useState([]);
 
   /**
@@ -83,6 +122,22 @@ const VelocityApp = () => {
     setSelectedIterationIds(iterationIds);
   };
 
+  /**
+   * Handle analyze button click - transition to dashboard view
+   */
+  const handleAnalyze = () => {
+    if (selectedIterationIds.length > 0) {
+      setView('dashboard');
+    }
+  };
+
+  /**
+   * Handle back to selector view
+   */
+  const handleBackToSelector = () => {
+    setView('selector');
+  };
+
   return (
     <AppContainer>
       <Header>
@@ -90,22 +145,38 @@ const VelocityApp = () => {
         <Subtitle>Track team velocity across sprint iterations</Subtitle>
       </Header>
 
-      <Section>
-        <SectionTitle>Select Iterations</SectionTitle>
-        <IterationSelector onSelectionChange={handleIterationSelectionChange} />
-      </Section>
+      {view === 'selector' && (
+        <Section>
+          <SectionTitle>Select Sprint Iterations to Analyze</SectionTitle>
+          <IterationSelector onSelectionChange={handleIterationSelectionChange} />
+          <AnalyzeButton
+            onClick={handleAnalyze}
+            disabled={selectedIterationIds.length === 0}
+          >
+            Analyze {selectedIterationIds.length} Iteration{selectedIterationIds.length !== 1 ? 's' : ''}
+          </AnalyzeButton>
+        </Section>
+      )}
 
-      <MetricsGrid>
-        <MetricCard>
-          <CardTitle>Velocity Metrics</CardTitle>
-          <VelocityChart iterationIds={selectedIterationIds} />
-        </MetricCard>
+      {view === 'dashboard' && (
+        <>
+          <BackButton onClick={handleBackToSelector}>
+            ← Change Sprints
+          </BackButton>
 
-        <MetricCard>
-          <CardTitle>Cycle Time Metrics</CardTitle>
-          <CycleTimeChart iterationIds={selectedIterationIds} />
-        </MetricCard>
-      </MetricsGrid>
+          <ChartsGrid>
+            <ChartCard>
+              <ChartTitle>Velocity Metrics</ChartTitle>
+              <VelocityChart iterationIds={selectedIterationIds} />
+            </ChartCard>
+
+            <ChartCard>
+              <ChartTitle>Cycle Time Metrics</ChartTitle>
+              <CycleTimeChart iterationIds={selectedIterationIds} />
+            </ChartCard>
+          </ChartsGrid>
+        </>
+      )}
     </AppContainer>
   );
 };
