@@ -35,10 +35,34 @@ const Section = styled.section`
   margin-bottom: 20px;
 `;
 
+const MetricsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const MetricCard = styled.div`
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
 const SectionTitle = styled.h2`
   color: #333;
   margin: 0 0 20px 0;
   font-size: 24px;
+`;
+
+const CardTitle = styled.h3`
+  color: #333;
+  margin: 0 0 20px 0;
+  font-size: 20px;
 `;
 
 /**
@@ -71,15 +95,17 @@ const VelocityApp = () => {
         <IterationSelector onSelectionChange={handleIterationSelectionChange} />
       </Section>
 
-      <Section>
-        <SectionTitle>Velocity Metrics</SectionTitle>
-        <VelocityChart iterationIds={selectedIterationIds} />
-      </Section>
+      <MetricsGrid>
+        <MetricCard>
+          <CardTitle>Velocity Metrics</CardTitle>
+          <VelocityChart iterationIds={selectedIterationIds} />
+        </MetricCard>
 
-      <Section>
-        <SectionTitle>Cycle Time Metrics</SectionTitle>
-        <CycleTimeChart iterationIds={selectedIterationIds} />
-      </Section>
+        <MetricCard>
+          <CardTitle>Cycle Time Metrics</CardTitle>
+          <CycleTimeChart iterationIds={selectedIterationIds} />
+        </MetricCard>
+      </MetricsGrid>
     </AppContainer>
   );
 };
