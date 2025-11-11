@@ -714,7 +714,7 @@ describe('GitLabClient', () => {
       });
     });
 
-    describe('_parseStatusChanges', () => {
+    describe('parseStatusChanges', () => {
       it('should parse status changes from system notes', () => {
         const notes = [
           {
@@ -740,7 +740,7 @@ describe('GitLabClient', () => {
           }
         ];
 
-        const result = client._parseStatusChanges(notes);
+        const result = client.parseStatusChanges(notes);
 
         expect(result).toHaveLength(2);
         expect(result[0]).toEqual({
@@ -766,7 +766,7 @@ describe('GitLabClient', () => {
           }
         ];
 
-        const result = client._parseStatusChanges(notes);
+        const result = client.parseStatusChanges(notes);
 
         expect(result).toHaveLength(0);
       });
@@ -782,7 +782,7 @@ describe('GitLabClient', () => {
           }
         ];
 
-        const result = client._parseStatusChanges(notes);
+        const result = client.parseStatusChanges(notes);
 
         expect(result).toHaveLength(0);
       });
@@ -798,7 +798,7 @@ describe('GitLabClient', () => {
           }
         ];
 
-        const result = client._parseStatusChanges(notes);
+        const result = client.parseStatusChanges(notes);
 
         expect(result).toHaveLength(0);
       });
@@ -821,7 +821,7 @@ describe('GitLabClient', () => {
           }
         ];
 
-        const result = client._parseStatusChanges(notes);
+        const result = client.parseStatusChanges(notes);
 
         expect(result).toHaveLength(2);
         expect(result[0].status).toBe('In progress');
@@ -829,37 +829,37 @@ describe('GitLabClient', () => {
       });
     });
 
-    describe('_isInProgressStatus', () => {
+    describe('isInProgressStatus', () => {
       it('should match "In progress" (case insensitive)', () => {
-        expect(client._isInProgressStatus('In progress')).toBe(true);
-        expect(client._isInProgressStatus('in progress')).toBe(true);
-        expect(client._isInProgressStatus('IN PROGRESS')).toBe(true);
+        expect(client.isInProgressStatus('In progress')).toBe(true);
+        expect(client.isInProgressStatus('in progress')).toBe(true);
+        expect(client.isInProgressStatus('IN PROGRESS')).toBe(true);
       });
 
       it('should match "In-progress" with hyphen', () => {
-        expect(client._isInProgressStatus('In-progress')).toBe(true);
-        expect(client._isInProgressStatus('in-progress')).toBe(true);
+        expect(client.isInProgressStatus('In-progress')).toBe(true);
+        expect(client.isInProgressStatus('in-progress')).toBe(true);
       });
 
       it('should match "WIP"', () => {
-        expect(client._isInProgressStatus('WIP')).toBe(true);
-        expect(client._isInProgressStatus('wip')).toBe(true);
+        expect(client.isInProgressStatus('WIP')).toBe(true);
+        expect(client.isInProgressStatus('wip')).toBe(true);
       });
 
       it('should match "working"', () => {
-        expect(client._isInProgressStatus('working')).toBe(true);
-        expect(client._isInProgressStatus('Working')).toBe(true);
+        expect(client.isInProgressStatus('working')).toBe(true);
+        expect(client.isInProgressStatus('Working')).toBe(true);
       });
 
       it('should not match other statuses', () => {
-        expect(client._isInProgressStatus('Done')).toBe(false);
-        expect(client._isInProgressStatus('To Refine')).toBe(false);
-        expect(client._isInProgressStatus('Blocked')).toBe(false);
-        expect(client._isInProgressStatus('Closed')).toBe(false);
+        expect(client.isInProgressStatus('Done')).toBe(false);
+        expect(client.isInProgressStatus('To Refine')).toBe(false);
+        expect(client.isInProgressStatus('Blocked')).toBe(false);
+        expect(client.isInProgressStatus('Closed')).toBe(false);
       });
     });
 
-    describe('_extractInProgressTimestamp', () => {
+    describe('extractInProgressTimestamp', () => {
       it('should extract first "In progress" timestamp', () => {
         const notes = [
           {
@@ -892,7 +892,7 @@ describe('GitLabClient', () => {
           }
         ];
 
-        const result = client._extractInProgressTimestamp(notes);
+        const result = client.extractInProgressTimestamp(notes);
 
         expect(result).toBe('2025-11-03T15:27:49Z');
       });
@@ -915,13 +915,13 @@ describe('GitLabClient', () => {
           }
         ];
 
-        const result = client._extractInProgressTimestamp(notes);
+        const result = client.extractInProgressTimestamp(notes);
 
         expect(result).toBeNull();
       });
 
       it('should return null for empty notes array', () => {
-        const result = client._extractInProgressTimestamp([]);
+        const result = client.extractInProgressTimestamp([]);
 
         expect(result).toBeNull();
       });
@@ -937,7 +937,7 @@ describe('GitLabClient', () => {
           }
         ];
 
-        const result = client._extractInProgressTimestamp(notes);
+        const result = client.extractInProgressTimestamp(notes);
 
         expect(result).toBe('2025-11-03T15:27:49Z');
       });

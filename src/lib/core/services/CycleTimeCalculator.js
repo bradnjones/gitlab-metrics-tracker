@@ -14,6 +14,10 @@ export class CycleTimeCalculator {
   /**
    * Calculate cycle time statistics (avg, P50, P90) from closed issues
    *
+   * Cycle time is measured from when work actually started (inProgressAt) to when it closed.
+   * Only includes issues that were moved to "In Progress" status - issues that were never
+   * started are excluded from cycle time calculations.
+   *
    * @param {Array<Object>} issues - Issues from a sprint
    * @param {string} issues[].state - Issue state (closed, opened)
    * @param {string} issues[].createdAt - ISO timestamp when issue created
@@ -21,23 +25,26 @@ export class CycleTimeCalculator {
    * @param {string|null} [issues[].inProgressAt] - ISO timestamp when issue first moved to "In Progress"
    * @returns {Object} Cycle time statistics
    * @returns {number} returns.avg - Average cycle time in days
-   * @returns {number} returns.p50 - Median cycle time in days
+   * @returns {number} returns.p50 - Median cycle time in days (P50)
    * @returns {number} returns.p90 - 90th percentile cycle time in days
    */
   static calculate(issues) {
-    const closedIssues = issues.filter(
-      (issue) => issue.state === 'closed' && issue.closedAt
+    // Only include closed issues that have been moved to "In Progress"
+    // This ensures we only measure cycle time for work that was actually started
+    const closedIssuesWithProgress = issues.filter(
+      (issue) =>
+        issue.state === 'closed' &&
+        issue.closedAt &&
+        issue.inProgressAt // MUST have inProgressAt - no fallback
     );
 
-    if (closedIssues.length === 0) {
+    if (closedIssuesWithProgress.length === 0) {
       return { avg: 0, p50: 0, p90: 0 };
     }
 
-    // Calculate cycle times in days
-    const cycleTimes = closedIssues.map((issue) => {
-      // Prefer inProgressAt for accurate cycle time, fall back to createdAt
-      const startTime = issue.inProgressAt || issue.createdAt;
-      const start = new Date(startTime);
+    // Calculate cycle times in days (inProgressAt → closedAt)
+    const cycleTimes = closedIssuesWithProgress.map((issue) => {
+      const start = new Date(issue.inProgressAt);
       const closed = new Date(issue.closedAt);
       const timeMs = closed - start;
       return timeMs / (1000 * 60 * 60 * 24); // Convert ms to days

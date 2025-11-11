@@ -9,18 +9,21 @@ describe('CycleTimeCalculator', () => {
           id: 'gid://gitlab/Issue/1',
           state: 'closed',
           createdAt: '2025-01-01T00:00:00Z',
+          inProgressAt: '2025-01-01T00:00:00Z',
           closedAt: '2025-01-02T00:00:00Z', // 1 day
         },
         {
           id: 'gid://gitlab/Issue/2',
           state: 'closed',
           createdAt: '2025-01-01T00:00:00Z',
+          inProgressAt: '2025-01-01T00:00:00Z',
           closedAt: '2025-01-04T00:00:00Z', // 3 days
         },
         {
           id: 'gid://gitlab/Issue/3',
           state: 'closed',
           createdAt: '2025-01-01T00:00:00Z',
+          inProgressAt: '2025-01-01T00:00:00Z',
           closedAt: '2025-01-06T00:00:00Z', // 5 days
         },
       ];
@@ -38,12 +41,14 @@ describe('CycleTimeCalculator', () => {
           id: 'gid://gitlab/Issue/1',
           state: 'closed',
           createdAt: '2025-01-01T00:00:00Z',
+          inProgressAt: '2025-01-01T00:00:00Z',
           closedAt: '2025-01-02T00:00:00Z', // 1 day
         },
         {
           id: 'gid://gitlab/Issue/2',
           state: 'opened', // Open - should be ignored
           createdAt: '2025-01-01T00:00:00Z',
+          inProgressAt: '2025-01-01T00:00:00Z',
           closedAt: null,
         },
       ];
@@ -63,19 +68,28 @@ describe('CycleTimeCalculator', () => {
       expect(cycleTime.p90).toBe(0);
     });
 
-    it('should handle issues with missing closedAt timestamp', () => {
+    it('should handle issues with missing closedAt or inProgressAt timestamp', () => {
       const issues = [
         {
           id: 'gid://gitlab/Issue/1',
           state: 'closed',
           createdAt: '2025-01-01T00:00:00Z',
+          inProgressAt: '2025-01-01T00:00:00Z',
           closedAt: '2025-01-02T00:00:00Z', // 1 day - valid
         },
         {
           id: 'gid://gitlab/Issue/2',
           state: 'closed',
           createdAt: '2025-01-01T00:00:00Z',
+          inProgressAt: '2025-01-01T00:00:00Z',
           closedAt: null, // Missing closedAt - should be ignored
+        },
+        {
+          id: 'gid://gitlab/Issue/3',
+          state: 'closed',
+          createdAt: '2025-01-01T00:00:00Z',
+          inProgressAt: null, // Missing inProgressAt - should be ignored
+          closedAt: '2025-01-05T00:00:00Z',
         },
       ];
 
@@ -113,7 +127,7 @@ describe('CycleTimeCalculator', () => {
       expect(cycleTime.p90).toBe(3);
     });
 
-    it('should fall back to createdAt when inProgressAt is null', () => {
+    it('should exclude issues without inProgressAt (never started)', () => {
       const issues = [
         {
           id: 'gid://gitlab/Issue/1',
@@ -126,19 +140,17 @@ describe('CycleTimeCalculator', () => {
           id: 'gid://gitlab/Issue/2',
           state: 'closed',
           createdAt: '2025-01-01T00:00:00Z',
-          inProgressAt: null, // No inProgressAt - use createdAt
-          closedAt: '2025-01-05T00:00:00Z', // 4 days from createdAt
+          inProgressAt: null, // No inProgressAt - EXCLUDED from cycle time
+          closedAt: '2025-01-05T00:00:00Z',
         },
       ];
 
       const cycleTime = CycleTimeCalculator.calculate(issues);
 
-      // Issue 1: 2 days (using inProgressAt)
-      // Issue 2: 4 days (using createdAt as fallback)
-      // Avg: 3
-      expect(cycleTime.avg).toBe(3);
-      expect(cycleTime.p50).toBe(3);
-      expect(cycleTime.p90).toBe(4);
+      // Only Issue 1 counted (Issue 2 excluded because it was never started)
+      expect(cycleTime.avg).toBe(2);
+      expect(cycleTime.p50).toBe(2);
+      expect(cycleTime.p90).toBe(2);
     });
 
     it('should calculate more accurate cycle time with inProgressAt', () => {
@@ -174,8 +186,8 @@ describe('CycleTimeCalculator', () => {
           id: 'gid://gitlab/Issue/2',
           state: 'closed',
           createdAt: '2025-01-01T00:00:00Z',
-          inProgressAt: null,
-          closedAt: '2025-01-06T00:00:00Z', // 5 days from createdAt
+          inProgressAt: null, // No inProgressAt - EXCLUDED
+          closedAt: '2025-01-06T00:00:00Z',
         },
         {
           id: 'gid://gitlab/Issue/3',
@@ -188,11 +200,12 @@ describe('CycleTimeCalculator', () => {
 
       const cycleTime = CycleTimeCalculator.calculate(issues);
 
-      // Issue 1: 1 day, Issue 2: 5 days, Issue 3: 3 days
-      // Avg: 3, P50: 3, P90: 5
-      expect(cycleTime.avg).toBe(3);
-      expect(cycleTime.p50).toBe(3);
-      expect(cycleTime.p90).toBe(5);
+      // Only Issue 1 and 3 counted (Issue 2 excluded - never started)
+      // Issue 1: 1 day, Issue 3: 3 days
+      // Avg: 2, P50: 2, P90: 3
+      expect(cycleTime.avg).toBe(2);
+      expect(cycleTime.p50).toBe(2);
+      expect(cycleTime.p90).toBe(3);
     });
   });
 });

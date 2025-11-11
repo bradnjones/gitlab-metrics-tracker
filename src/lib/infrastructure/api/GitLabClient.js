@@ -256,7 +256,7 @@ export class GitLabClient {
 
       // Enrich issues with inProgressAt timestamp from status change notes
       const enrichedIssues = allIssues.map((issue) => {
-        const inProgressAt = this._extractInProgressTimestamp(issue.notes?.nodes || []);
+        const inProgressAt = this.extractInProgressTimestamp(issue.notes?.nodes || []);
         return {
           ...issue,
           inProgressAt,
@@ -645,12 +645,11 @@ export class GitLabClient {
    *
    * @param {Array<Object>} notes - Array of note objects from GitLab
    * @returns {string|null} ISO timestamp when issue first moved to "In Progress", or null
-   * @private
    */
-  _extractInProgressTimestamp(notes) {
-    const statusChanges = this._parseStatusChanges(notes);
+  extractInProgressTimestamp(notes) {
+    const statusChanges = this.parseStatusChanges(notes);
     const inProgressChange = statusChanges.find((change) =>
-      this._isInProgressStatus(change.status)
+      this.isInProgressStatus(change.status)
     );
     return inProgressChange?.timestamp || null;
   }
@@ -661,9 +660,8 @@ export class GitLabClient {
    *
    * @param {Array<Object>} notes - Array of note objects from GitLab
    * @returns {Array<{status: string, timestamp: string}>} Status transitions in chronological order
-   * @private
    */
-  _parseStatusChanges(notes) {
+  parseStatusChanges(notes) {
     return notes
       .filter(
         (note) =>
@@ -690,9 +688,8 @@ export class GitLabClient {
    *
    * @param {string} status - Status string from note
    * @returns {boolean} True if status indicates in-progress state
-   * @private
    */
-  _isInProgressStatus(status) {
+  isInProgressStatus(status) {
     const patterns = [
       /in progress/i,
       /in-progress/i,
