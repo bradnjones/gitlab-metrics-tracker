@@ -6,7 +6,6 @@
 
 import express from 'express';
 import { ServiceFactory } from '../services/ServiceFactory.js';
-import { CycleTimeCalculator } from '../../lib/core/services/CycleTimeCalculator.js';
 
 const router = express.Router();
 
@@ -69,8 +68,12 @@ router.get('/velocity', async (req, res) => {
     });
 
   } catch (error) {
-    // Log error for debugging
-    console.error('Failed to calculate velocity metrics:', error.message);
+    // Log error for debugging (structured logging)
+    console.error('[API Error] Failed to calculate velocity metrics:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
 
     // Return user-friendly error
     res.status(500).json({
@@ -122,21 +125,17 @@ router.get('/cycle-time', async (req, res) => {
     // This fetches iteration metadata ONCE and parallelizes issue fetching
     const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
 
-    // Transform results to response format with cycle time calculations
-    const metricsResults = allMetrics.map(metrics => {
-      // Calculate cycle time from raw issues data
-      const cycleTime = CycleTimeCalculator.calculate(metrics.rawData.issues);
-
-      return {
-        iterationId: metrics.iterationId,
-        iterationTitle: metrics.iterationTitle,
-        startDate: metrics.startDate,
-        dueDate: metrics.endDate,
-        cycleTimeAvg: cycleTime.avg,
-        cycleTimeP50: cycleTime.p50,
-        cycleTimeP90: cycleTime.p90
-      };
-    });
+    // Transform results to response format
+    // Note: Cycle time is already calculated in MetricsService.calculateMultipleMetrics()
+    const metricsResults = allMetrics.map(metrics => ({
+      iterationId: metrics.iterationId,
+      iterationTitle: metrics.iterationTitle,
+      startDate: metrics.startDate,
+      dueDate: metrics.endDate,
+      cycleTimeAvg: metrics.cycleTimeAvg,
+      cycleTimeP50: metrics.cycleTimeP50,
+      cycleTimeP90: metrics.cycleTimeP90
+    }));
 
     // Return results
     res.json({
@@ -145,8 +144,12 @@ router.get('/cycle-time', async (req, res) => {
     });
 
   } catch (error) {
-    // Log error for debugging
-    console.error('Failed to calculate cycle time metrics:', error.message);
+    // Log error for debugging (structured logging)
+    console.error('[API Error] Failed to calculate cycle time metrics:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
 
     // Return user-friendly error
     res.status(500).json({

@@ -8,23 +8,28 @@
 
 ## 🎯 NEXT STORY TO START
 
-**Story V1.1: IterationSelector UX/UI Improvements**
+**Story V2: Cycle Time Metrics**
 
 See below for full details.
 
-**Note:** Story V1 is complete and in PR #12. Story V1.1 addresses UX feedback from V1 testing.
+**Completed Stories:**
+- ✅ V1: Velocity Tracking (Issue #11, merged)
+- ✅ V1.1: IterationSelector UX/UI Improvements (Issue #14, merged)
+- ✅ Removed redundant ThroughputCalculator (PR #31, merged)
 
 ---
 
 ## 📊 MVP Boundary
 
-**MVP = Stories V1 + V2 + V3** (15-20 hours total)
+**MVP = Stories V1 + V2 + V3** (12-16 hours total)
 
 After V3, users can:
 - ✅ Select iterations from their GitLab project
-- ✅ View 3 core metrics with visualizations (Velocity, Throughput, Cycle Time)
+- ✅ View 2 core metrics with visualizations (Velocity, Cycle Time)
 - ✅ Track trends over time
-- ✅ Understand team performance
+- ✅ Understand team performance and bottlenecks
+
+**Note:** Throughput was removed (PR #31) as it was redundant with Velocity's issue count.
 
 **Post-MVP** = Stories V4-V7 (optional enhancements)
 
@@ -240,23 +245,23 @@ Check prototype: `/Users/brad/dev/smi/gitlab-sprint-metrics/src/public/index.htm
 
 ---
 
-### Story V2: Throughput & Cycle Time - Add Two Metrics
+### Story V2: Cycle Time Metrics
 
-**User Story:** As a team lead, I want to see throughput (issues closed) and cycle time (Avg/P50/P90) so that I can understand our delivery speed and consistency.
+**User Story:** As a team lead, I want to see cycle time (Avg/P50/P90) so that I can understand how long it takes to complete issues and identify bottlenecks.
 
 **Priority:** HIGH (MVP Core)
 **Complexity:** MEDIUM (Patterns established in V1)
-**Estimate:** 4-5 hours
+**Estimate:** 3-4 hours
 **Prerequisites:** V1 complete
+
+**Note:** Throughput was removed in PR #31 as it was redundant with Velocity's issue count tracking. This story now focuses solely on Cycle Time.
 
 #### Acceptance Criteria
 1. ✅ **GitLab Integration**: Reuse fetchIterationDetails() from V1 (no new queries needed)
-2. ✅ **Metric Calculation**: Calculate throughput and cycle time (calculators already exist ✅)
-3. ✅ **API Endpoints**:
-   - GET /api/metrics/throughput?iterations=X,Y,Z
-   - GET /api/metrics/cycle-time?iterations=X,Y,Z
-4. ✅ **React UI**: Add two new chart cards to dashboard
-5. ✅ **Charts**: Throughput bar chart + Cycle Time combo chart (line + markers for P50/P90)
+2. ✅ **Metric Calculation**: Calculate cycle time (calculator already exists ✅)
+3. ✅ **API Endpoint**: GET /api/metrics/cycle-time?iterations=X,Y,Z
+4. ✅ **React UI**: Add cycle time chart card to dashboard
+5. ✅ **Chart**: Cycle Time combo chart (line for average + markers/bands for P50/P90)
 6. ✅ **Manual Validation**: Verify calculations match prototype formulas
 
 #### Technical Scope
@@ -265,36 +270,33 @@ Check prototype: `/Users/brad/dev/smi/gitlab-sprint-metrics/src/public/index.htm
 - No new GitLabClient methods needed (reuse V1)
 
 **Core Layer:**
-- ThroughputCalculator.calculate() - Already implemented ✅
 - CycleTimeCalculator.calculate() - Already implemented ✅
 
 **Presentation Layer (API):**
-- GET /api/metrics/throughput
 - GET /api/metrics/cycle-time
 
 **Presentation Layer (UI):**
-- ThroughputChart component (Chart.js bar chart)
 - CycleTimeChart component (Chart.js line chart with P50/P90 annotations)
-- Dashboard layout with 3 metric cards
+- Dashboard layout with 2 metric cards (Velocity + Cycle Time)
 
 #### Validation Checklist
 - [ ] Select same iterations as V1
-- [ ] See 3 charts: Velocity, Throughput, Cycle Time
-- [ ] Verify throughput counts match V1 issue counts
+- [ ] See 2 charts: Velocity and Cycle Time
 - [ ] Verify cycle time averages look reasonable
-- [ ] Check P50 and P90 lines render on cycle time chart
+- [ ] Check P50 and P90 lines/bands render on cycle time chart
+- [ ] Hover tooltips show all three values (Avg, P50, P90)
 
 #### Agents to Use
-- 🤖 Product Owner Agent - Validate throughput and cycle time formulas
-- 🤖 UX/UI Design Agent - Extract throughput and cycle time chart styles from prototype
-- 🤖 Test Coverage Agent - Plan tests for new endpoints and components
+- 🤖 Product Owner Agent - Validate cycle time formula matches prototype
+- 🤖 UX/UI Design Agent - Extract cycle time chart styles from prototype
+- 🤖 Test Coverage Agent - Plan tests for new endpoint and component
 - 🤖 Code Review Agent - Final review
 
 ---
 
 ### Story V3: Metrics Dashboard - Polish MVP
 
-**User Story:** As a team lead, I want a polished dashboard with all 3 metrics, proper layout, and loading states so that I have a professional tool I can show to stakeholders.
+**User Story:** As a team lead, I want a polished dashboard with both metrics (Velocity + Cycle Time), proper layout, and loading states so that I have a professional tool I can show to stakeholders.
 
 **Priority:** MEDIUM (MVP Polish)
 **Complexity:** SMALL (Refinement)

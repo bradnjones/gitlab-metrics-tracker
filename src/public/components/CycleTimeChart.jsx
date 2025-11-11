@@ -25,6 +25,12 @@ ChartJS.register(
 
 const Container = styled.div`
   padding: 20px;
+
+  /* Accessibility: Ensure container is keyboard navigable */
+  &:focus-within {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
 `;
 
 const LoadingMessage = styled.div`
@@ -191,7 +197,7 @@ const CycleTimeChart = ({ iterationIds }) => {
   // Empty state - no iterations selected
   if (!iterationIds || iterationIds.length === 0) {
     return (
-      <Container>
+      <Container role="region" aria-label="Cycle Time Metrics">
         <EmptyState>Select iterations to view cycle time metrics</EmptyState>
       </Container>
     );
@@ -200,7 +206,7 @@ const CycleTimeChart = ({ iterationIds }) => {
   // Loading state
   if (loading) {
     return (
-      <Container>
+      <Container role="region" aria-label="Cycle Time Metrics" aria-busy="true">
         <LoadingMessage>Loading cycle time data...</LoadingMessage>
       </Container>
     );
@@ -209,18 +215,23 @@ const CycleTimeChart = ({ iterationIds }) => {
   // Error state
   if (error) {
     return (
-      <Container>
-        <ErrorMessage>{error}</ErrorMessage>
+      <Container role="region" aria-label="Cycle Time Metrics">
+        <ErrorMessage role="alert" aria-live="assertive">{error}</ErrorMessage>
       </Container>
     );
   }
 
   // Chart display
   return (
-    <Container>
+    <Container role="region" aria-label="Cycle Time Metrics Chart">
       {chartData && (
         <ChartContainer>
-          <Line data={chartData} options={chartOptions} />
+          <Line
+            data={chartData}
+            options={chartOptions}
+            aria-label="Line chart showing cycle time trends with average, P50, and P90 metrics across selected iterations"
+            role="img"
+          />
         </ChartContainer>
       )}
     </Container>
