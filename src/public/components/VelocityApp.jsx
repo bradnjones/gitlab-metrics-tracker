@@ -2,6 +2,7 @@ import { useState } from 'react';
 import styled from 'styled-components';
 import IterationSelector from './IterationSelector.jsx';
 import VelocityChart from './VelocityChart.jsx';
+import CycleTimeChart from './CycleTimeChart.jsx';
 
 const AppContainer = styled.div`
   max-width: 1200px;
@@ -73,6 +74,11 @@ const VelocityApp = () => {
       <Section>
         <SectionTitle>Velocity Metrics</SectionTitle>
         <VelocityChart iterationIds={selectedIterationIds} />
+      </Section>
+
+      <Section>
+        <SectionTitle>Cycle Time Metrics</SectionTitle>
+        <CycleTimeChart iterationIds={selectedIterationIds} />
       </Section>
     </AppContainer>
   );
