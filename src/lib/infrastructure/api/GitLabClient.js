@@ -178,7 +178,7 @@ export class GitLabClient {
    */
   async fetchIterationDetails(iterationId) {
     const query = `
-      query getIterationDetails($fullPath: ID!, $iterationId: [ID!], $after: String) {
+      query getIterationDetails($fullPath: ID!, $iterationId: [ID!], $after: String, $notesAfter: String) {
         group(fullPath: $fullPath) {
           id
           issues(iterationId: $iterationId, includeSubgroups: true, first: 100, after: $after) {
@@ -202,6 +202,21 @@ export class GitLabClient {
               assignees {
                 nodes {
                   username
+                }
+              }
+              notes(first: 100, after: $notesAfter) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  id
+                  body
+                  system
+                  systemNoteMetadata {
+                    action
+                  }
+                  createdAt
                 }
               }
             }
@@ -239,9 +254,18 @@ export class GitLabClient {
 
       console.log(`✓ Fetched ${allIssues.length} issues for iteration ${iterationId}`);
 
+      // Enrich issues with inProgressAt timestamp from status change notes
+      const enrichedIssues = allIssues.map((issue) => {
+        const inProgressAt = this._extractInProgressTimestamp(issue.notes?.nodes || []);
+        return {
+          ...issue,
+          inProgressAt,
+        };
+      });
+
       // MRs are now fetched separately via fetchMergeRequestsForGroup
       return {
-        issues: allIssues,
+        issues: enrichedIssues,
         mergeRequests: [], // Populated by fetchMergeRequestsForGroup in metrics calculation
       };
     } catch (error) {
@@ -613,6 +637,69 @@ export class GitLabClient {
       }
       throw new Error(`Failed to fetch incidents: ${error.message}`);
     }
+  }
+
+  /**
+   * Extracts the first "In Progress" timestamp from issue notes.
+   * Parses system notes with work_item_status action.
+   *
+   * @param {Array<Object>} notes - Array of note objects from GitLab
+   * @returns {string|null} ISO timestamp when issue first moved to "In Progress", or null
+   * @private
+   */
+  _extractInProgressTimestamp(notes) {
+    const statusChanges = this._parseStatusChanges(notes);
+    const inProgressChange = statusChanges.find((change) =>
+      this._isInProgressStatus(change.status)
+    );
+    return inProgressChange?.timestamp || null;
+  }
+
+  /**
+   * Parses status change events from issue notes.
+   * Filters for system notes with work_item_status action.
+   *
+   * @param {Array<Object>} notes - Array of note objects from GitLab
+   * @returns {Array<{status: string, timestamp: string}>} Status transitions in chronological order
+   * @private
+   */
+  _parseStatusChanges(notes) {
+    return notes
+      .filter(
+        (note) =>
+          note.system && note.systemNoteMetadata?.action === 'work_item_status'
+      )
+      .map((note) => {
+        // Extract status from body text: "set status to **In progress**"
+        const match = note.body.match(/set status to \*\*(.+?)\*\*/);
+        const status = match ? match[1] : null;
+
+        return {
+          status,
+          timestamp: note.createdAt,
+          body: note.body,
+        };
+      })
+      .filter((change) => change.status !== null)
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  }
+
+  /**
+   * Checks if a status string indicates "In Progress" state.
+   * Supports variations like "In progress", "in progress", "In-Progress", "WIP", etc.
+   *
+   * @param {string} status - Status string from note
+   * @returns {boolean} True if status indicates in-progress state
+   * @private
+   */
+  _isInProgressStatus(status) {
+    const patterns = [
+      /in progress/i,
+      /in-progress/i,
+      /wip/i,
+      /working/i,
+    ];
+    return patterns.some((pattern) => pattern.test(status));
   }
 
   /**

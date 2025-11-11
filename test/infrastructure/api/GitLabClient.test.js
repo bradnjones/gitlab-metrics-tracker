@@ -704,6 +704,311 @@ describe('GitLabClient', () => {
     });
   });
 
+  describe('Status parsing from notes', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+    });
+
+    describe('_parseStatusChanges', () => {
+      it('should parse status changes from system notes', () => {
+        const notes = [
+          {
+            id: 'note-1',
+            body: 'set status to **To Refine**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-10-30T21:14:41Z'
+          },
+          {
+            id: 'note-2',
+            body: 'set status to **In progress**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-11-03T15:27:49Z'
+          },
+          {
+            id: 'note-3',
+            body: 'This is a user comment',
+            system: false,
+            systemNoteMetadata: null,
+            createdAt: '2025-11-03T16:00:00Z'
+          }
+        ];
+
+        const result = client._parseStatusChanges(notes);
+
+        expect(result).toHaveLength(2);
+        expect(result[0]).toEqual({
+          status: 'To Refine',
+          timestamp: '2025-10-30T21:14:41Z',
+          body: 'set status to **To Refine**'
+        });
+        expect(result[1]).toEqual({
+          status: 'In progress',
+          timestamp: '2025-11-03T15:27:49Z',
+          body: 'set status to **In progress**'
+        });
+      });
+
+      it('should filter out non-system notes', () => {
+        const notes = [
+          {
+            id: 'note-1',
+            body: 'User comment',
+            system: false,
+            systemNoteMetadata: null,
+            createdAt: '2025-11-03T16:00:00Z'
+          }
+        ];
+
+        const result = client._parseStatusChanges(notes);
+
+        expect(result).toHaveLength(0);
+      });
+
+      it('should filter out system notes that are not status changes', () => {
+        const notes = [
+          {
+            id: 'note-1',
+            body: 'changed title',
+            system: true,
+            systemNoteMetadata: { action: 'title' },
+            createdAt: '2025-11-03T16:00:00Z'
+          }
+        ];
+
+        const result = client._parseStatusChanges(notes);
+
+        expect(result).toHaveLength(0);
+      });
+
+      it('should handle notes without systemNoteMetadata', () => {
+        const notes = [
+          {
+            id: 'note-1',
+            body: 'set status to **Done**',
+            system: true,
+            systemNoteMetadata: null,
+            createdAt: '2025-11-03T16:00:00Z'
+          }
+        ];
+
+        const result = client._parseStatusChanges(notes);
+
+        expect(result).toHaveLength(0);
+      });
+
+      it('should sort status changes chronologically', () => {
+        const notes = [
+          {
+            id: 'note-2',
+            body: 'set status to **Done**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-11-05T10:00:00Z'
+          },
+          {
+            id: 'note-1',
+            body: 'set status to **In progress**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-11-03T15:27:49Z'
+          }
+        ];
+
+        const result = client._parseStatusChanges(notes);
+
+        expect(result).toHaveLength(2);
+        expect(result[0].status).toBe('In progress');
+        expect(result[1].status).toBe('Done');
+      });
+    });
+
+    describe('_isInProgressStatus', () => {
+      it('should match "In progress" (case insensitive)', () => {
+        expect(client._isInProgressStatus('In progress')).toBe(true);
+        expect(client._isInProgressStatus('in progress')).toBe(true);
+        expect(client._isInProgressStatus('IN PROGRESS')).toBe(true);
+      });
+
+      it('should match "In-progress" with hyphen', () => {
+        expect(client._isInProgressStatus('In-progress')).toBe(true);
+        expect(client._isInProgressStatus('in-progress')).toBe(true);
+      });
+
+      it('should match "WIP"', () => {
+        expect(client._isInProgressStatus('WIP')).toBe(true);
+        expect(client._isInProgressStatus('wip')).toBe(true);
+      });
+
+      it('should match "working"', () => {
+        expect(client._isInProgressStatus('working')).toBe(true);
+        expect(client._isInProgressStatus('Working')).toBe(true);
+      });
+
+      it('should not match other statuses', () => {
+        expect(client._isInProgressStatus('Done')).toBe(false);
+        expect(client._isInProgressStatus('To Refine')).toBe(false);
+        expect(client._isInProgressStatus('Blocked')).toBe(false);
+        expect(client._isInProgressStatus('Closed')).toBe(false);
+      });
+    });
+
+    describe('_extractInProgressTimestamp', () => {
+      it('should extract first "In progress" timestamp', () => {
+        const notes = [
+          {
+            id: 'note-1',
+            body: 'set status to **To Refine**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-10-30T21:14:41Z'
+          },
+          {
+            id: 'note-2',
+            body: 'set status to **In progress**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-11-03T15:27:49Z'
+          },
+          {
+            id: 'note-3',
+            body: 'set status to **Blocked**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-11-03T17:23:06Z'
+          },
+          {
+            id: 'note-4',
+            body: 'set status to **In progress**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-11-03T22:03:04Z'
+          }
+        ];
+
+        const result = client._extractInProgressTimestamp(notes);
+
+        expect(result).toBe('2025-11-03T15:27:49Z');
+      });
+
+      it('should return null if no "In progress" status found', () => {
+        const notes = [
+          {
+            id: 'note-1',
+            body: 'set status to **To Refine**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-10-30T21:14:41Z'
+          },
+          {
+            id: 'note-2',
+            body: 'set status to **Done**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-11-07T17:12:44Z'
+          }
+        ];
+
+        const result = client._extractInProgressTimestamp(notes);
+
+        expect(result).toBeNull();
+      });
+
+      it('should return null for empty notes array', () => {
+        const result = client._extractInProgressTimestamp([]);
+
+        expect(result).toBeNull();
+      });
+
+      it('should handle case variations of "In progress"', () => {
+        const notes = [
+          {
+            id: 'note-1',
+            body: 'set status to **in progress**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-11-03T15:27:49Z'
+          }
+        ];
+
+        const result = client._extractInProgressTimestamp(notes);
+
+        expect(result).toBe('2025-11-03T15:27:49Z');
+      });
+    });
+
+    describe('fetchIterationDetails with notes enrichment', () => {
+      beforeEach(() => {
+        client.delay = jest.fn().mockResolvedValue(undefined);
+      });
+
+      it('should enrich issues with inProgressAt timestamp', async () => {
+        const mockIterationData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/1',
+                  iid: '101',
+                  title: 'Issue 1',
+                  state: 'closed',
+                  createdAt: '2025-01-01T00:00:00Z',
+                  closedAt: '2025-01-10T00:00:00Z',
+                  weight: 3,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [
+                      {
+                        id: 'note-1',
+                        body: 'set status to **In progress**',
+                        system: true,
+                        systemNoteMetadata: { action: 'work_item_status' },
+                        createdAt: '2025-01-02T10:00:00Z'
+                      }
+                    ],
+                    pageInfo: { hasNextPage: false, endCursor: null }
+                  }
+                },
+                {
+                  id: 'gid://gitlab/Issue/2',
+                  iid: '102',
+                  title: 'Issue 2',
+                  state: 'opened',
+                  createdAt: '2025-01-05T00:00:00Z',
+                  closedAt: null,
+                  weight: 5,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null }
+                  }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockIterationData);
+
+        const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+        expect(result.issues).toHaveLength(2);
+        expect(result.issues[0].inProgressAt).toBe('2025-01-02T10:00:00Z');
+        expect(result.issues[1].inProgressAt).toBeNull();
+      });
+    });
+  });
+
   describe('fetchMergeRequestsForGroup', () => {
     let client;
 
