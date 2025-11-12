@@ -3,78 +3,102 @@ import { DeploymentFrequencyCalculator } from '../../../src/lib/core/services/De
 
 describe('DeploymentFrequencyCalculator', () => {
   describe('calculate', () => {
-    it('should calculate deployments per day', () => {
-      const pipelines = [
+    it('should calculate deployments per day using merged MRs', () => {
+      const mergeRequests = [
         {
-          id: 'gid://gitlab/Ci::Pipeline/1',
-          status: 'success',
-          ref: 'main',
-          createdAt: '2025-01-01T00:00:00Z',
+          id: 'gid://gitlab/MergeRequest/1',
+          state: 'merged',
+          targetBranch: 'main',
+          mergedAt: '2025-01-01T00:00:00Z',
         },
         {
-          id: 'gid://gitlab/Ci::Pipeline/2',
-          status: 'success',
-          ref: 'main',
-          createdAt: '2025-01-02T00:00:00Z',
+          id: 'gid://gitlab/MergeRequest/2',
+          state: 'merged',
+          targetBranch: 'main',
+          mergedAt: '2025-01-02T00:00:00Z',
         },
         {
-          id: 'gid://gitlab/Ci::Pipeline/3',
-          status: 'success',
-          ref: 'main',
-          createdAt: '2025-01-03T00:00:00Z',
+          id: 'gid://gitlab/MergeRequest/3',
+          state: 'merged',
+          targetBranch: 'main',
+          mergedAt: '2025-01-03T00:00:00Z',
         },
       ];
 
       const frequency = DeploymentFrequencyCalculator.calculate(
-        pipelines,
+        mergeRequests,
         3 // 3-day sprint
       );
 
       expect(frequency).toBe(1); // 3 deployments / 3 days = 1 per day
     });
 
-    it('should only count successful main branch pipelines', () => {
-      const pipelines = [
+    it('should only count merged MRs to main or master branches', () => {
+      const mergeRequests = [
         {
-          id: 'gid://gitlab/Ci::Pipeline/1',
-          status: 'success',
-          ref: 'main', // Count this
+          id: 'gid://gitlab/MergeRequest/1',
+          state: 'merged',
+          targetBranch: 'main', // Count this
         },
         {
-          id: 'gid://gitlab/Ci::Pipeline/2',
-          status: 'failed',
-          ref: 'main', // Don't count - failed
+          id: 'gid://gitlab/MergeRequest/2',
+          state: 'merged',
+          targetBranch: 'master', // Count this (master also valid)
         },
         {
-          id: 'gid://gitlab/Ci::Pipeline/3',
-          status: 'success',
-          ref: 'feature-branch', // Don't count - not main
+          id: 'gid://gitlab/MergeRequest/3',
+          state: 'opened',
+          targetBranch: 'main', // Don't count - not merged
+        },
+        {
+          id: 'gid://gitlab/MergeRequest/4',
+          state: 'merged',
+          targetBranch: 'develop', // Don't count - not main/master
         },
       ];
 
-      const frequency = DeploymentFrequencyCalculator.calculate(pipelines, 5);
+      const frequency = DeploymentFrequencyCalculator.calculate(mergeRequests, 5);
 
-      expect(frequency).toBe(0.2); // 1 deployment / 5 days
+      expect(frequency).toBe(0.4); // 2 deployments / 5 days
     });
 
     it('should return 0 for zero sprint days', () => {
-      const pipelines = [
+      const mergeRequests = [
         {
-          id: 'gid://gitlab/Ci::Pipeline/1',
-          status: 'success',
-          ref: 'main',
+          id: 'gid://gitlab/MergeRequest/1',
+          state: 'merged',
+          targetBranch: 'main',
         },
       ];
 
-      const frequency = DeploymentFrequencyCalculator.calculate(pipelines, 0);
+      const frequency = DeploymentFrequencyCalculator.calculate(mergeRequests, 0);
 
       expect(frequency).toBe(0);
     });
 
-    it('should return 0 for empty pipeline array', () => {
+    it('should return 0 for empty merge request array', () => {
       const frequency = DeploymentFrequencyCalculator.calculate([], 5);
 
       expect(frequency).toBe(0);
+    });
+
+    it('should handle case-insensitive branch names', () => {
+      const mergeRequests = [
+        {
+          id: 'gid://gitlab/MergeRequest/1',
+          state: 'merged',
+          targetBranch: 'Main', // Uppercase
+        },
+        {
+          id: 'gid://gitlab/MergeRequest/2',
+          state: 'merged',
+          targetBranch: 'MASTER', // Uppercase
+        },
+      ];
+
+      const frequency = DeploymentFrequencyCalculator.calculate(mergeRequests, 2);
+
+      expect(frequency).toBe(1); // 2 deployments / 2 days
     });
   });
 });
