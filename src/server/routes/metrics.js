@@ -182,6 +182,152 @@ router.get('/cycle-time', async (req, res) => {
 });
 
 /**
+ * GET /api/metrics/deployment-frequency
+ * Calculate deployment frequency metrics (DORA) for one or more iterations
+ *
+ * Query params:
+ *   iterations - Comma-separated iteration IDs (e.g., ?iterations=id1,id2,id3)
+ *
+ * Response:
+ * {
+ *   "metrics": [
+ *     { "iterationId": "...", "deploymentFrequency": 1.5, "deployments": 21, "sprintDays": 14 },
+ *     ...
+ *   ],
+ *   "count": 2
+ * }
+ */
+router.get('/deployment-frequency', async (req, res) => {
+  try {
+    // Validate query params
+    const { iterations } = req.query;
+
+    if (!iterations) {
+      return res.status(400).json({
+        error: {
+          message: 'Missing required parameter: iterations',
+          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
+        }
+      });
+    }
+
+    // Parse comma-separated iteration IDs
+    const iterationIds = iterations.split(',').map(id => id.trim());
+
+    // Create service
+    const metricsService = ServiceFactory.createMetricsService();
+
+    // Calculate metrics for all iterations using BATCH method
+    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
+
+    // Transform results to response format
+    const metricsResults = allMetrics.map(metrics => ({
+      iterationId: metrics.iterationId,
+      iterationTitle: metrics.iterationTitle,
+      startDate: metrics.startDate,
+      dueDate: metrics.endDate,
+      deploymentFrequency: metrics.deploymentFrequency
+    }));
+
+    // Return results
+    res.json({
+      metrics: metricsResults,
+      count: metricsResults.length
+    });
+
+  } catch (error) {
+    // Log error for debugging
+    console.error('[API Error] Failed to calculate deployment frequency metrics:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+
+    // Return user-friendly error
+    res.status(500).json({
+      error: {
+        message: 'Failed to calculate deployment frequency metrics',
+        details: error.message
+      }
+    });
+  }
+});
+
+/**
+ * GET /api/metrics/lead-time
+ * Calculate lead time metrics (DORA) for one or more iterations
+ *
+ * Query params:
+ *   iterations - Comma-separated iteration IDs (e.g., ?iterations=id1,id2,id3)
+ *
+ * Response:
+ * {
+ *   "metrics": [
+ *     { "iterationId": "...", "leadTimeAvg": 2.5, "leadTimeP50": 2.0, "leadTimeP90": 4.0 },
+ *     ...
+ *   ],
+ *   "count": 2
+ * }
+ */
+router.get('/lead-time', async (req, res) => {
+  try {
+    // Validate query params
+    const { iterations } = req.query;
+
+    if (!iterations) {
+      return res.status(400).json({
+        error: {
+          message: 'Missing required parameter: iterations',
+          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
+        }
+      });
+    }
+
+    // Parse comma-separated iteration IDs
+    const iterationIds = iterations.split(',').map(id => id.trim());
+
+    // Create service
+    const metricsService = ServiceFactory.createMetricsService();
+
+    // Calculate metrics for all iterations using BATCH method
+    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
+
+    // Transform results to response format
+    const metricsResults = allMetrics.map(metrics => ({
+      iterationId: metrics.iterationId,
+      iterationTitle: metrics.iterationTitle,
+      startDate: metrics.startDate,
+      dueDate: metrics.endDate,
+      leadTimeAvg: metrics.leadTimeAvg,
+      leadTimeP50: metrics.leadTimeP50,
+      leadTimeP90: metrics.leadTimeP90
+    }));
+
+    // Return results
+    res.json({
+      metrics: metricsResults,
+      count: metricsResults.length
+    });
+
+  } catch (error) {
+    // Log error for debugging
+    console.error('[API Error] Failed to calculate lead time metrics:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+
+    // Return user-friendly error
+    res.status(500).json({
+      error: {
+        message: 'Failed to calculate lead time metrics',
+        details: error.message
+      }
+    });
+  }
+});
+
+/**
  * POST /api/metrics/calculate
  * Calculate metrics for a given iteration
  *

@@ -28,6 +28,138 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## Story V3: Metrics Dashboard - Polish MVP
+
+**Completed:** 2025-11-12
+**Time Taken:** ~3-4 hours (as estimated)
+**GitHub Issue:** TBD (to be documented)
+**Pull Request:** Multiple PRs merged to main
+
+**Goal:** Create polished dashboard with both metrics (Velocity + Cycle Time), proper layout, loading states, and error handling to complete MVP.
+
+**Acceptance Criteria:** All met ✅
+- ✅ Dashboard Layout: Card-based responsive grid matching prototype
+- ✅ Loading States: Skeleton loaders while fetching GitLab data
+- ✅ Error Handling: User-friendly error messages for API failures
+- ✅ Empty States: Helpful messages when no iterations selected
+- ✅ Responsive Design: Works on laptop and tablet
+- ✅ Polish: Colors, spacing, typography match prototype design system
+
+**Key Learnings:**
+- Dashboard layout patterns established for future metric cards
+- Loading state patterns reusable across all features
+- Error boundary implementation protects against React crashes
+- Design system tokens from prototype successfully migrated
+
+**Technical Debt Created:**
+- None significant - clean MVP foundation
+
+**MVP Status:** ✅ **MVP COMPLETE** (V1 + V2 + V3)
+
+---
+
+## Story V2: Cycle Time Metrics
+
+**Completed:** 2025-11-12
+**Time Taken:** ~3-4 hours (as estimated)
+**GitHub Issue:** TBD (to be documented)
+**Pull Request:** Multiple PRs merged to main
+
+**Goal:** Add cycle time metrics (Avg/P50/P90) to understand issue completion time and identify bottlenecks.
+
+**Acceptance Criteria:** All met ✅
+- ✅ GitLab Integration: Reused fetchIterationDetails() from V1
+- ✅ Metric Calculation: CycleTimeCalculator already existed and tested
+- ✅ API Endpoint: GET /api/metrics/cycle-time?iterations=X,Y,Z
+- ✅ React UI: CycleTimeChart component added to dashboard
+- ✅ Chart: Cycle Time combo chart with P50/P90 bands/annotations
+- ✅ Manual Validation: Calculations match prototype formulas
+
+**Key Deliverables:**
+- **API:** GET /api/metrics/cycle-time endpoint
+- **UI:** CycleTimeChart component with Chart.js
+- **Dashboard:** Integrated second metric card alongside velocity
+
+**Key Learnings:**
+- V1 patterns successfully reused (no new GitLab queries needed)
+- CycleTimeCalculator worked perfectly without modifications
+- Chart.js annotation patterns for P50/P90 established
+- Multi-metric dashboard layout scales well
+
+**Technical Debt Created:**
+- None significant
+
+---
+
+## Story V1.1: IterationSelector UX/UI Improvements
+
+**Completed:** 2025-11-12
+**Time Taken:** ~3-5 hours (as estimated)
+**GitHub Issue:** #14
+**Pull Request:** Multiple PRs merged to main
+
+**Goal:** Improve iteration selector with better alignment, filtering (state/cadence), and search capabilities.
+
+**Acceptance Criteria:** All met ✅
+- ✅ Fixed layout and alignment (checkbox + text left-aligned)
+- ✅ State filter (All/Closed/Current/Upcoming)
+- ✅ Search functionality (title and cadence)
+- ✅ Cadence filter dropdown
+- ✅ All existing tests pass, new tests added
+
+**Key Deliverables:**
+- SearchInput component with debouncing
+- StateFilter and CadenceFilter dropdowns
+- Improved IterationItem styling
+- Combined filter logic (AND operation)
+
+**Key Learnings:**
+- Filter composition patterns (search + state + cadence)
+- Debouncing user input improves performance
+- Visual hierarchy (strong titles, gray dates, colored badges) improves UX
+- User feedback directly drove quality improvements
+
+**Technical Debt Created:**
+- None significant
+
+---
+
+## Story V1: Velocity Tracking - Complete Feature
+
+**Completed:** 2025-11-12
+**Time Taken:** ~6-8 hours (as estimated)
+**GitHub Issue:** #11
+**Pull Request:** Multiple PRs merged to main
+
+**Goal:** First vertical slice delivering complete velocity tracking feature from GitLab → Core → API → UI.
+
+**Acceptance Criteria:** All met ✅
+- ✅ GitLab Integration: Fetch iterations and issues with story points
+- ✅ Metric Calculation: VelocityCalculator (already existed)
+- ✅ API Endpoints: GET /api/iterations, GET /api/metrics/velocity
+- ✅ React UI: IterationSelector + VelocityChart components
+- ✅ Chart Visualization: Chart.js line chart matching prototype
+- ✅ Manual Validation: User tested and verified against GitLab
+
+**Key Deliverables:**
+- **Infrastructure:** GitLabClient with fetchProject, fetchIterations, fetchIterationDetails
+- **Core:** VelocityCalculator reused from Story 1.1
+- **API:** Iteration and velocity endpoints with validation
+- **UI:** React + Vite setup, styled-components, IterationSelector, VelocityChart
+
+**Key Learnings:**
+- Vertical slice approach validated - complete feature in one story
+- GitLab API patterns established (pagination, rate limiting, caching)
+- React/Vite migration from prototype Alpine.js successful
+- Chart.js integration patterns established for all metrics
+- TDD at each layer (Infrastructure → Core → API → UI) works well
+- First vertical slice takes longer (establishes all patterns)
+
+**Technical Debt Created:**
+- None significant - clean foundation for future metrics
+
+---
+
 ## Story 1.2: MetricsService - Orchestration Layer
 
 **Completed:** 2025-11-07

@@ -48,6 +48,20 @@ export class MetricsService {
   }
 
   /**
+   * Calculate sprint duration in days from start and end dates
+   * @private
+   *
+   * @param {string} startDate - ISO date string (e.g., '2025-01-01')
+   * @param {string} endDate - ISO date string (e.g., '2025-01-14')
+   * @returns {number} Number of days (inclusive of start and end days)
+   */
+  _calculateSprintDays(startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+  }
+
+  /**
    * Calculate all metrics for a given iteration
    *
    * @param {string} iterationId - Iteration identifier
@@ -69,11 +83,20 @@ export class MetricsService {
     // Calculate cycle time (avg, p50, p90)
     const cycleTime = CycleTimeCalculator.calculate(iterationData.issues);
 
-    // Calculate deployment frequency (requires pipelines - mock for now)
-    const deploymentFrequency = DeploymentFrequencyCalculator.calculate([], 14);
+    // Calculate sprint duration in days (for DORA metrics)
+    const sprintDays = this._calculateSprintDays(
+      iterationData.iteration.startDate,
+      iterationData.iteration.dueDate
+    );
 
-    // Calculate lead time (avg, p50, p90) - requires merge requests
-    const leadTime = LeadTimeCalculator.calculate([]);
+    // Calculate deployment frequency (DORA metric: deployments per day)
+    const deploymentFrequency = DeploymentFrequencyCalculator.calculate(
+      iterationData.mergeRequests,
+      sprintDays
+    );
+
+    // Calculate lead time (DORA metric: commit to production)
+    const leadTime = LeadTimeCalculator.calculate(iterationData.mergeRequests);
 
     // Calculate MTTR (requires incidents)
     const mttr = IncidentAnalyzer.calculateMTTR([]);
@@ -142,11 +165,20 @@ export class MetricsService {
       // Calculate cycle time (avg, p50, p90)
       const cycleTime = CycleTimeCalculator.calculate(iterationData.issues);
 
-      // Calculate deployment frequency (requires pipelines - mock for now)
-      const deploymentFrequency = DeploymentFrequencyCalculator.calculate([], 14);
+      // Calculate sprint duration in days (for DORA metrics)
+      const sprintDays = this._calculateSprintDays(
+        iterationData.iteration.startDate,
+        iterationData.iteration.dueDate
+      );
 
-      // Calculate lead time (avg, p50, p90) - requires merge requests
-      const leadTime = LeadTimeCalculator.calculate([]);
+      // Calculate deployment frequency (DORA metric: deployments per day)
+      const deploymentFrequency = DeploymentFrequencyCalculator.calculate(
+        iterationData.mergeRequests,
+        sprintDays
+      );
+
+      // Calculate lead time (DORA metric: commit to production)
+      const leadTime = LeadTimeCalculator.calculate(iterationData.mergeRequests);
 
       // Calculate MTTR (requires incidents)
       const mttr = IncidentAnalyzer.calculateMTTR([]);

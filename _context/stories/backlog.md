@@ -8,14 +8,19 @@
 
 ## 🎯 NEXT STORY TO START
 
-**Story V2: Cycle Time Metrics**
+**Story V4: Deployment Metrics - Add DORA Metrics**
 
 See below for full details.
+
+**✅ MVP COMPLETE! (V1 + V2 + V3)**
 
 **Completed Stories:**
 - ✅ V1: Velocity Tracking (Issue #11, merged)
 - ✅ V1.1: IterationSelector UX/UI Improvements (Issue #14, merged)
+- ✅ V2: Cycle Time Metrics (merged)
+- ✅ V3: Metrics Dashboard - Polish MVP (merged)
 - ✅ Removed redundant ThroughputCalculator (PR #31, merged)
+- ✅ Performance Optimization (Issue #51, PRs #52, #53 merged)
 
 ---
 
