@@ -4,6 +4,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import VelocityChart from '../../../src/public/components/VelocityChart.jsx';
 
+// Mock fetchWithRetry utility
+jest.mock('../../../src/public/utils/fetchWithRetry.js', () => ({
+  fetchWithRetry: jest.fn((...args) => fetch(...args))
+}));
+
 // Mock react-chartjs-2
 jest.mock('react-chartjs-2', () => ({
   Line: jest.fn(({ data, options }) => (

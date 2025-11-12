@@ -6,6 +6,11 @@ import { render, screen } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import VelocityApp from '../../../src/public/components/VelocityApp.jsx';
 
+// Mock fetchWithRetry utility
+jest.mock('../../../src/public/utils/fetchWithRetry.js', () => ({
+  fetchWithRetry: jest.fn((...args) => fetch(...args))
+}));
+
 // Mock IterationSelectionModal component
 jest.mock('../../../src/public/components/IterationSelectionModal.jsx', () => {
   return function MockIterationSelectionModal({ isOpen }) {
