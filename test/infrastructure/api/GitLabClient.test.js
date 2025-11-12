@@ -1429,6 +1429,67 @@ describe('GitLabClient', () => {
     });
   });
 
+  describe('Performance Optimizations', () => {
+    describe('Optimization #1: Reduced Notes Limit', () => {
+      let client;
+
+      beforeEach(() => {
+        client = new GitLabClient({
+          token: 'test-token',
+          projectPath: 'group/project'
+        });
+        client.delay = jest.fn().mockResolvedValue(undefined);
+      });
+
+      it('should fetch issues with notes limited to 20 entries', async () => {
+        // Mock response with issue containing notes
+        const mockIterationData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/1',
+                  iid: '101',
+                  title: 'Test Issue',
+                  state: 'closed',
+                  createdAt: '2025-01-01T00:00:00Z',
+                  closedAt: '2025-01-05T00:00:00Z',
+                  weight: 3,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [
+                      {
+                        id: 'note-1',
+                        body: 'set status to **In progress**',
+                        system: true,
+                        systemNoteMetadata: { action: 'work_item_status' },
+                        createdAt: '2025-01-02T10:00:00Z'
+                      }
+                    ],
+                    pageInfo: { hasNextPage: false, endCursor: null }
+                  }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockIterationData);
+
+        await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+        // CRITICAL ASSERTION: Verify query contains "notes(first: 20"
+        expect(mockRequest).toHaveBeenCalledWith(
+          expect.stringContaining('notes(first: 20'),
+          expect.any(Object)
+        );
+      });
+    });
+  });
+
   describe('fetchIncidents', () => {
     let client;
 
