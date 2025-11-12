@@ -598,6 +598,12 @@ describe('GitLabClient', () => {
         }
       };
 
+      // Mock fetchIterations and fetchMergeRequestsForGroup (called by fetchIterationDetails)
+      jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+        { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+      ]);
+      jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
+
       mockRequest.mockResolvedValueOnce(mockIterationData);
 
       const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
@@ -620,6 +626,12 @@ describe('GitLabClient', () => {
     });
 
     it('should handle pagination for iteration issues', async () => {
+      // Mock fetchIterations and fetchMergeRequestsForGroup (called by fetchIterationDetails)
+      jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+        { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+      ]);
+      jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
+
       // Mock page 1 response
       mockRequest.mockResolvedValueOnce({
         group: {
@@ -997,6 +1009,12 @@ describe('GitLabClient', () => {
             }
           }
         };
+
+        // Mock fetchIterations and fetchMergeRequestsForGroup (called by fetchIterationDetails)
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+        ]);
+        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
 
         mockRequest.mockResolvedValueOnce(mockIterationData);
 
@@ -1477,6 +1495,12 @@ describe('GitLabClient', () => {
           }
         };
 
+        // Mock fetchIterations and fetchMergeRequestsForGroup (called by fetchIterationDetails)
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+        ]);
+        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
+
         mockRequest.mockResolvedValueOnce(mockIterationData);
 
         await client.fetchIterationDetails('gid://gitlab/Iteration/123');
@@ -1641,6 +1665,12 @@ describe('GitLabClient', () => {
 
         mockRequest.mockResolvedValue(mockData);
         dateNowSpy.mockReturnValue(1000000);
+
+        // Mock fetchIterations and fetchMergeRequestsForGroup (called by fetchIterationDetails)
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+        ]);
+        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
 
         // First call - cache miss
         const result1 = await client.fetchIterationDetails(iterationId);
