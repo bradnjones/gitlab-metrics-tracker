@@ -32,6 +32,8 @@ import EmptyState from './EmptyState.jsx';
 import IterationSelectionModal from './IterationSelectionModal.jsx';
 import VelocityChart from './VelocityChart.jsx';
 import CycleTimeChart from './CycleTimeChart.jsx';
+import DeploymentFrequencyChart from './DeploymentFrequencyChart.jsx';
+import LeadTimeChart from './LeadTimeChart.jsx';
 
 /**
  * Main app container
@@ -167,13 +169,23 @@ export default function VelocityApp() {
           ) : (
             <ChartsGrid>
               <ChartCard>
-                <ChartTitle>Velocity Metrics</ChartTitle>
+                <ChartTitle>Velocity Trend</ChartTitle>
                 <VelocityChart iterationIds={selectedIterations.map(iter => iter.id)} />
               </ChartCard>
 
               <ChartCard>
-                <ChartTitle>Cycle Time Metrics</ChartTitle>
+                <ChartTitle>Cycle Time</ChartTitle>
                 <CycleTimeChart iterationIds={selectedIterations.map(iter => iter.id)} />
+              </ChartCard>
+
+              <ChartCard>
+                <ChartTitle>Deployment Frequency</ChartTitle>
+                <DeploymentFrequencyChart iterationIds={selectedIterations.map(iter => iter.id)} />
+              </ChartCard>
+
+              <ChartCard>
+                <ChartTitle>Lead Time</ChartTitle>
+                <LeadTimeChart iterationIds={selectedIterations.map(iter => iter.id)} />
               </ChartCard>
             </ChartsGrid>
           )}
