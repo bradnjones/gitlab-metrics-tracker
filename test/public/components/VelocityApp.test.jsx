@@ -6,6 +6,14 @@ import { render, screen } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import VelocityApp from '../../../src/public/components/VelocityApp.jsx';
 
+// Mock IterationSelectionModal component
+jest.mock('../../../src/public/components/IterationSelectionModal.jsx', () => {
+  return function MockIterationSelectionModal({ isOpen }) {
+    if (!isOpen) return null;
+    return <div data-testid="iteration-selection-modal">Mock Modal</div>;
+  };
+});
+
 // Mock theme object
 const theme = {
   colors: {
