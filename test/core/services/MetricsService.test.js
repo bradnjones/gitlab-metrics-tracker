@@ -272,5 +272,23 @@ describe('MetricsService', () => {
       // Result should be JSON-serializable
       expect(() => JSON.stringify(result)).not.toThrow();
     });
+
+    it('should call DORA calculators with correct parameters (MRs and sprint days)', async () => {
+      // TDD: Verify DeploymentFrequency and LeadTime calculators receive correct data
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      await service.calculateMetrics(iterationId);
+
+      // Verify DeploymentFrequencyCalculator called with mergeRequests and calculated sprint days
+      expect(DeploymentFrequencyCalculator.calculate).toHaveBeenCalledWith(
+        mockIterationData.mergeRequests,  // Should pass MRs, not empty array
+        14  // Sprint days: 2025-01-01 to 2025-01-14 = 14 days (end - start + 1)
+      );
+
+      // Verify LeadTimeCalculator called with mergeRequests
+      expect(LeadTimeCalculator.calculate).toHaveBeenCalledWith(
+        mockIterationData.mergeRequests  // Should pass MRs, not empty array
+      );
+    });
   });
 });
