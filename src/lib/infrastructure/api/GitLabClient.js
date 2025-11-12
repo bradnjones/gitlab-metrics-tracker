@@ -36,10 +36,52 @@ export class GitLabClient {
       }
     });
 
-    // Initialize cache properties
+    // Initialize cache properties (projects cache - existing)
     this._projectsCache = null;
     this._projectsCacheTime = null;
     this._cacheTimeout = 600000; // 10 minutes in milliseconds
+
+    // Initialize response cache (Optimization #2: Response Caching)
+    // In-memory cache for GraphQL responses to reduce API calls
+    this._responseCache = new Map();
+    this._responseCacheTTL = 300000; // 5 minutes in milliseconds (configurable)
+  }
+
+  /**
+   * Makes a cached GraphQL request to GitLab API.
+   * Implements response caching with configurable TTL to reduce API calls.
+   *
+   * @param {string} query - GraphQL query string
+   * @param {Object} variables - Query variables
+   * @returns {Promise<Object>} GraphQL response data
+   * @private
+   */
+  async _cachedRequest(query, variables) {
+    // Generate cache key from query and variables
+    const cacheKey = JSON.stringify({ query, variables });
+
+    // Check if we have a cached response
+    const cached = this._responseCache.get(cacheKey);
+    if (cached) {
+      const age = Date.now() - cached.timestamp;
+      if (age < this._responseCacheTTL) {
+        // Cache hit - return cached data
+        return cached.data;
+      }
+      // Cache expired - remove stale entry
+      this._responseCache.delete(cacheKey);
+    }
+
+    // Cache miss or stale - fetch fresh data
+    const data = await this.client.request(query, variables);
+
+    // Store in cache with timestamp
+    this._responseCache.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
+
+    return data;
   }
 
   /**
@@ -62,7 +104,7 @@ export class GitLabClient {
     `;
 
     try {
-      const data = await this.client.request(query, { fullPath: this.projectPath });
+      const data = await this._cachedRequest(query, { fullPath: this.projectPath });
       return data.project;
     } catch (error) {
       // Check for GraphQL errors
@@ -120,7 +162,7 @@ export class GitLabClient {
 
     try {
       while (hasNextPage) {
-        const data = await this.client.request(query, {
+        const data = await this._cachedRequest(query, {
           fullPath: groupPath,
           after,
         });
@@ -235,7 +277,7 @@ export class GitLabClient {
 
     try {
       while (hasNextPage) {
-        const data = await this.client.request(query, {
+        const data = await this._cachedRequest(query, {
           fullPath: this.projectPath,
           iterationId: [iterationId], // Pass as array
           after,

@@ -1488,6 +1488,175 @@ describe('GitLabClient', () => {
         );
       });
     });
+
+    describe('Optimization #2: Response Caching', () => {
+      let client;
+      let dateNowSpy;
+
+      beforeEach(() => {
+        client = new GitLabClient({
+          token: 'test-token',
+          projectPath: 'group/project'
+        });
+        client.delay = jest.fn().mockResolvedValue(undefined);
+
+        // Mock Date.now() for cache time control
+        dateNowSpy = jest.spyOn(Date, 'now');
+      });
+
+      afterEach(() => {
+        dateNowSpy.mockRestore();
+      });
+
+      it('should cache GraphQL responses with query+variables as key', async () => {
+        const mockData = {
+          project: { id: 'gid://gitlab/Project/123', name: 'Test' }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockData);
+        dateNowSpy.mockReturnValue(1000000);
+
+        // First call - cache miss
+        const result1 = await client.fetchProject();
+
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(result1.id).toBe('gid://gitlab/Project/123');
+
+        // Verify cache was populated
+        expect(client._responseCache).toBeDefined();
+        expect(client._responseCache.size).toBe(1);
+
+        // Extract cache key and verify structure
+        const cacheKey = Array.from(client._responseCache.keys())[0];
+        expect(cacheKey).toContain('getProject'); // Query name
+        expect(cacheKey).toContain('group/project'); // Variable
+      });
+
+      it('should return cached response when data is fresh (< 5 min)', async () => {
+        const mockData = {
+          project: { id: 'gid://gitlab/Project/123', name: 'Test' }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockData);
+        dateNowSpy.mockReturnValue(1000000);
+
+        // First call - populates cache
+        const result1 = await client.fetchProject();
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(result1.id).toBe('gid://gitlab/Project/123');
+
+        // Second call 2 minutes later (120000 ms < 300000 ms TTL)
+        dateNowSpy.mockReturnValue(1000000 + 120000);
+        const result2 = await client.fetchProject();
+
+        // Should NOT call API again (cache hit)
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(result2.id).toBe('gid://gitlab/Project/123');
+        expect(result2).toEqual(result1);
+      });
+
+      it('should refetch when cached data is stale (> 5 min)', async () => {
+        const mockData1 = {
+          project: { id: 'gid://gitlab/Project/123', name: 'Original' }
+        };
+        const mockData2 = {
+          project: { id: 'gid://gitlab/Project/123', name: 'Updated' }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(mockData1)
+          .mockResolvedValueOnce(mockData2);
+        dateNowSpy.mockReturnValue(1000000);
+
+        // First call - populates cache
+        const result1 = await client.fetchProject();
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(result1.name).toBe('Original');
+
+        // Second call 6 minutes later (360000 ms > 300000 ms TTL)
+        dateNowSpy.mockReturnValue(1000000 + 360000);
+        const result2 = await client.fetchProject();
+
+        // Should call API again (cache miss - stale data)
+        expect(mockRequest).toHaveBeenCalledTimes(2);
+        expect(result2.name).toBe('Updated');
+      });
+
+      it('should use separate cache entries for different queries and variables', async () => {
+        const projectData = {
+          project: { id: 'gid://gitlab/Project/123', name: 'Test Project' }
+        };
+        const iterationsData = {
+          group: {
+            iterations: {
+              nodes: [
+                { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' }
+              ],
+              pageInfo: { hasNextPage: false }
+            }
+          }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(projectData)
+          .mockResolvedValueOnce(iterationsData);
+        dateNowSpy.mockReturnValue(1000000);
+
+        // Call different methods (different queries)
+        await client.fetchProject();
+        await client.fetchIterations();
+
+        // Both should hit the API (different cache keys)
+        expect(mockRequest).toHaveBeenCalledTimes(2);
+
+        // Verify separate cache entries
+        expect(client._responseCache.size).toBe(2);
+        const cacheKeys = Array.from(client._responseCache.keys());
+        expect(cacheKeys[0]).not.toEqual(cacheKeys[1]);
+      });
+
+      it('should cache fetchIterationDetails responses for repeated calls', async () => {
+        const iterationId = 'gid://gitlab/Iteration/123';
+        const mockData = {
+          group: {
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/1',
+                  iid: '100',
+                  title: 'Test Issue',
+                  state: 'closed',
+                  createdAt: '2024-01-01T00:00:00Z',
+                  closedAt: '2024-01-02T00:00:00Z',
+                  weight: 5,
+                  webUrl: 'https://gitlab.com/group/project/-/issues/100',
+                  labels: { nodes: [] },
+                  notes: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false }
+            }
+          }
+        };
+
+        mockRequest.mockResolvedValue(mockData);
+        dateNowSpy.mockReturnValue(1000000);
+
+        // First call - cache miss
+        const result1 = await client.fetchIterationDetails(iterationId);
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(result1.issues).toHaveLength(1);
+        expect(result1.issues[0].id).toBe('gid://gitlab/Issue/1');
+
+        // Second call 1 minute later - cache hit
+        dateNowSpy.mockReturnValue(1000000 + 60000);
+        const result2 = await client.fetchIterationDetails(iterationId);
+
+        // Should NOT call API again (cached)
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(result2).toEqual(result1);
+      });
+    });
   });
 
   describe('fetchIncidents', () => {
