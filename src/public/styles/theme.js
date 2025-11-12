@@ -74,6 +74,7 @@ const theme = {
     md: '6px',      // Buttons, inputs, small cards
     lg: '8px',      // Cards, containers
     xl: '12px',     // Large cards, modals
+    full: '999px',  // Pill-shaped elements, chips
   },
 
   shadows: {

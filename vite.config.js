@@ -24,11 +24,11 @@ export default defineConfig({
     proxy: {
       // Proxy API requests to Express backend
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },

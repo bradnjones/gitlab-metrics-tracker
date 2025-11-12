@@ -65,23 +65,23 @@ describe('VelocityApp', () => {
   });
 
   /**
-   * Test 9.2: Renders Header and Toolbar components
-   * Verifies VelocityApp uses the new Header and IterationSelectorToolbar components
+   * Test 9.2: Renders CompactHeaderWithIterations component
+   * Verifies VelocityApp uses the new CompactHeaderWithIterations component
    */
-  test('renders Header and IterationSelectorToolbar components', () => {
+  test('renders CompactHeaderWithIterations component', () => {
     render(
       <ThemeProvider theme={theme}>
         <VelocityApp />
       </ThemeProvider>
     );
 
-    // Should show the new Header component text
-    expect(screen.getByText('GitLab Sprint Metrics Analyzer')).toBeInTheDocument();
-    expect(screen.getByText('Track team performance with context-aware annotations')).toBeInTheDocument();
+    // Should show the new compact header component text
+    expect(screen.getByText('GitLab Sprint Metrics')).toBeInTheDocument();
+    expect(screen.getByText('Track performance with context')).toBeInTheDocument();
 
-    // Should show the toolbar with empty state
+    // Should show the empty state message in header
     expect(screen.getByText(/no sprints selected/i)).toBeInTheDocument();
-    expect(screen.getByText(/change iterations/i)).toBeInTheDocument();
+    expect(screen.getByText(/change sprints/i)).toBeInTheDocument();
   });
 
   /**

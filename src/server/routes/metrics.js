@@ -102,11 +102,20 @@ router.get('/velocity', async (req, res) => {
  * }
  */
 router.get('/cycle-time', async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
   try {
+    console.log(`[${requestId}] [ROUTE /cycle-time] Request received:`, {
+      query: req.query,
+      url: req.url,
+      timestamp: new Date().toISOString()
+    });
+
     // Validate query params
     const { iterations } = req.query;
 
     if (!iterations) {
+      console.warn(`[${requestId}] [ROUTE /cycle-time] Missing iterations parameter`);
       return res.status(400).json({
         error: {
           message: 'Missing required parameter: iterations',
@@ -117,13 +126,17 @@ router.get('/cycle-time', async (req, res) => {
 
     // Parse comma-separated iteration IDs
     const iterationIds = iterations.split(',').map(id => id.trim());
+    console.log(`[${requestId}] [ROUTE /cycle-time] Parsed ${iterationIds.length} iteration IDs:`, iterationIds);
 
     // Create service (will use environment variables)
+    console.log(`[${requestId}] [ROUTE /cycle-time] Creating MetricsService...`);
     const metricsService = ServiceFactory.createMetricsService();
 
     // Calculate metrics for all iterations using BATCH method (performance optimization)
     // This fetches iteration metadata ONCE and parallelizes issue fetching
+    console.log(`[${requestId}] [ROUTE /cycle-time] Calling calculateMultipleMetrics...`);
     const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
+    console.log(`[${requestId}] [ROUTE /cycle-time] Received ${allMetrics.length} metric results`);
 
     // Transform results to response format
     // Note: Cycle time is already calculated in MetricsService.calculateMultipleMetrics()
@@ -137,6 +150,11 @@ router.get('/cycle-time', async (req, res) => {
       cycleTimeP90: metrics.cycleTimeP90
     }));
 
+    console.log(`[${requestId}] [ROUTE /cycle-time] Sending response:`, {
+      count: metricsResults.length,
+      sampleMetric: metricsResults[0]
+    });
+
     // Return results
     res.json({
       metrics: metricsResults,
@@ -145,9 +163,11 @@ router.get('/cycle-time', async (req, res) => {
 
   } catch (error) {
     // Log error for debugging (structured logging)
-    console.error('[API Error] Failed to calculate cycle time metrics:', {
+    console.error(`[${requestId}] [API Error] Failed to calculate cycle time metrics:`, {
       message: error.message,
       stack: error.stack,
+      errorName: error.name,
+      errorCode: error.code,
       timestamp: new Date().toISOString()
     });
 
