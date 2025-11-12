@@ -204,18 +204,21 @@ export default function IterationSelectorToolbar({
           {selectedIterations.length === 0 ? (
             <EmptyMessage>No sprints selected</EmptyMessage>
           ) : (
-            selectedIterations.map((iteration) => (
-              <IterationChip key={iteration.id}>
-                {iteration.title}
-                <RemoveButton
-                  onClick={() => handleRemove(iteration.id)}
-                  aria-label={`Remove ${iteration.title}`}
-                  type="button"
-                >
-                  ×
-                </RemoveButton>
-              </IterationChip>
-            ))
+            selectedIterations.map((iteration) => {
+              const displayTitle = iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}` || iteration.id;
+              return (
+                <IterationChip key={iteration.id}>
+                  {displayTitle}
+                  <RemoveButton
+                    onClick={() => handleRemove(iteration.id)}
+                    aria-label={`Remove ${displayTitle}`}
+                    type="button"
+                  >
+                    ×
+                  </RemoveButton>
+                </IterationChip>
+              );
+            })
           )}
         </ChipsContainer>
 
