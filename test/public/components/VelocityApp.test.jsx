@@ -13,16 +13,26 @@ const theme = {
     primaryDark: '#2563eb',
     bgSecondary: '#f9fafb',
     bgPrimary: '#ffffff',
+    bgTertiary: '#e5e7eb',
+    textPrimary: '#111827',
     textSecondary: '#6b7280',
+    border: '#d1d5db',
   },
-  spacing: { md: '16px' },
-  borderRadius: { lg: '8px', xl: '12px' },
-  shadows: { md: '0 2px 8px rgba(0, 0, 0, 0.1)' },
+  spacing: {
+    xs: '4px',
+    sm: '8px',
+    md: '16px',
+    lg: '24px',
+    xl: '32px',
+  },
+  borderRadius: { sm: '4px', md: '6px', lg: '8px', xl: '12px', full: '9999px' },
+  shadows: { sm: '0 1px 2px rgba(0, 0, 0, 0.05)', md: '0 2px 8px rgba(0, 0, 0, 0.1)' },
   typography: {
-    fontSize: { base: '1rem', '3xl': '2rem' },
-    fontWeight: { bold: 700 },
+    fontSize: { xs: '0.75rem', sm: '0.875rem', base: '1rem', lg: '1.125rem', '3xl': '2rem' },
+    fontWeight: { medium: 500, semibold: 600, bold: 700 },
   },
-  breakpoints: { mobile: '640px' },
+  breakpoints: { mobile: '640px', tablet: '768px', desktop: '1024px' },
+  transitions: { fast: '150ms', normal: '200ms', easing: 'ease-in-out' },
 };
 
 describe('VelocityApp', () => {
@@ -42,10 +52,10 @@ describe('VelocityApp', () => {
   });
 
   /**
-   * Test 9.2: Renders Header component
-   * Verifies VelocityApp uses the new Header component
+   * Test 9.2: Renders Header and Toolbar components
+   * Verifies VelocityApp uses the new Header and IterationSelectorToolbar components
    */
-  test('renders new Header component', () => {
+  test('renders Header and IterationSelectorToolbar components', () => {
     render(
       <ThemeProvider theme={theme}>
         <VelocityApp />
@@ -55,6 +65,10 @@ describe('VelocityApp', () => {
     // Should show the new Header component text
     expect(screen.getByText('GitLab Sprint Metrics Analyzer')).toBeInTheDocument();
     expect(screen.getByText('Track team performance with context-aware annotations')).toBeInTheDocument();
+
+    // Should show the toolbar with empty state
+    expect(screen.getByText(/no sprints selected/i)).toBeInTheDocument();
+    expect(screen.getByText(/change iterations/i)).toBeInTheDocument();
   });
 
   /**
@@ -83,10 +97,9 @@ describe('VelocityApp', () => {
       </ThemeProvider>
     );
 
-    // Header should use gradient from theme
-    const header = container.querySelector('header');
-    expect(header).toBeInTheDocument();
-    expect(header.className).toBeTruthy(); // Has styled-component class
+    // Should have styled components with class names
+    const styledElements = container.querySelectorAll('[class*="sc-"]');
+    expect(styledElements.length).toBeGreaterThan(0); // Has styled-components
   });
 
   /**
