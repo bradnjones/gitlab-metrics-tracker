@@ -309,10 +309,29 @@ export class GitLabClient {
         };
       });
 
-      // MRs are now fetched separately via fetchMergeRequestsForGroup
+      // Fetch iteration metadata to get startDate and dueDate for MR fetching
+      console.log(`Fetching iteration metadata for MR date range...`);
+      const iterations = await this.fetchIterations();
+      const iterationMetadata = iterations.find(it => it.id === iterationId);
+
+      if (!iterationMetadata) {
+        console.warn(`Iteration ${iterationId} not found in iteration list, skipping MR fetch`);
+        return {
+          issues: enrichedIssues,
+          mergeRequests: [],
+        };
+      }
+
+      // Fetch merge requests for the same date range as the iteration
+      console.log(`Fetching merge requests for iteration date range (${iterationMetadata.startDate} to ${iterationMetadata.dueDate})...`);
+      const mergeRequests = await this.fetchMergeRequestsForGroup(
+        iterationMetadata.startDate,
+        iterationMetadata.dueDate
+      );
+
       return {
         issues: enrichedIssues,
-        mergeRequests: [], // Populated by fetchMergeRequestsForGroup in metrics calculation
+        mergeRequests,
       };
     } catch (error) {
       // Check if it's a GraphQL error
