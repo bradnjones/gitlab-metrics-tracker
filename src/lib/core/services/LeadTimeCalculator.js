@@ -46,11 +46,9 @@ export class LeadTimeCalculator {
           const commits = mr.commits.nodes;
           const firstCommit = commits.reduce((earliest, commit) => {
             const commitDate = new Date(commit.committedDate);
-            return commitDate < new Date(earliest.committedDate)
-              ? commit
-              : earliest;
-          }, commits[0]);
-          startTime = new Date(firstCommit.committedDate);
+            return commitDate < earliest ? commitDate : earliest;
+          }, new Date(commits[0].committedDate));
+          startTime = firstCommit;
         } else if (mr.createdAt) {
           // Fallback to MR creation date if no commits but createdAt exists
           startTime = new Date(mr.createdAt);
