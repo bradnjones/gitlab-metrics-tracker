@@ -98,8 +98,8 @@ export class MetricsService {
     // Calculate lead time (DORA metric: commit to production)
     const leadTime = LeadTimeCalculator.calculate(iterationData.mergeRequests);
 
-    // Calculate MTTR (requires incidents)
-    const mttr = IncidentAnalyzer.calculateMTTR([]);
+    // Calculate MTTR from incidents
+    const mttr = IncidentAnalyzer.calculateMTTR(iterationData.incidents || []);
 
     // Create Metric entity
     const metric = new Metric({
@@ -121,7 +121,7 @@ export class MetricsService {
       issueCount: iterationData.issues.length,
       mrCount: 0, // Not yet implemented
       deploymentCount: 0, // Not yet implemented
-      incidentCount: 0, // Not yet implemented
+      incidentCount: (iterationData.incidents || []).filter(i => i.closedAt && i.createdAt).length,
       rawData: {
         issues: iterationData.issues,
         iteration: iterationData.iteration
@@ -180,8 +180,8 @@ export class MetricsService {
       // Calculate lead time (DORA metric: commit to production)
       const leadTime = LeadTimeCalculator.calculate(iterationData.mergeRequests);
 
-      // Calculate MTTR (requires incidents)
-      const mttr = IncidentAnalyzer.calculateMTTR([]);
+      // Calculate MTTR from incidents
+      const mttr = IncidentAnalyzer.calculateMTTR(iterationData.incidents || []);
 
       // Create Metric entity
       const metric = new Metric({
@@ -203,7 +203,7 @@ export class MetricsService {
         issueCount: iterationData.issues.length,
         mrCount: 0, // Not yet implemented
         deploymentCount: 0, // Not yet implemented
-        incidentCount: 0, // Not yet implemented
+        incidentCount: (iterationData.incidents || []).filter(i => i.closedAt && i.createdAt).length,
         rawData: {
           issues: iterationData.issues,
           iteration: iterationData.iteration

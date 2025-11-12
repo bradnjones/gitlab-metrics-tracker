@@ -17,6 +17,7 @@ describe('GitLabIterationDataProvider', () => {
             { id: '1', title: 'MR 1' },
           ],
         }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -54,6 +55,7 @@ describe('GitLabIterationDataProvider', () => {
           { id: 'gid://gitlab/Iteration/456', title: 'Sprint 2', startDate: '2024-10-15', dueDate: '2024-10-28' },
         ]),
         fetchIterationDetails: jest.fn().mockResolvedValue({}),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -74,6 +76,7 @@ describe('GitLabIterationDataProvider', () => {
         fetchIterationDetails: jest.fn().mockRejectedValue(
           new Error('GraphQL API Error: 404 Not Found')
         ),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -112,6 +115,7 @@ describe('GitLabIterationDataProvider', () => {
           ],
           mergeRequests: [],
         }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -151,6 +155,7 @@ describe('GitLabIterationDataProvider', () => {
           ],
           mergeRequests: [],
         }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -188,6 +193,7 @@ describe('GitLabIterationDataProvider', () => {
             issues: [{ id: '2', title: 'Issue 2', state: 'opened', weight: 5 }],
             mergeRequests: [],
           }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -224,6 +230,7 @@ describe('GitLabIterationDataProvider', () => {
           .mockResolvedValueOnce({ issues: [], mergeRequests: [] })
           .mockResolvedValueOnce({ issues: [], mergeRequests: [] })
           .mockResolvedValueOnce({ issues: [], mergeRequests: [] }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -247,6 +254,7 @@ describe('GitLabIterationDataProvider', () => {
       const mockGitLabClient = {
         fetchIterations: jest.fn(),
         fetchIterationDetails: jest.fn(),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -263,6 +271,7 @@ describe('GitLabIterationDataProvider', () => {
       const mockGitLabClient = {
         fetchIterations: jest.fn(),
         fetchIterationDetails: jest.fn(),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -280,6 +289,7 @@ describe('GitLabIterationDataProvider', () => {
         fetchIterationDetails: jest.fn().mockRejectedValue(
           new Error('GraphQL API Error: Rate limit exceeded')
         ),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
@@ -301,6 +311,7 @@ describe('GitLabIterationDataProvider', () => {
         fetchIterationDetails: jest.fn()
           .mockResolvedValueOnce({ issues: [], mergeRequests: [] })
           .mockResolvedValueOnce({ issues: [], mergeRequests: [] }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
       };
 
       const provider = new GitLabIterationDataProvider(mockGitLabClient);
