@@ -11,6 +11,33 @@ import { ServiceFactory } from '../services/ServiceFactory.js';
 const router = express.Router();
 
 /**
+ * GET /api/cache/status
+ * Returns cache status metadata for all cached iterations
+ *
+ * @returns {200} Cache status with metadata
+ * @returns {500} Internal Server Error on failure
+ */
+router.get('/status', async (req, res) => {
+  try {
+    // Get use case from ServiceFactory (dependency injection)
+    const useCase = ServiceFactory.createGetCacheStatusUseCase();
+
+    // Execute use case (business logic)
+    const status = await useCase.execute();
+
+    // Return result (HTTP concern only)
+    res.status(200).json(status);
+  } catch (error) {
+    console.error('Failed to get cache status:', error.message);
+
+    res.status(500).json({
+      error: 'Failed to get cache status',
+      message: error.message
+    });
+  }
+});
+
+/**
  * DELETE /api/cache
  * Clears all cached iteration data
  *

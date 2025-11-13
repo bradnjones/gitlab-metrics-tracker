@@ -24,7 +24,7 @@
  * @returns {JSX.Element} Rendered application
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import CompactHeaderWithIterations from './CompactHeaderWithIterations.jsx';
@@ -118,9 +118,40 @@ const ChartTitle = styled.h3`
  *
  * @returns {JSX.Element} Rendered application
  */
+const STORAGE_KEY = 'gitlab-metrics-selected-iterations';
+
 export default function VelocityApp() {
   const [selectedIterations, setSelectedIterations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Load selected iterations from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setSelectedIterations(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load selections from localStorage:', error);
+      // Clear corrupted data
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  // Save selected iterations to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (selectedIterations.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIterations));
+      } else {
+        // Clear localStorage when no selections
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to save selections to localStorage:', error);
+    }
+  }, [selectedIterations]);
 
   /**
    * Handle removing an iteration from the header chips

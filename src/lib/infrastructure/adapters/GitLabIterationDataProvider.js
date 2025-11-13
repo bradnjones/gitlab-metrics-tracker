@@ -27,6 +27,42 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
     super();
     this.gitlabClient = gitlabClient;
     this.cacheRepository = cacheRepository;
+
+    // In-memory cache for iteration list (lightweight metadata only)
+    // Prevents redundant fetchIterations() calls when fetching multiple iteration details
+    // TTL: 5 minutes (iteration list doesn't change frequently)
+    this._iterationListCache = null;
+    this._iterationListCacheTimestamp = null;
+    this._iterationListCacheTTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+  }
+
+  /**
+   * Get cached iteration list or fetch from GitLab
+   * Implements lightweight in-memory caching to avoid redundant API calls
+   *
+   * @private
+   * @returns {Promise<Array>} Array of iteration metadata objects
+   */
+  async _getCachedIterationList() {
+    const now = Date.now();
+
+    // Check if cache is valid
+    if (
+      this._iterationListCache &&
+      this._iterationListCacheTimestamp &&
+      (now - this._iterationListCacheTimestamp) < this._iterationListCacheTTL
+    ) {
+      return this._iterationListCache;
+    }
+
+    // Cache miss or expired - fetch fresh data
+    const iterations = await this.gitlabClient.fetchIterations();
+
+    // Update cache
+    this._iterationListCache = iterations;
+    this._iterationListCacheTimestamp = now;
+
+    return iterations;
   }
 
   /**
@@ -54,7 +90,8 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
     // Cache miss or no cache - fetch from GitLab
     try {
       // Fetch iteration list to get metadata (includes dates)
-      const iterations = await this.gitlabClient.fetchIterations();
+      // Uses in-memory cache to avoid redundant API calls
+      const iterations = await this._getCachedIterationList();
       const iterationMetadata = iterations.find(it => it.id === iterationId);
 
       // Fetch iteration details (includes issues)

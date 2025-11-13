@@ -177,6 +177,36 @@ export const IterationState = styled.span`
 `;
 
 /**
+ * Badges container - holds state and cached badges inline
+ * @component
+ */
+export const BadgesContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`;
+
+/**
+ * Cached badge indicator
+ * Shows when iteration data is cached
+ * @component
+ */
+export const CachedBadge = styled.span`
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  width: fit-content;
+  line-height: 1;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+`;
+
+/**
  * Unified controls bar containing search and filters
  * Horizontal layout with consistent spacing and visual treatment
  * Wraps to prevent overflow

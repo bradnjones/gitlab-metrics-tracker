@@ -19,6 +19,9 @@
  */
 
 import styled from 'styled-components';
+import React, { useState } from 'react';
+import CacheStatus from './CacheStatus.jsx';
+import RefreshButton from './RefreshButton.jsx';
 
 /* ===== STYLED COMPONENTS ===== */
 
@@ -205,6 +208,45 @@ const EmptyChipsMessage = styled.span`
 `;
 
 /**
+ * Actions section (cache status, refresh button, change sprints button)
+ *
+ * @component
+ */
+const ActionsSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${props => props.theme.spacing.md};
+  flex-shrink: 0;
+
+  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: ${props => props.theme.spacing.sm};
+  }
+`;
+
+/**
+ * Cache management section (status + refresh button)
+ *
+ * @component
+ */
+const CacheManagementSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${props => props.theme.spacing.sm};
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border-radius: ${props => props.theme.borderRadius.md};
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
+    width: 100%;
+    justify-content: space-between;
+  }
+`;
+
+/**
  * Change iterations button (light button on gradient)
  *
  * @component
@@ -258,6 +300,9 @@ export default function CompactHeaderWithIterations({
   onRemoveIteration,
   onOpenModal
 }) {
+  // State to trigger cache status refresh
+  const [cacheRefreshKey, setCacheRefreshKey] = useState(0);
+
   /**
    * Format date to short MM/DD format matching graph labels
    * @param {string} dateString - ISO date string
@@ -286,6 +331,14 @@ export default function CompactHeaderWithIterations({
     if (onOpenModal) {
       onOpenModal();
     }
+  };
+
+  /**
+   * Handle cache refresh complete
+   * Triggers cache status component to refetch data
+   */
+  const handleRefreshComplete = () => {
+    setCacheRefreshKey(prev => prev + 1);
   };
 
   return (
@@ -321,9 +374,16 @@ export default function CompactHeaderWithIterations({
           )}
         </IterationChipsSection>
 
-        <HeaderChangeButton onClick={handleChangeClick} type="button">
-          Change Sprints
-        </HeaderChangeButton>
+        <ActionsSection>
+          <CacheManagementSection>
+            <CacheStatus key={cacheRefreshKey} />
+            <RefreshButton onRefreshComplete={handleRefreshComplete} />
+          </CacheManagementSection>
+
+          <HeaderChangeButton onClick={handleChangeClick} type="button">
+            Change Sprints
+          </HeaderChangeButton>
+        </ActionsSection>
       </CompactHeaderContent>
     </CompactHeader>
   );

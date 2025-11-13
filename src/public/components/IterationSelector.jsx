@@ -13,6 +13,8 @@ import {
   IterationTitle,
   IterationDates,
   IterationState,
+  BadgesContainer,
+  CachedBadge,
   ControlsBar,
   SearchWrapper,
   FilterSection,
@@ -31,11 +33,15 @@ import {
  *
  * @param {Object} props - Component props
  * @param {Function} props.onSelectionChange - Callback function called when selection changes
+ * @param {Array<string>} [props.initialSelectedIds] - Initially selected iteration IDs
  * @returns {JSX.Element} Rendered component
  */
-const IterationSelector = ({ onSelectionChange }) => {
+const IterationSelector = ({ onSelectionChange, initialSelectedIds = [] }) => {
   // Use custom hooks for data fetching and filtering
   const { iterations, loading, error } = useIterations();
+
+  // Cache status state
+  const [cachedIterationIds, setCachedIterationIds] = useState(new Set());
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -54,7 +60,33 @@ const IterationSelector = ({ onSelectionChange }) => {
     filteredIterations
   } = useIterationFilters(iterations, formatDate);
 
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedIds, setSelectedIds] = useState(initialSelectedIds);
+
+  // Update selectedIds when initialSelectedIds prop changes (e.g., modal opens)
+  useEffect(() => {
+    setSelectedIds(initialSelectedIds);
+  }, [initialSelectedIds]);
+
+  // Fetch cache status to know which iterations are cached
+  useEffect(() => {
+    const fetchCacheStatus = async () => {
+      try {
+        const response = await fetch('/api/cache/status');
+        const data = await response.json();
+
+        // Extract cached iteration IDs from the response
+        const cachedIds = new Set(
+          (data.iterations || []).map(iter => iter.iterationId)
+        );
+        setCachedIterationIds(cachedIds);
+      } catch (error) {
+        console.debug('Failed to fetch cache status:', error);
+        // Fail silently - cached badge is optional enhancement
+      }
+    };
+
+    fetchCacheStatus();
+  }, []);
 
   // Use Select All hook for Select All checkbox functionality
   const { selectAllRef, handleSelectAll } = useSelectAll(
@@ -183,27 +215,38 @@ const IterationSelector = ({ onSelectionChange }) => {
 
       {/* Iteration List */}
       <IterationList>
-        {filteredIterations.map(iteration => (
-          <IterationItem key={iteration.id}>
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(iteration.id)}
-              onChange={(e) => handleCheckboxChange(iteration.id, e.target.checked)}
-              aria-label={iteration.title || `Sprint ${iteration.iid}`}
-            />
-            <IterationDetails>
-              <IterationTitle>
-                {iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}`}
-              </IterationTitle>
-              <IterationDates>
-                {formatDate(iteration.startDate)} - {formatDate(iteration.dueDate)}
-              </IterationDates>
-              <IterationState className={iteration.state}>
-                {iteration.state}
-              </IterationState>
-            </IterationDetails>
-          </IterationItem>
-        ))}
+        {filteredIterations.map(iteration => {
+          const isCached = cachedIterationIds.has(iteration.id);
+
+          return (
+            <IterationItem key={iteration.id}>
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(iteration.id)}
+                onChange={(e) => handleCheckboxChange(iteration.id, e.target.checked)}
+                aria-label={iteration.title || `Sprint ${iteration.iid}`}
+              />
+              <IterationDetails>
+                <IterationTitle>
+                  {iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}`}
+                </IterationTitle>
+                <IterationDates>
+                  {formatDate(iteration.startDate)} - {formatDate(iteration.dueDate)}
+                </IterationDates>
+                <BadgesContainer>
+                  <IterationState className={iteration.state}>
+                    {iteration.state}
+                  </IterationState>
+                  {isCached && (
+                    <CachedBadge title="Data is cached and will load instantly">
+                      Cached
+                    </CachedBadge>
+                  )}
+                </BadgesContainer>
+              </IterationDetails>
+            </IterationItem>
+          );
+        })}
       </IterationList>
     </Container>
   );

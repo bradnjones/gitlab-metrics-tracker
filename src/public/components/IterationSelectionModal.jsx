@@ -241,6 +241,8 @@ export default function IterationSelectionModal({
 }) {
   const [tempSelectedIds, setTempSelectedIds] = useState(selectedIterationIds);
   const [allIterations, setAllIterations] = useState([]);
+  const [prefetchedIds, setPrefetchedIds] = useState(new Set());
+  const [selectorKey, setSelectorKey] = useState(0);
 
   // Update temp selection when prop changes
   useEffect(() => {
@@ -248,8 +250,15 @@ export default function IterationSelectionModal({
   }, [selectedIterationIds]);
 
   // Fetch all iterations to get full data for selected IDs
+  // Also reset tempSelectedIds when modal opens to sync with current selections
   useEffect(() => {
     if (isOpen) {
+      // Reset temp selections to match current selections when modal opens
+      setTempSelectedIds(selectedIterationIds);
+
+      // Increment key to force IterationSelector to remount with fresh props
+      setSelectorKey(prev => prev + 1);
+
       const fetchIterations = async () => {
         try {
           const response = await fetch('/api/iterations');
@@ -261,8 +270,40 @@ export default function IterationSelectionModal({
         }
       };
       fetchIterations();
+    } else {
+      // Reset prefetch tracking when modal closes
+      setPrefetchedIds(new Set());
     }
-  }, [isOpen]);
+  }, [isOpen, selectedIterationIds]);
+
+  // Background prefetch: When user selects new iterations, start fetching their data
+  // This populates the cache so data loads instantly when they click "Apply"
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Find newly selected iterations (not yet prefetched)
+    const newlySelected = tempSelectedIds.filter(id => !prefetchedIds.has(id));
+
+    if (newlySelected.length === 0) return;
+
+    // Prefetch data for newly selected iterations
+    newlySelected.forEach(async (iterationId) => {
+      try {
+        // Mark as prefetching to avoid duplicate requests
+        setPrefetchedIds(prev => new Set([...prev, iterationId]));
+
+        // Trigger cache population by calling velocity endpoint
+        // We don't need the response - just want to populate the cache
+        await fetch(`/api/metrics/velocity?iterations=${encodeURIComponent(iterationId)}`);
+
+        // Note: We're ignoring the response. The goal is cache population, not UI update.
+      } catch (error) {
+        // Silent failure - prefetch is optional optimization
+        // If it fails, data will be fetched normally when user clicks Apply
+        console.debug(`Background prefetch failed for ${iterationId}:`, error.message);
+      }
+    });
+  }, [tempSelectedIds, isOpen, prefetchedIds]);
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -341,7 +382,11 @@ export default function IterationSelectionModal({
         </ModalHeader>
 
         <ModalBody>
-          <IterationSelector onSelectionChange={handleSelectionChange} />
+          <IterationSelector
+            key={selectorKey} // Force remount when modal opens to get fresh state
+            onSelectionChange={handleSelectionChange}
+            initialSelectedIds={tempSelectedIds}
+          />
         </ModalBody>
 
         <ModalFooter>

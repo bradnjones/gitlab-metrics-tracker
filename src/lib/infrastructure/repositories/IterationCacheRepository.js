@@ -182,6 +182,60 @@ export class IterationCacheRepository extends IIterationCacheRepository {
   }
 
   /**
+   * Get metadata for all cached iterations.
+   * Returns information about each cached iteration without loading the full data.
+   *
+   * @returns {Promise<Array<{iterationId: string, lastFetched: string, fileSize: number}>>}
+   */
+  async getAllMetadata() {
+    try {
+      // Ensure directory exists
+      await this._ensureDirectoryExists();
+
+      // Read all JSON files from cache directory
+      const files = await fs.readdir(this.cacheDir);
+      const jsonFiles = files.filter(f => f.endsWith('.json'));
+
+      // Load metadata from each file
+      const metadata = await Promise.all(
+        jsonFiles.map(async (filename) => {
+          const filePath = path.join(this.cacheDir, filename);
+
+          try {
+            // Read file content and get file stats
+            const [content, stats] = await Promise.all([
+              fs.readFile(filePath, 'utf-8'),
+              fs.stat(filePath),
+            ]);
+
+            // Parse cache entry
+            const cached = JSON.parse(content);
+
+            return {
+              iterationId: cached.iterationId,
+              lastFetched: cached.lastFetched,
+              fileSize: stats.size,
+            };
+          } catch (err) {
+            // Skip corrupted or invalid files
+            console.warn(`Skipping invalid cache file ${filename}:`, err.message);
+            return null;
+          }
+        })
+      );
+
+      // Filter out null entries (corrupted files)
+      return metadata.filter(m => m !== null);
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        // Directory doesn't exist - return empty array
+        return [];
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Get file path for iteration cache (with sanitization).
    *
    * Security: Prevents path traversal attacks by sanitizing iteration IDs

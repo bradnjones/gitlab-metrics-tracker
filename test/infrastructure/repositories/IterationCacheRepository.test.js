@@ -405,4 +405,100 @@ describe('IterationCacheRepository', () => {
       expect(await repoWithTTL.has(iterationId)).toBe(false);
     });
   });
+
+  describe('getAllMetadata()', () => {
+    // Test 1: Returns empty array when no cache exists
+    test('getAllMetadata() returns empty array when cache directory is empty', async () => {
+      const metadata = await repository.getAllMetadata();
+      expect(metadata).toEqual([]);
+    });
+
+    // Test 2: Returns metadata for all cached iterations
+    test('getAllMetadata() returns metadata for all cached iterations', async () => {
+      const mockData1 = {
+        issues: [],
+        mergeRequests: [],
+        pipelines: [],
+        incidents: [],
+        iteration: { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1' }
+      };
+      const mockData2 = {
+        issues: [],
+        mergeRequests: [],
+        pipelines: [],
+        incidents: [],
+        iteration: { id: 'gid://gitlab/Iteration/456', title: 'Sprint 2' }
+      };
+
+      // Create two cache entries
+      await repository.set('gid://gitlab/Iteration/123', mockData1);
+      await repository.set('gid://gitlab/Iteration/456', mockData2);
+
+      // Get all metadata
+      const metadata = await repository.getAllMetadata();
+
+      // Verify we got metadata for both iterations
+      expect(metadata).toHaveLength(2);
+
+      // Verify metadata structure
+      expect(metadata[0]).toHaveProperty('iterationId');
+      expect(metadata[0]).toHaveProperty('lastFetched');
+      expect(metadata[0]).toHaveProperty('fileSize');
+
+      // Verify iteration IDs are present (order not guaranteed)
+      const iterationIds = metadata.map(m => m.iterationId).sort();
+      expect(iterationIds).toEqual([
+        'gid://gitlab/Iteration/123',
+        'gid://gitlab/Iteration/456',
+      ]);
+
+      // Verify lastFetched is a valid ISO date string
+      metadata.forEach(item => {
+        expect(new Date(item.lastFetched).toISOString()).toBe(item.lastFetched);
+      });
+
+      // Verify fileSize is a positive number
+      metadata.forEach(item => {
+        expect(item.fileSize).toBeGreaterThan(0);
+      });
+    });
+
+    // Test 3: Handles corrupted cache files gracefully
+    test('getAllMetadata() skips corrupted cache files', async () => {
+      const mockData = {
+        issues: [],
+        mergeRequests: [],
+        pipelines: [],
+        incidents: [],
+        iteration: { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1' }
+      };
+
+      // Create valid cache entry
+      await repository.set('gid://gitlab/Iteration/123', mockData);
+
+      // Create corrupted cache file
+      const corruptedPath = path.join(tempDir, 'corrupted.json');
+      await fs.writeFile(corruptedPath, '{ invalid json', 'utf-8');
+
+      // Get metadata - should skip corrupted file
+      const metadata = await repository.getAllMetadata();
+
+      // Should only return valid cache entry
+      expect(metadata).toHaveLength(1);
+      expect(metadata[0].iterationId).toBe('gid://gitlab/Iteration/123');
+    });
+
+    // Test 4: Returns empty array when directory doesn't exist
+    test('getAllMetadata() returns empty array when cache directory does not exist', async () => {
+      // Create repository with non-existent directory
+      const nonExistentDir = path.join(os.tmpdir(), `cache-test-nonexistent-${Date.now()}`);
+      const newRepo = new IterationCacheRepository(nonExistentDir);
+
+      const metadata = await newRepo.getAllMetadata();
+      expect(metadata).toEqual([]);
+
+      // Clean up (directory should not have been created)
+      await fs.rm(nonExistentDir, { recursive: true, force: true });
+    });
+  });
 });
