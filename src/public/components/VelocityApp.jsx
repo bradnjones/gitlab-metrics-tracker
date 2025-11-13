@@ -34,6 +34,7 @@ import VelocityChart from './VelocityChart.jsx';
 import CycleTimeChart from './CycleTimeChart.jsx';
 import DeploymentFrequencyChart from './DeploymentFrequencyChart.jsx';
 import LeadTimeChart from './LeadTimeChart.jsx';
+import MTTRChart from './MTTRChart.jsx';
 
 /**
  * Main app container
@@ -186,6 +187,11 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Lead Time</ChartTitle>
                 <LeadTimeChart iterationIds={selectedIterations.map(iter => iter.id)} />
+              </ChartCard>
+
+              <ChartCard>
+                <ChartTitle>MTTR (Mean Time to Recovery)</ChartTitle>
+                <MTTRChart iterationIds={selectedIterations.map(iter => iter.id)} />
               </ChartCard>
             </ChartsGrid>
           )}

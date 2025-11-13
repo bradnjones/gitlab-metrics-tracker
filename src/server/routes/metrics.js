@@ -328,6 +328,79 @@ router.get('/lead-time', async (req, res) => {
 });
 
 /**
+ * GET /api/metrics/mttr
+ * Calculate MTTR (Mean Time To Recovery) metrics for one or more iterations
+ *
+ * Query params:
+ *   iterations - Comma-separated iteration IDs (e.g., ?iterations=id1,id2,id3)
+ *
+ * Response:
+ * {
+ *   "metrics": [
+ *     { "iterationId": "...", "mttrAvg": 24.5, "incidentCount": 3 },
+ *     ...
+ *   ],
+ *   "count": 2
+ * }
+ */
+router.get('/mttr', async (req, res) => {
+  try {
+    // Validate query params
+    const { iterations } = req.query;
+
+    if (!iterations) {
+      return res.status(400).json({
+        error: {
+          message: 'Missing required parameter: iterations',
+          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
+        }
+      });
+    }
+
+    // Parse comma-separated iteration IDs
+    const iterationIds = iterations.split(',').map(id => id.trim());
+
+    // Create service
+    const metricsService = ServiceFactory.createMetricsService();
+
+    // Calculate metrics for all iterations using BATCH method
+    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
+
+    // Transform results to response format
+    const metricsResults = allMetrics.map(metrics => ({
+      iterationId: metrics.iterationId,
+      iterationTitle: metrics.iterationTitle,
+      startDate: metrics.startDate,
+      dueDate: metrics.endDate,
+      mttrAvg: metrics.mttrAvg,
+      incidentCount: metrics.incidentCount
+    }));
+
+    // Return results
+    res.json({
+      metrics: metricsResults,
+      count: metricsResults.length
+    });
+
+  } catch (error) {
+    // Log error for debugging
+    console.error('[API Error] Failed to calculate MTTR metrics:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+
+    // Return user-friendly error
+    res.status(500).json({
+      error: {
+        message: 'Failed to calculate MTTR metrics',
+        details: error.message
+      }
+    });
+  }
+});
+
+/**
  * POST /api/metrics/calculate
  * Calculate metrics for a given iteration
  *

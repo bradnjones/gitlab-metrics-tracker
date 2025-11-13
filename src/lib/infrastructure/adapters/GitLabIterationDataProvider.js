@@ -43,13 +43,17 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
       // Fetch iteration details (includes issues)
       const iterationDetails = await this.gitlabClient.fetchIterationDetails(iterationId);
 
-      // For now, return basic structure
-      // TODO: Fetch additional data (MRs, pipelines, incidents) in future stories
+      // Fetch incidents for this iteration's date range
+      const incidents = await this.gitlabClient.fetchIncidents(
+        iterationMetadata?.startDate || new Date().toISOString(),
+        iterationMetadata?.dueDate || new Date().toISOString()
+      );
+
       return {
         issues: iterationDetails.issues || [],
         mergeRequests: iterationDetails.mergeRequests || [],
         pipelines: [], // TODO: Implement pipeline fetching
-        incidents: [], // TODO: Implement incident fetching
+        incidents: incidents || [],
         iteration: {
           id: iterationMetadata?.id || iterationId,
           title: iterationMetadata?.title || 'Unknown Sprint',
@@ -84,22 +88,30 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
       // Create lookup map for O(1) access
       const iterationMap = new Map(allIterations.map(it => [it.id, it]));
 
-      // Fetch details for all iterations IN PARALLEL
-      const detailsPromises = iterationIds.map(id =>
-        this.gitlabClient.fetchIterationDetails(id)
-      );
-      const allDetails = await Promise.all(detailsPromises);
+      // Fetch details AND incidents for all iterations IN PARALLEL
+      const fetchPromises = iterationIds.map(async (id) => {
+        const metadata = iterationMap.get(id);
+        const [details, incidents] = await Promise.all([
+          this.gitlabClient.fetchIterationDetails(id),
+          this.gitlabClient.fetchIncidents(
+            metadata?.startDate || new Date().toISOString(),
+            metadata?.dueDate || new Date().toISOString()
+          )
+        ]);
+        return { details, incidents };
+      });
+      const allResults = await Promise.all(fetchPromises);
 
-      // Combine metadata + details in original order
+      // Combine metadata + details + incidents in original order
       return iterationIds.map((id, index) => {
         const metadata = iterationMap.get(id);
-        const details = allDetails[index];
+        const { details, incidents } = allResults[index];
 
         return {
           issues: details.issues || [],
           mergeRequests: details.mergeRequests || [],
           pipelines: [], // TODO: Implement pipeline fetching
-          incidents: [], // TODO: Implement incident fetching
+          incidents: incidents || [],
           iteration: {
             id: metadata?.id || id,
             title: metadata?.title || 'Unknown Sprint',
