@@ -52,8 +52,32 @@ export class IterationCacheRepository extends IIterationCacheRepository {
    * @throws {Error} If cache is corrupted
    */
   async get(iterationId) {
-    // TODO: Implement
-    throw new Error('Not implemented: get');
+    const filePath = this._getFilePath(iterationId);
+
+    try {
+      // Check if file exists
+      await fs.access(filePath);
+
+      // Read and parse cache file
+      const content = await fs.readFile(filePath, 'utf-8');
+      const cached = JSON.parse(content);
+
+      // Return the data portion
+      return cached.data;
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        // File doesn't exist - cache miss (not an error)
+        return null;
+      }
+
+      if (err instanceof SyntaxError) {
+        // JSON parse error - corrupted cache
+        throw new Error(`Cache file corrupted for iteration ${iterationId}: ${err.message}`);
+      }
+
+      // Other errors (permission, etc.)
+      throw err;
+    }
   }
 
   /**
@@ -90,8 +114,8 @@ export class IterationCacheRepository extends IIterationCacheRepository {
    * @returns {Promise<boolean>} True if cached and valid
    */
   async has(iterationId) {
-    // TODO: Implement
-    throw new Error('Not implemented: has');
+    const cached = await this.get(iterationId);
+    return cached !== null;
   }
 
   /**
@@ -101,8 +125,17 @@ export class IterationCacheRepository extends IIterationCacheRepository {
    * @returns {Promise<void>}
    */
   async clear(iterationId) {
-    // TODO: Implement
-    throw new Error('Not implemented: clear');
+    const filePath = this._getFilePath(iterationId);
+
+    try {
+      await fs.unlink(filePath);
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        // Re-throw if not "file not found"
+        throw err;
+      }
+      // Silently ignore if file doesn't exist
+    }
   }
 
   /**
@@ -111,8 +144,19 @@ export class IterationCacheRepository extends IIterationCacheRepository {
    * @returns {Promise<void>}
    */
   async clearAll() {
-    // TODO: Implement
-    throw new Error('Not implemented: clearAll');
+    try {
+      const files = await fs.readdir(this.cacheDir);
+      const jsonFiles = files.filter(f => f.endsWith('.json'));
+
+      await Promise.all(
+        jsonFiles.map(f => fs.unlink(path.join(this.cacheDir, f)))
+      );
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        throw err;
+      }
+      // Silently ignore if directory doesn't exist
+    }
   }
 
   /**
