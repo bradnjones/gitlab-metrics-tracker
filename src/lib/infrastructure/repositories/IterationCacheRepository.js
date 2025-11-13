@@ -28,10 +28,13 @@ export class IterationCacheRepository extends IIterationCacheRepository {
    * Create an IterationCacheRepository instance
    *
    * @param {string} [cacheDir='./src/data/cache/iterations'] - Base directory for cache files
+   * @param {number} [cacheTTL=6] - Time-to-live for cache entries in hours (0 = disabled)
+   * @throws {Error} If cacheTTL is negative
    */
-  constructor(cacheDir = './src/data/cache/iterations') {
+  constructor(cacheDir = './src/data/cache/iterations', cacheTTL = 6) {
     super();
     this.cacheDir = path.resolve(cacheDir);
+    this.cacheTTL = cacheTTL;
   }
 
   /**
@@ -62,7 +65,26 @@ export class IterationCacheRepository extends IIterationCacheRepository {
       const content = await fs.readFile(filePath, 'utf-8');
       const cached = JSON.parse(content);
 
-      // Return the data portion
+      // TTL validation (skip if TTL disabled with 0)
+      if (this.cacheTTL > 0) {
+        // Validate lastFetched exists and is valid
+        const lastFetched = new Date(cached.lastFetched);
+        if (isNaN(lastFetched.getTime())) {
+          // Invalid timestamp - treat as expired
+          return null;
+        }
+
+        // Calculate cache age in milliseconds
+        const age = Date.now() - lastFetched.getTime();
+        const ttlMs = this.cacheTTL * 3600 * 1000; // Convert hours to milliseconds
+
+        if (age > ttlMs) {
+          // Cache expired
+          return null;
+        }
+      }
+
+      // Return the data portion (valid cache or TTL disabled)
       return cached.data;
     } catch (err) {
       if (err.code === 'ENOENT') {

@@ -46,6 +46,19 @@ export class ServiceFactory {
   }
 
   /**
+   * Create IterationCacheRepository with configuration
+   *
+   * @param {string} [cacheDir='./src/data/cache/iterations'] - Cache directory path
+   * @returns {IterationCacheRepository} Configured cache repository instance
+   */
+  static createIterationCacheRepository(cacheDir = './src/data/cache/iterations') {
+    // Read TTL from environment (default 6 hours)
+    const cacheTTL = parseInt(process.env.CACHE_TTL_HOURS, 10) || 6;
+
+    return new IterationCacheRepository(cacheDir, cacheTTL);
+  }
+
+  /**
    * Create MetricsService with all dependencies
    *
    * @param {Object} [config] - Optional configuration override
@@ -69,7 +82,7 @@ export class ServiceFactory {
 
     // Create Infrastructure dependencies
     const gitlabClient = new GitLabClient(gitlabConfig);
-    const cacheRepository = new IterationCacheRepository('./src/data/cache/iterations');
+    const cacheRepository = this.createIterationCacheRepository('./src/data/cache/iterations');
     const dataProvider = new GitLabIterationDataProvider(gitlabClient, cacheRepository);
 
     // Create and return Core service with injected dependencies
