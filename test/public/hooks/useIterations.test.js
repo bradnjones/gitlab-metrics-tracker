@@ -4,11 +4,6 @@
 import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { renderHook, waitFor } from '@testing-library/react';
 
-// Mock fetchWithRetry before importing useIterations
-jest.unstable_mockModule('../../../src/public/utils/fetchWithRetry.js', () => ({
-  fetchWithRetry: jest.fn((url, options) => fetch(url, options))
-}));
-
 const { useIterations } = await import('../../../src/public/hooks/useIterations.js');
 
 describe('useIterations', () => {
@@ -66,7 +61,7 @@ describe('useIterations', () => {
     // Final state
     expect(result.current.iterations).toEqual(mockIterations);
     expect(result.current.error).toBe(null);
-    expect(global.fetch).toHaveBeenCalledWith('/api/iterations', {});
+    expect(global.fetch).toHaveBeenCalledWith('/api/iterations');
   });
 
   test('handles empty iterations array', async () => {

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
-import { fetchWithRetry } from '../utils/fetchWithRetry.js';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -95,7 +94,7 @@ const CycleTimeChart = ({ iterationIds }) => {
           iterations: iterationIds
         });
 
-        const response = await fetchWithRetry(url);
+        const response = await fetch(url);
 
         console.log('[CycleTimeChart] Response received:', {
           status: response.status,
