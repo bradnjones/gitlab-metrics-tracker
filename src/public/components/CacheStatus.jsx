@@ -128,7 +128,10 @@ export default function CacheStatus() {
   useEffect(() => {
     async function fetchCacheStatus() {
       try {
-        setLoading(true);
+        // Only show loading on initial fetch
+        if (!cacheData) {
+          setLoading(true);
+        }
         setError(null);
 
         const response = await fetch('/api/cache/status');
@@ -146,8 +149,15 @@ export default function CacheStatus() {
       }
     }
 
+    // Initial fetch
     fetchCacheStatus();
-  }, []);
+
+    // Poll every 5 seconds to detect newly cached iterations
+    const pollInterval = setInterval(fetchCacheStatus, 5000);
+
+    // Cleanup on unmount
+    return () => clearInterval(pollInterval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Loading state
   if (loading) {
