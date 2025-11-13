@@ -19,7 +19,7 @@ const Container = styled.div`
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #374151;
+  color: white;
 `;
 
 const StatusIndicator = styled.div`
@@ -27,28 +27,30 @@ const StatusIndicator = styled.div`
   height: 8px;
   border-radius: 50%;
   background-color: ${props => props.$color};
+  box-shadow: 0 0 4px ${props => props.$color};
 `;
 
 const StatusText = styled.span`
-  font-weight: 500;
-  color: ${props => props.$color};
+  font-weight: 600;
+  color: white;
 `;
 
 const CountText = styled.span`
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.9);
 `;
 
 const LastUpdatedText = styled.span`
-  color: #9ca3af;
+  color: rgba(255, 255, 255, 0.75);
   font-size: 12px;
 `;
 
 const LoadingText = styled.span`
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.9);
 `;
 
 const ErrorText = styled.span`
-  color: #ef4444;
+  color: #fca5a5;
+  font-weight: 600;
 `;
 
 /**
