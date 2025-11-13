@@ -16,19 +16,20 @@ jest.mock('react-chartjs-2', () => ({
   ))
 }));
 
-// Mock fetchWithRetry
-jest.mock('../../utils/fetchWithRetry.js', () => ({
-  fetchWithRetry: jest.fn()
-}));
-
-// Import the mocked module AFTER jest.mock() so we get the mocked version
-import { fetchWithRetry } from '../../utils/fetchWithRetry.js';
-
 describe('MTTRChart', () => {
+  // Store original fetch
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
-    // Reset mock before each test
-    fetchWithRetry.mockReset();
+    // Mock global fetch
+    global.fetch = jest.fn();
   });
+
+  afterEach(() => {
+    // Restore original fetch
+    global.fetch = originalFetch;
+  });
+
   /**
    * Test 1: Empty state rendering
    * Drives: Basic component structure and prop handling
@@ -56,8 +57,8 @@ describe('MTTRChart', () => {
    * Drives: API call, data transformation, chart display with Chart.js
    */
   it('fetches and displays MTTR data successfully', async () => {
-    // Mock successful API response (fetchWithRetry returns a Response object)
-    fetchWithRetry.mockResolvedValue({
+    // Mock successful API response (fetch returns a Response object)
+    global.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
         metrics: [
@@ -93,7 +94,7 @@ describe('MTTRChart', () => {
     expect(screen.getByText(/Chart with 2 data points/i)).toBeInTheDocument();
 
     // Verify API was called with correct URL
-    expect(fetchWithRetry).toHaveBeenCalledWith(
+    expect(global.fetch).toHaveBeenCalledWith(
       '/api/metrics/mttr?iterations=gid://gitlab/Iteration/123,gid://gitlab/Iteration/124'
     );
   });
@@ -103,8 +104,8 @@ describe('MTTRChart', () => {
    * Drives: Error handling, error state display
    */
   it('displays error message when API fails', async () => {
-    // Mock failed API response (fetchWithRetry throws error)
-    fetchWithRetry.mockRejectedValue(new Error('Failed to fetch MTTR data after 4 attempts'));
+    // Mock failed API response (fetch throws error)
+    global.fetch.mockRejectedValue(new Error('Failed to fetch MTTR data'));
 
     render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123']} />);
 
@@ -113,7 +114,7 @@ describe('MTTRChart', () => {
       expect(screen.getByText(/Error loading MTTR data/i)).toBeInTheDocument();
     });
 
-    // Verify error message is shown
-    expect(screen.getByText(/Failed to fetch MTTR data after 4 attempts/i)).toBeInTheDocument();
+    // Verify error message is shown (no retry attempts since we removed retry logic)
+    expect(screen.getByText(/Failed to fetch MTTR data/i)).toBeInTheDocument();
   });
 });

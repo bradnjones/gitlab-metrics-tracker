@@ -11,18 +11,6 @@ import CompactHeaderWithIterations from '../../../src/public/components/CompactH
 import EmptyState from '../../../src/public/components/EmptyState.jsx';
 import IterationSelectionModal from '../../../src/public/components/IterationSelectionModal.jsx';
 
-// Mock fetchWithRetry utility
-jest.mock('../../../src/public/utils/fetchWithRetry.js', () => ({
-  fetchWithRetry: jest.fn((...args) => fetch(...args))
-}));
-
-// Mock IterationSelectionModal component
-jest.mock('../../../src/public/components/IterationSelectionModal.jsx', () => {
-  return function MockIterationSelectionModal({ isOpen }) {
-    if (!isOpen) return null;
-    return <div data-testid="iteration-selection-modal">Mock Modal</div>;
-  };
-});
 
 // Mock chart components
 jest.mock('../../../src/public/components/VelocityChart.jsx', () => {
@@ -48,6 +36,32 @@ jest.mock('../../../src/public/components/LeadTimeChart.jsx', () => {
     return <div data-testid="lead-time-chart">Lead Time Chart</div>;
   };
 });
+
+// Mock useIterations hook
+jest.mock('../../../src/public/hooks/useIterations.js', () => ({
+  useIterations: () => ({
+    iterations: [],
+    loading: false,
+    error: null
+  })
+}));
+
+// Mock useIterationFilters hook
+jest.mock('../../../src/public/hooks/useIterationFilters.js', () => ({
+  useIterationFilters: () => ({
+    filters: { searchTerm: '', stateFilter: 'all' },
+    setFilters: jest.fn(),
+    filteredIterations: []
+  })
+}));
+
+// Mock useSelectAll hook
+jest.mock('../../../src/public/hooks/useSelectAll.js', () => ({
+  useSelectAll: () => ({
+    isAllSelected: false,
+    toggleSelectAll: jest.fn()
+  })
+}));
 
 // Mock theme object
 const theme = {

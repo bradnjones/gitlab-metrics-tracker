@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
-import { fetchWithRetry } from '../utils/fetchWithRetry.js';
+// TESTING: Removed fetchWithRetry to see if plain fetch works with cache
+// import { fetchWithRetry } from '../utils/fetchWithRetry.js';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -81,7 +82,8 @@ const VelocityChart = ({ iterationIds }) => {
         setError(null);
 
         const iterationsParam = iterationIds.join(',');
-        const response = await fetchWithRetry(`/api/metrics/velocity?iterations=${iterationsParam}`);
+        // TESTING: Using plain fetch instead of fetchWithRetry
+        const response = await fetch(`/api/metrics/velocity?iterations=${iterationsParam}`);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

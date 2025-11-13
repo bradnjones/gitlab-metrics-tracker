@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
-import { fetchWithRetry } from '../utils/fetchWithRetry.js';
 
 // Register Chart.js components
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
@@ -85,7 +84,7 @@ const DeploymentFrequencyChart = ({ iterationIds }) => {
         const iterationsParam = iterationIds.join(',');
         const url = `/api/metrics/deployment-frequency?iterations=${iterationsParam}`;
 
-        const response = await fetchWithRetry(url);
+        const response = await fetch(url);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

@@ -8,7 +8,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
-import { fetchWithRetry } from '../utils/fetchWithRetry.js';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -63,7 +62,7 @@ const MTTRChart = ({ iterationIds }) => {
 
       try {
         const iterationsParam = iterationIds.join(',');
-        const response = await fetchWithRetry(`/api/metrics/mttr?iterations=${iterationsParam}`);
+        const response = await fetch(`/api/metrics/mttr?iterations=${iterationsParam}`);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
