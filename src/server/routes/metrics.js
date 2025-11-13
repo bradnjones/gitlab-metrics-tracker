@@ -26,9 +26,14 @@ const router = express.Router();
  * }
  */
 router.get('/velocity', async (req, res) => {
+  console.log('='.repeat(80));
+  console.log('[ROUTE] GET /api/metrics/velocity called');
+  console.log('='.repeat(80));
+
   try {
     // Validate query params
     const { iterations } = req.query;
+    console.log(`[ROUTE] Query params - iterations: ${iterations}`);
 
     if (!iterations) {
       return res.status(400).json({
@@ -41,13 +46,18 @@ router.get('/velocity', async (req, res) => {
 
     // Parse comma-separated iteration IDs
     const iterationIds = iterations.split(',').map(id => id.trim());
+    console.log(`[ROUTE] Parsed ${iterationIds.length} iteration IDs:`, iterationIds);
 
     // Create service (will use environment variables)
+    console.log('[ROUTE] Creating MetricsService via ServiceFactory...');
     const metricsService = ServiceFactory.createMetricsService();
+    console.log('[ROUTE] MetricsService created successfully');
 
     // Calculate metrics for all iterations using BATCH method (performance optimization)
     // This fetches iteration metadata ONCE and parallelizes issue fetching
+    console.log('[ROUTE] Calling calculateMultipleMetrics...');
     const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
+    console.log(`[ROUTE] calculateMultipleMetrics returned ${allMetrics.length} results`);
 
     // Transform results to response format
     const metricsResults = allMetrics.map(metrics => ({

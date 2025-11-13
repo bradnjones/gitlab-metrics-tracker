@@ -173,11 +173,16 @@ export class MetricsService {
    * @throws {Error} If data fetching fails
    */
   async calculateMultipleMetrics(iterationIds) {
+    console.log('[SERVICE] calculateMultipleMetrics called with:', iterationIds);
+
     // Fetch all iteration data in one efficient batch
     let allIterationData;
     try {
+      console.log('[SERVICE] Calling dataProvider.fetchMultipleIterations...');
       allIterationData = await this.dataProvider.fetchMultipleIterations(iterationIds);
+      console.log(`[SERVICE] fetchMultipleIterations returned ${allIterationData.length} results`);
     } catch (error) {
+      console.error('[SERVICE] Error in fetchMultipleIterations:', error.message);
       throw new Error(`Failed to fetch multiple iterations: ${error.message}`);
     }
 
