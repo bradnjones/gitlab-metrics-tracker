@@ -11,6 +11,11 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 
 /**
+ * LocalStorage key for selected iterations (must match VelocityApp.jsx)
+ */
+const STORAGE_KEY = 'gitlab-metrics-selected-iterations';
+
+/**
  * Styled Components
  */
 
@@ -73,7 +78,7 @@ export default function RefreshButton({ onRefreshComplete }) {
   const [errorMessage, setErrorMessage] = useState('');
 
   /**
-   * Handle button click - clear cache via API
+   * Handle button click - clear cache via API and localStorage
    */
   async function handleClick() {
     try {
@@ -88,6 +93,14 @@ export default function RefreshButton({ onRefreshComplete }) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
+      // Clear localStorage to remove persisted iteration selections
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (localStorageError) {
+        console.warn('Failed to clear localStorage:', localStorageError);
+        // Continue anyway - cache clear succeeded
+      }
+
       // Success
       setState('success');
 
@@ -96,10 +109,11 @@ export default function RefreshButton({ onRefreshComplete }) {
         onRefreshComplete();
       }
 
-      // Reset to idle after 3 seconds
+      // Reload the page after a short delay to show success state
+      // This ensures all components get fresh data and localStorage is cleared
       setTimeout(() => {
-        setState('idle');
-      }, 3000);
+        window.location.reload();
+      }, 1000);
     } catch (err) {
       setState('error');
       setErrorMessage(err.message);
