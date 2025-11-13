@@ -67,4 +67,16 @@ export class IIterationCacheRepository {
   async clearAll() {
     throw new Error('Method not implemented: clearAll');
   }
+
+  /**
+   * Get metadata for all cached iterations.
+   * Returns information about each cached iteration without loading the full data.
+   * Useful for cache status/management UIs.
+   *
+   * @returns {Promise<Array<{iterationId: string, lastFetched: string, fileSize: number}>>}
+   *   Array of cache metadata objects, or empty array if no cache exists
+   */
+  async getAllMetadata() {
+    throw new Error('Method not implemented: getAllMetadata');
+  }
 }

@@ -9,6 +9,7 @@ import { GitLabClient } from '../../lib/infrastructure/api/GitLabClient.js';
 import { GitLabIterationDataProvider } from '../../lib/infrastructure/adapters/GitLabIterationDataProvider.js';
 import { IterationCacheRepository } from '../../lib/infrastructure/repositories/IterationCacheRepository.js';
 import { MetricsService } from '../../lib/core/services/MetricsService.js';
+import { GetCacheStatusUseCase } from '../../lib/core/use-cases/GetCacheStatusUseCase.js';
 
 /**
  * ServiceFactory
@@ -88,5 +89,18 @@ export class ServiceFactory {
     // Create and return Core service with injected dependencies
     // Note: Metrics are calculated on-demand, not persisted (see ADR 001)
     return new MetricsService(dataProvider);
+  }
+
+  /**
+   * Create GetCacheStatusUseCase with dependencies
+   *
+   * @returns {GetCacheStatusUseCase} Fully wired use case instance
+   */
+  static createGetCacheStatusUseCase() {
+    // Create cache repository
+    const cacheRepository = this.createIterationCacheRepository();
+
+    // Create and return use case with injected repository
+    return new GetCacheStatusUseCase(cacheRepository);
   }
 }

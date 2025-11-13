@@ -19,53 +19,14 @@ const router = express.Router();
  */
 router.get('/status', async (req, res) => {
   try {
-    // Get cache repository from ServiceFactory
-    const cacheRepository = ServiceFactory.createIterationCacheRepository();
+    // Get use case from ServiceFactory (dependency injection)
+    const useCase = ServiceFactory.createGetCacheStatusUseCase();
 
-    // Get all cache metadata
-    const metadata = await cacheRepository.getAllMetadata();
+    // Execute use case (business logic)
+    const status = await useCase.execute();
 
-    // Calculate status for each iteration
-    const iterations = metadata.map((item) => {
-      const lastFetched = new Date(item.lastFetched);
-      const ageMs = Date.now() - lastFetched.getTime();
-      const ageHours = ageMs / (3600 * 1000);
-
-      // Determine status based on age
-      let status;
-      if (ageHours < 1) {
-        status = 'fresh';
-      } else if (ageHours < cacheRepository.cacheTTL) {
-        status = 'aging';
-      } else {
-        status = 'stale';
-      }
-
-      return {
-        iterationId: item.iterationId,
-        lastFetched: item.lastFetched,
-        ageHours: parseFloat(ageHours.toFixed(2)),
-        status,
-        fileSize: item.fileSize,
-      };
-    });
-
-    // Calculate global last updated (most recent timestamp)
-    let globalLastUpdated = null;
-    if (iterations.length > 0) {
-      const mostRecent = iterations.reduce((latest, current) => {
-        return new Date(current.lastFetched) > new Date(latest.lastFetched) ? current : latest;
-      });
-      globalLastUpdated = mostRecent.lastFetched;
-    }
-
-    // Return cache status
-    res.status(200).json({
-      cacheTTL: cacheRepository.cacheTTL,
-      totalCachedIterations: iterations.length,
-      globalLastUpdated,
-      iterations,
-    });
+    // Return result (HTTP concern only)
+    res.status(200).json(status);
   } catch (error) {
     console.error('Failed to get cache status:', error.message);
 
