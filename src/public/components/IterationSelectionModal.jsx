@@ -242,6 +242,7 @@ export default function IterationSelectionModal({
   const [tempSelectedIds, setTempSelectedIds] = useState(selectedIterationIds);
   const [allIterations, setAllIterations] = useState([]);
   const [prefetchedIds, setPrefetchedIds] = useState(new Set());
+  const [selectorKey, setSelectorKey] = useState(0);
 
   // Update temp selection when prop changes
   useEffect(() => {
@@ -254,6 +255,9 @@ export default function IterationSelectionModal({
     if (isOpen) {
       // Reset temp selections to match current selections when modal opens
       setTempSelectedIds(selectedIterationIds);
+
+      // Increment key to force IterationSelector to remount with fresh props
+      setSelectorKey(prev => prev + 1);
 
       const fetchIterations = async () => {
         try {
@@ -379,6 +383,7 @@ export default function IterationSelectionModal({
 
         <ModalBody>
           <IterationSelector
+            key={selectorKey} // Force remount when modal opens to get fresh state
             onSelectionChange={handleSelectionChange}
             initialSelectedIds={tempSelectedIds}
           />
