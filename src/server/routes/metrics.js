@@ -401,6 +401,88 @@ router.get('/mttr', async (req, res) => {
 });
 
 /**
+ * GET /api/metrics/change-failure-rate
+ * Calculate change failure rate (CFR) for one or more iterations
+ *
+ * Query params:
+ *   iterations - Comma-separated iteration IDs (e.g., ?iterations=id1,id2,id3)
+ *
+ * Response:
+ * {
+ *   "metrics": [
+ *     {
+ *       "iterationId": "...",
+ *       "iterationTitle": "Sprint 1",
+ *       "startDate": "2025-01-01",
+ *       "dueDate": "2025-01-14",
+ *       "changeFailureRate": 25.5,
+ *       "deploymentCount": 10,
+ *       "incidentCount": 2
+ *     },
+ *     ...
+ *   ],
+ *   "count": 2
+ * }
+ */
+router.get('/change-failure-rate', async (req, res) => {
+  try {
+    // Validate query params
+    const { iterations } = req.query;
+
+    if (!iterations) {
+      return res.status(400).json({
+        error: {
+          message: 'Missing required parameter: iterations',
+          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
+        }
+      });
+    }
+
+    // Parse comma-separated iteration IDs
+    const iterationIds = iterations.split(',').map(id => id.trim());
+
+    // Create service (will use environment variables)
+    const metricsService = ServiceFactory.createMetricsService();
+
+    // Calculate metrics for all iterations using BATCH method
+    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
+
+    // Transform results to response format
+    const metricsResults = allMetrics.map(metrics => ({
+      iterationId: metrics.iterationId,
+      iterationTitle: metrics.iterationTitle,
+      startDate: metrics.startDate,
+      dueDate: metrics.endDate,
+      changeFailureRate: metrics.changeFailureRate,
+      deploymentCount: metrics.deploymentCount,
+      incidentCount: metrics.incidentCount
+    }));
+
+    // Return results
+    res.json({
+      metrics: metricsResults,
+      count: metricsResults.length
+    });
+
+  } catch (error) {
+    // Log error for debugging
+    console.error('[API Error] Failed to calculate change failure rate metrics:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+
+    // Return user-friendly error
+    res.status(500).json({
+      error: {
+        message: 'Failed to calculate change failure rate metrics',
+        details: error.message
+      }
+    });
+  }
+});
+
+/**
  * POST /api/metrics/calculate
  * Calculate metrics for a given iteration
  *
