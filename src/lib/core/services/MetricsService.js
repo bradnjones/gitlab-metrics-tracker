@@ -33,7 +33,7 @@ import { Metric } from '../entities/Metric.js';
  *
  * Following Clean Architecture:
  * - Depends on IIterationDataProvider (Core interface), not GitLabClient (Infrastructure)
- * - Depends on IMetricsRepository (Core interface)
+ * - Calculates metrics on-demand, does not persist (see ADR 001)
  * - Pure business logic orchestration
  */
 export class MetricsService {
@@ -41,11 +41,9 @@ export class MetricsService {
    * Create a MetricsService instance
    *
    * @param {Object} dataProvider - IIterationDataProvider implementation for data fetching
-   * @param {Object} metricsRepository - IMetricsRepository implementation for persistence
    */
-  constructor(dataProvider, metricsRepository) {
+  constructor(dataProvider) {
     this.dataProvider = dataProvider;
-    this.metricsRepository = metricsRepository;
   }
 
   /**
@@ -157,10 +155,8 @@ export class MetricsService {
       }
     });
 
-    // Persist results via repository
-    await this.metricsRepository.save(metric);
-
-    // Return calculated metrics
+    // Metrics calculated on-demand, not persisted (see ADR 001)
+    // Calculation is fast (~15ms), no need to cache
     return metric.toJSON();
   }
 
@@ -253,12 +249,8 @@ export class MetricsService {
         }
       });
 
-      // TODO: TEMPORARY - Persistence disabled to test cache performance (#69)
-      // Race condition: 6 parallel API calls all saving to same file causes corruption
-      // Need to implement file locking or alternative storage strategy
-      // await this.metricsRepository.save(metric);
-
-      // Add to results
+      // Metrics calculated on-demand, not persisted (see ADR 001)
+      // Calculation is fast (~15ms), no need to cache
       metricsResults.push(metric.toJSON());
     }
 

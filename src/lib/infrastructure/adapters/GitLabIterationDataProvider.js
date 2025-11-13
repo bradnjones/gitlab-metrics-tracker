@@ -112,15 +112,15 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    * @throws {Error} If fetch fails for any iteration
    */
   async fetchMultipleIterations(iterationIds) {
-    console.log('='.repeat(60));
-    console.log(`fetchMultipleIterations called with ${iterationIds.length} iterations`);
-    console.log('='.repeat(60));
-
     try {
-      // Validate input
+      // Validate input FIRST before logging
       if (!Array.isArray(iterationIds) || iterationIds.length === 0) {
         throw new Error('iterationIds must be a non-empty array');
       }
+
+      console.log('='.repeat(60));
+      console.log(`fetchMultipleIterations called with ${iterationIds.length} iterations`);
+      console.log('='.repeat(60));
 
       // Check cache for all iterations in parallel
       console.log(`Checking cache for ${iterationIds.length} iterations...`);

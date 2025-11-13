@@ -7,7 +7,6 @@
 
 import { GitLabClient } from '../../lib/infrastructure/api/GitLabClient.js';
 import { GitLabIterationDataProvider } from '../../lib/infrastructure/adapters/GitLabIterationDataProvider.js';
-import { FileMetricsRepository } from '../../lib/infrastructure/repositories/FileMetricsRepository.js';
 import { IterationCacheRepository } from '../../lib/infrastructure/repositories/IterationCacheRepository.js';
 import { MetricsService } from '../../lib/core/services/MetricsService.js';
 
@@ -72,9 +71,9 @@ export class ServiceFactory {
     const gitlabClient = new GitLabClient(gitlabConfig);
     const cacheRepository = new IterationCacheRepository('./src/data/cache/iterations');
     const dataProvider = new GitLabIterationDataProvider(gitlabClient, cacheRepository);
-    const metricsRepository = new FileMetricsRepository('./data');
 
     // Create and return Core service with injected dependencies
-    return new MetricsService(dataProvider, metricsRepository);
+    // Note: Metrics are calculated on-demand, not persisted (see ADR 001)
+    return new MetricsService(dataProvider);
   }
 }
