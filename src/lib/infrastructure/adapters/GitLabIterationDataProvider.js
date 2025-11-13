@@ -112,6 +112,10 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    * @throws {Error} If fetch fails for any iteration
    */
   async fetchMultipleIterations(iterationIds) {
+    console.log('='.repeat(60));
+    console.log(`fetchMultipleIterations called with ${iterationIds.length} iterations`);
+    console.log('='.repeat(60));
+
     try {
       // Validate input
       if (!Array.isArray(iterationIds) || iterationIds.length === 0) {
@@ -119,18 +123,22 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
       }
 
       // Check cache for all iterations in parallel
+      console.log(`Checking cache for ${iterationIds.length} iterations...`);
       const cacheResults = await Promise.all(
         iterationIds.map(async (id) => {
           if (!this.cacheRepository) {
+            console.log(`No cache repository configured for ${id}`);
             return { id, cached: false, data: null };
           }
 
           try {
             const hasCache = await this.cacheRepository.has(id);
             if (hasCache) {
+              console.log(`CACHE HIT: ${id}`);
               const cachedData = await this.cacheRepository.get(id);
               return { id, cached: true, data: cachedData };
             }
+            console.log(`CACHE MISS: ${id}`);
             return { id, cached: false, data: null };
           } catch (cacheError) {
             console.warn(`Cache read failed for iteration ${id}:`, cacheError.message);
