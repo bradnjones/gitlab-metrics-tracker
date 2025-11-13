@@ -10,6 +10,7 @@ import { CycleTimeCalculator } from './CycleTimeCalculator.js';
 import { DeploymentFrequencyCalculator } from './DeploymentFrequencyCalculator.js';
 import { LeadTimeCalculator } from './LeadTimeCalculator.js';
 import { IncidentAnalyzer } from './IncidentAnalyzer.js';
+import { ChangeFailureRateCalculator } from './ChangeFailureRateCalculator.js';
 import { Metric } from '../entities/Metric.js';
 
 /**
@@ -62,6 +63,25 @@ export class MetricsService {
   }
 
   /**
+   * Calculate deployment count from merge requests
+   * Counts merged MRs to main or master branches
+   * @private
+   *
+   * @param {Array<Object>} mergeRequests - Merge request data
+   * @returns {number} Number of deployments
+   */
+  _calculateDeploymentCount(mergeRequests) {
+    const deployments = (mergeRequests || []).filter((mr) => {
+      const targetBranch = mr.targetBranch?.toLowerCase();
+      return (
+        mr.state === 'merged' &&
+        (targetBranch === 'main' || targetBranch === 'master')
+      );
+    });
+    return deployments.length;
+  }
+
+  /**
    * Calculate all metrics for a given iteration
    *
    * @param {string} iterationId - Iteration identifier
@@ -101,6 +121,15 @@ export class MetricsService {
     // Calculate MTTR from incidents
     const mttr = IncidentAnalyzer.calculateMTTR(iterationData.incidents || []);
 
+    // Calculate deployment count (merged MRs to main/master)
+    const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
+
+    // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
+    const changeFailureRate = ChangeFailureRateCalculator.calculate(
+      iterationData.incidents || [],
+      deploymentCount
+    );
+
     // Create Metric entity
     const metric = new Metric({
       iterationId,
@@ -117,11 +146,11 @@ export class MetricsService {
       leadTimeP50: leadTime.p50,
       leadTimeP90: leadTime.p90,
       mttrAvg: mttr,
-      changeFailureRate: 0, // Not yet implemented
+      changeFailureRate,
       issueCount: iterationData.issues.length,
-      mrCount: 0, // Not yet implemented
-      deploymentCount: 0, // Not yet implemented
-      incidentCount: (iterationData.incidents || []).filter(i => i.closedAt && i.createdAt).length,
+      mrCount: (iterationData.mergeRequests || []).filter(mr => mr.state === 'merged').length,
+      deploymentCount,
+      incidentCount: (iterationData.incidents || []).length,
       rawData: {
         issues: iterationData.issues,
         iteration: iterationData.iteration
@@ -183,6 +212,15 @@ export class MetricsService {
       // Calculate MTTR from incidents
       const mttr = IncidentAnalyzer.calculateMTTR(iterationData.incidents || []);
 
+      // Calculate deployment count (merged MRs to main/master)
+      const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
+
+      // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
+      const changeFailureRate = ChangeFailureRateCalculator.calculate(
+        iterationData.incidents || [],
+        deploymentCount
+      );
+
       // Create Metric entity
       const metric = new Metric({
         iterationId,
@@ -199,11 +237,11 @@ export class MetricsService {
         leadTimeP50: leadTime.p50,
         leadTimeP90: leadTime.p90,
         mttrAvg: mttr,
-        changeFailureRate: 0, // Not yet implemented
+        changeFailureRate,
         issueCount: iterationData.issues.length,
-        mrCount: 0, // Not yet implemented
-        deploymentCount: 0, // Not yet implemented
-        incidentCount: (iterationData.incidents || []).filter(i => i.closedAt && i.createdAt).length,
+        mrCount: (iterationData.mergeRequests || []).filter(mr => mr.state === 'merged').length,
+        deploymentCount,
+        incidentCount: (iterationData.incidents || []).length,
         rawData: {
           issues: iterationData.issues,
           iteration: iterationData.iteration

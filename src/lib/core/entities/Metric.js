@@ -37,7 +37,7 @@ export class Metric {
    * @param {number} data.leadTimeP50 - Median lead time (days)
    * @param {number} data.leadTimeP90 - 90th percentile lead time (days)
    * @param {number} data.mttrAvg - Mean time to recovery (hours)
-   * @param {number} data.changeFailureRate - Deployment failure rate (0-1)
+   * @param {number} data.changeFailureRate - Change failure rate percentage (0-100)
    * @param {number} data.issueCount - Total issues in iteration
    * @param {number} data.mrCount - Total merge requests
    * @param {number} data.deploymentCount - Total deployments
