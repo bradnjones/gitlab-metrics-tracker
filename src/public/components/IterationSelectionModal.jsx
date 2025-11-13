@@ -249,8 +249,12 @@ export default function IterationSelectionModal({
   }, [selectedIterationIds]);
 
   // Fetch all iterations to get full data for selected IDs
+  // Also reset tempSelectedIds when modal opens to sync with current selections
   useEffect(() => {
     if (isOpen) {
+      // Reset temp selections to match current selections when modal opens
+      setTempSelectedIds(selectedIterationIds);
+
       const fetchIterations = async () => {
         try {
           const response = await fetch('/api/iterations');
@@ -266,7 +270,7 @@ export default function IterationSelectionModal({
       // Reset prefetch tracking when modal closes
       setPrefetchedIds(new Set());
     }
-  }, [isOpen]);
+  }, [isOpen, selectedIterationIds]);
 
   // Background prefetch: When user selects new iterations, start fetching their data
   // This populates the cache so data loads instantly when they click "Apply"
