@@ -37,10 +37,10 @@ const CompactHeader = styled.header`
   background: linear-gradient(135deg, ${props => props.theme.colors.primary} 0%, ${props => props.theme.colors.primaryDark} 100%);
   color: white;
   box-shadow: ${props => props.theme.shadows.md};
-  padding: 12px 12px;
+  padding: 16px 12px;
 
   @media (max-width: ${props => props.theme.breakpoints.tablet}) {
-    padding: 8px 8px;
+    padding: 12px 8px;
   }
 `;
 
@@ -117,29 +117,47 @@ const CompactSubtitle = styled.p`
 `;
 
 /**
- * Iteration chips section
+ * Iteration chips section with multi-row wrapping
  *
  * @component
  */
 const IterationChipsSection = styled.div`
   display: flex;
   align-items: center;
-  gap: ${props => props.theme.spacing.xs};
+  gap: 4px;
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
 
-  /* Hide scrollbar but keep functionality */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  /* Enable multi-row wrapping */
+  flex-wrap: wrap;
+
+  /* Constrain to max 2 rows on desktop */
+  max-height: 60px;
+  overflow-y: auto;
+
+  /* Thin scrollbar for overflow scenarios */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
 
   &::-webkit-scrollbar {
-    display: none;
+    width: 4px;
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   @media (max-width: ${props => props.theme.breakpoints.tablet}) {
     width: 100%;
     order: 3;
+    max-height: none;
+    overflow-y: visible;
   }
 `;
 
@@ -151,12 +169,12 @@ const IterationChipsSection = styled.div`
 const HeaderIterationChip = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: ${props => props.theme.spacing.xs};
+  gap: 3px;
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(8px);
   color: white;
-  padding: 4px 8px;
-  border-radius: 999px;
+  padding: 2px 5px;
+  border-radius: 6px;
   font-size: ${props => props.theme.typography.fontSize.xs};
   font-weight: ${props => props.theme.typography.fontWeight.medium};
   white-space: nowrap;
@@ -315,6 +333,20 @@ export default function CompactHeaderWithIterations({
   };
 
   /**
+   * Get cadence initials for compact display
+   * @param {string} title - Cadence title (e.g., "Devs Sprint")
+   * @returns {string} Initials (e.g., "DS")
+   */
+  const getCadenceInitials = (title) => {
+    if (!title) return '';
+    return title
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase();
+  };
+
+  /**
    * Handle remove iteration button click
    * @param {string} iterationId - ID of iteration to remove
    */
@@ -354,16 +386,21 @@ export default function CompactHeaderWithIterations({
             <EmptyChipsMessage>No sprints selected</EmptyChipsMessage>
           ) : (
             selectedIterations.map((iteration) => {
+              // Full title for tooltip
               const baseTitle = iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}` || iteration.id;
+              const fullTitle = iteration.dueDate ? `${baseTitle} (${formatDate(iteration.dueDate)})` : baseTitle;
+
+              // Compact display: "DS 10/25" format
+              const cadenceInitials = getCadenceInitials(iteration.iterationCadence?.title);
               const endDate = iteration.dueDate ? formatDate(iteration.dueDate) : '';
-              const displayTitle = endDate ? `${baseTitle} (${endDate})` : baseTitle;
+              const displayTitle = cadenceInitials && endDate ? `${cadenceInitials} ${endDate}` : fullTitle;
 
               return (
-                <HeaderIterationChip key={iteration.id}>
+                <HeaderIterationChip key={iteration.id} title={fullTitle}>
                   {displayTitle}
                   <HeaderChipRemoveButton
                     onClick={() => handleRemove(iteration.id)}
-                    aria-label={`Remove ${displayTitle}`}
+                    aria-label={`Remove ${fullTitle}`}
                     type="button"
                   >
                     ×
