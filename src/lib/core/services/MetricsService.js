@@ -253,8 +253,10 @@ export class MetricsService {
         }
       });
 
-      // Persist results via repository (MUST be sequential to avoid file corruption)
-      await this.metricsRepository.save(metric);
+      // TODO: TEMPORARY - Persistence disabled to test cache performance (#69)
+      // Race condition: 6 parallel API calls all saving to same file causes corruption
+      // Need to implement file locking or alternative storage strategy
+      // await this.metricsRepository.save(metric);
 
       // Add to results
       metricsResults.push(metric.toJSON());
