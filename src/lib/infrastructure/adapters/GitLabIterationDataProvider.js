@@ -42,8 +42,11 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
       try {
         const hasCache = await this.cacheRepository.has(iterationId);
         if (hasCache) {
+          console.log(`✅ Cache HIT for iteration ${iterationId}`);
           const cachedData = await this.cacheRepository.get(iterationId);
           return cachedData;
+        } else {
+          console.log(`❌ Cache MISS for iteration ${iterationId}`);
         }
       } catch (cacheError) {
         // Log cache error but continue with fresh fetch
@@ -81,7 +84,9 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
 
       // Cache the result (fire-and-forget)
       if (this.cacheRepository) {
-        this.cacheRepository.set(iterationId, iterationData).catch(err => {
+        this.cacheRepository.set(iterationId, iterationData).then(() => {
+          console.log(`💾 Cached iteration ${iterationId}`);
+        }).catch(err => {
           console.warn(`Cache write failed for iteration ${iterationId}:`, err.message);
         });
       }
