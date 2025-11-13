@@ -5,6 +5,7 @@
   ],
   "ignore": [
     "src/public/**/*",
+    "src/data/**/*",
     "test/**/*",
     "node_modules/**/*",
     "*.test.js"
