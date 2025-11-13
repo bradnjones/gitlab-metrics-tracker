@@ -376,7 +376,7 @@ export default function IterationSelectionModal({
         <ModalBody>
           <IterationSelector
             onSelectionChange={handleSelectionChange}
-            initialSelectedIds={selectedIterationIds}
+            initialSelectedIds={tempSelectedIds}
           />
         </ModalBody>
 
