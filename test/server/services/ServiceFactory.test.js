@@ -30,7 +30,7 @@ describe('ServiceFactory', () => {
       // Assert
       expect(service).toBeInstanceOf(MetricsService);
       expect(service.dataProvider).toBeDefined();
-      expect(service.metricsRepository).toBeDefined();
+      // Note: metricsRepository removed - metrics calculated on-demand (see ADR 001)
     });
 
     it('should throw error when GITLAB_TOKEN is missing', () => {
@@ -73,7 +73,7 @@ describe('ServiceFactory', () => {
       // Assert
       expect(service).toBeInstanceOf(MetricsService);
       expect(service.dataProvider).toBeDefined();
-      expect(service.metricsRepository).toBeDefined();
+      // Note: metricsRepository removed - metrics calculated on-demand (see ADR 001)
     });
 
     it('should default to https://gitlab.com when GITLAB_URL not provided', () => {
@@ -105,10 +105,8 @@ describe('ServiceFactory', () => {
       // Assert - Verify service has injected dependencies
       expect(service.dataProvider).toBeDefined();
       expect(typeof service.dataProvider.fetchIterationData).toBe('function');
-
-      expect(service.metricsRepository).toBeDefined();
-      expect(typeof service.metricsRepository.save).toBe('function');
-      expect(typeof service.metricsRepository.findById).toBe('function');
+      expect(typeof service.dataProvider.fetchMultipleIterations).toBe('function');
+      // Note: metricsRepository removed - metrics calculated on-demand (see ADR 001)
     });
   });
 });

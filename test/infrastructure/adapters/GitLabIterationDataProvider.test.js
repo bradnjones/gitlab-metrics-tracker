@@ -329,4 +329,207 @@ describe('GitLabIterationDataProvider', () => {
       expect(results[1].iteration.startDate).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO date
     });
   });
+
+  describe('with IterationCacheRepository integration', () => {
+    // Test 11 (RED): Cache hit path
+    it('fetchIterationData() returns cached data when cache exists', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+      const cachedData = {
+        issues: [{ id: '1', title: 'Cached Issue' }],
+        mergeRequests: [{ id: '2', title: 'Cached MR' }],
+        pipelines: [],
+        incidents: [],
+        iteration: { id: iterationId, title: 'Cached Sprint' }
+      };
+
+      const mockCache = {
+        has: jest.fn().mockResolvedValue(true),
+        get: jest.fn().mockResolvedValue(cachedData),
+        set: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const mockGitLabClient = {
+        fetchIterations: jest.fn().mockResolvedValue([]),
+        fetchIterationDetails: jest.fn().mockResolvedValue({}),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
+      };
+
+      const provider = new GitLabIterationDataProvider(mockGitLabClient, mockCache);
+      const result = await provider.fetchIterationData(iterationId);
+
+      // Cache should be checked
+      expect(mockCache.has).toHaveBeenCalledWith(iterationId);
+      expect(mockCache.get).toHaveBeenCalledWith(iterationId);
+
+      // GitLab API should NOT be called (cache hit)
+      expect(mockGitLabClient.fetchIterations).not.toHaveBeenCalled();
+      expect(mockGitLabClient.fetchIterationDetails).not.toHaveBeenCalled();
+
+      // Should return cached data
+      expect(result).toEqual(cachedData);
+    });
+
+    // Test 12 (RED): Cache miss path
+    it('fetchIterationData() fetches from GitLab and caches result when cache misses', async () => {
+      const iterationId = 'gid://gitlab/Iteration/456';
+      const gitlabData = {
+        issues: [{ id: '1', title: 'Fresh Issue' }],
+        mergeRequests: [],
+        pipelines: [],
+        incidents: [],
+        iteration: { id: iterationId, title: 'Fresh Sprint', startDate: '2024-10-01', dueDate: '2024-10-14' }
+      };
+
+      const mockCache = {
+        has: jest.fn().mockResolvedValue(false), // Cache miss
+        set: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const mockGitLabClient = {
+        fetchIterations: jest.fn().mockResolvedValue([
+          { id: iterationId, title: 'Fresh Sprint', startDate: '2024-10-01', dueDate: '2024-10-14' }
+        ]),
+        fetchIterationDetails: jest.fn().mockResolvedValue({
+          issues: [{ id: '1', title: 'Fresh Issue' }],
+          mergeRequests: [],
+        }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
+      };
+
+      const provider = new GitLabIterationDataProvider(mockGitLabClient, mockCache);
+      const result = await provider.fetchIterationData(iterationId);
+
+      // Cache should be checked
+      expect(mockCache.has).toHaveBeenCalledWith(iterationId);
+
+      // GitLab API should be called (cache miss)
+      expect(mockGitLabClient.fetchIterations).toHaveBeenCalled();
+      expect(mockGitLabClient.fetchIterationDetails).toHaveBeenCalledWith(iterationId);
+
+      // Result should be cached
+      expect(mockCache.set).toHaveBeenCalledWith(iterationId, expect.objectContaining({
+        iteration: expect.any(Object),
+        issues: expect.any(Array),
+      }));
+
+      // Should return fresh data
+      expect(result.issues).toHaveLength(1);
+      expect(result.issues[0].title).toBe('Fresh Issue');
+    });
+
+    // Test 13 (RED): Cache errors don't break GitLab fetch
+    it('fetchIterationData() falls back to GitLab API when cache errors occur', async () => {
+      const iterationId = 'gid://gitlab/Iteration/789';
+
+      const mockCache = {
+        has: jest.fn().mockRejectedValue(new Error('Disk full')), // Cache error
+        set: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const mockGitLabClient = {
+        fetchIterations: jest.fn().mockResolvedValue([
+          { id: iterationId, title: 'Resilient Sprint', startDate: '2024-10-01', dueDate: '2024-10-14' }
+        ]),
+        fetchIterationDetails: jest.fn().mockResolvedValue({
+          issues: [{ id: '1', title: 'Resilient Issue' }],
+          mergeRequests: [],
+        }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
+      };
+
+      const provider = new GitLabIterationDataProvider(mockGitLabClient, mockCache);
+      const result = await provider.fetchIterationData(iterationId);
+
+      // GitLab API should be called despite cache error
+      expect(mockGitLabClient.fetchIterations).toHaveBeenCalled();
+      expect(mockGitLabClient.fetchIterationDetails).toHaveBeenCalledWith(iterationId);
+
+      // Should return data successfully
+      expect(result.issues).toHaveLength(1);
+      expect(result.issues[0].title).toBe('Resilient Issue');
+    });
+
+    // Test 14 (RED): fetchMultipleIterations with cache
+    it('fetchMultipleIterations() uses cache for some iterations, fetches others from GitLab', async () => {
+      const iteration1Id = 'gid://gitlab/Iteration/100';
+      const iteration2Id = 'gid://gitlab/Iteration/200';
+
+      const cachedData1 = {
+        issues: [{ id: '1', title: 'Cached Issue' }],
+        mergeRequests: [],
+        pipelines: [],
+        incidents: [],
+        iteration: { id: iteration1Id, title: 'Cached Sprint 1' }
+      };
+
+      const mockCache = {
+        has: jest.fn()
+          .mockResolvedValueOnce(true)  // Iteration 1: cache hit
+          .mockResolvedValueOnce(false), // Iteration 2: cache miss
+        get: jest.fn().mockResolvedValue(cachedData1),
+        set: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const mockGitLabClient = {
+        fetchIterations: jest.fn().mockResolvedValue([
+          { id: iteration1Id, title: 'Cached Sprint 1', startDate: '2024-10-01', dueDate: '2024-10-14' },
+          { id: iteration2Id, title: 'Fresh Sprint 2', startDate: '2024-10-15', dueDate: '2024-10-28' },
+        ]),
+        fetchIterationDetails: jest.fn()
+          .mockResolvedValueOnce({
+            issues: [{ id: '2', title: 'Fresh Issue' }],
+            mergeRequests: [],
+          }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
+      };
+
+      const provider = new GitLabIterationDataProvider(mockGitLabClient, mockCache);
+      const iterationIds = [iteration1Id, iteration2Id];
+
+      const results = await provider.fetchMultipleIterations(iterationIds);
+
+      // Cache should be checked for both iterations
+      expect(mockCache.has).toHaveBeenCalledTimes(2);
+      expect(mockCache.has).toHaveBeenCalledWith(iteration1Id);
+      expect(mockCache.has).toHaveBeenCalledWith(iteration2Id);
+
+      // Only cache hit should call get()
+      expect(mockCache.get).toHaveBeenCalledTimes(1);
+      expect(mockCache.get).toHaveBeenCalledWith(iteration1Id);
+
+      // Only cache miss should call GitLab API
+      expect(mockGitLabClient.fetchIterationDetails).toHaveBeenCalledTimes(1);
+      expect(mockGitLabClient.fetchIterationDetails).toHaveBeenCalledWith(iteration2Id);
+
+      // Results should be correct
+      expect(results).toHaveLength(2);
+      expect(results[0].iteration.title).toBe('Cached Sprint 1');
+      expect(results[1].iteration.title).toBe('Fresh Sprint 2');
+    });
+
+    // Test 15 (Optional): Provider works without cache
+    it('GitLabIterationDataProvider works normally when no cache provided', async () => {
+      const iterationId = 'gid://gitlab/Iteration/999';
+
+      const mockGitLabClient = {
+        fetchIterations: jest.fn().mockResolvedValue([
+          { id: iterationId, title: 'No Cache Sprint', startDate: '2024-10-01', dueDate: '2024-10-14' }
+        ]),
+        fetchIterationDetails: jest.fn().mockResolvedValue({
+          issues: [{ id: '1', title: 'No Cache Issue' }],
+          mergeRequests: [],
+        }),
+        fetchIncidents: jest.fn().mockResolvedValue([]),
+      };
+
+      // No cache provided (backward compatibility)
+      const provider = new GitLabIterationDataProvider(mockGitLabClient);
+      const result = await provider.fetchIterationData(iterationId);
+
+      // Should work without cache
+      expect(mockGitLabClient.fetchIterations).toHaveBeenCalled();
+      expect(result.issues).toHaveLength(1);
+      expect(result.issues[0].title).toBe('No Cache Issue');
+    });
+  });
 });

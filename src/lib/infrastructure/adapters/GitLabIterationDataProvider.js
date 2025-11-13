@@ -21,10 +21,12 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    * Create a GitLabIterationDataProvider instance
    *
    * @param {Object} gitlabClient - GitLabClient instance for API calls
+   * @param {Object} [cacheRepository] - Optional cache repository (IIterationCacheRepository)
    */
-  constructor(gitlabClient) {
+  constructor(gitlabClient, cacheRepository) {
     super();
     this.gitlabClient = gitlabClient;
+    this.cacheRepository = cacheRepository;
   }
 
   /**
@@ -35,6 +37,21 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    * @throws {Error} If GitLab fetch fails
    */
   async fetchIterationData(iterationId) {
+    // Try cache first if available
+    if (this.cacheRepository) {
+      try {
+        const hasCache = await this.cacheRepository.has(iterationId);
+        if (hasCache) {
+          const cachedData = await this.cacheRepository.get(iterationId);
+          return cachedData;
+        }
+      } catch (cacheError) {
+        // Log cache error but continue with fresh fetch
+        console.warn(`Cache read failed for iteration ${iterationId}:`, cacheError.message);
+      }
+    }
+
+    // Cache miss or no cache - fetch from GitLab
     try {
       // Fetch iteration list to get metadata (includes dates)
       const iterations = await this.gitlabClient.fetchIterations();
@@ -49,7 +66,7 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
         iterationMetadata?.dueDate || new Date().toISOString()
       );
 
-      return {
+      const iterationData = {
         issues: iterationDetails.issues || [],
         mergeRequests: iterationDetails.mergeRequests || [],
         pipelines: [], // TODO: Implement pipeline fetching
@@ -61,6 +78,15 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
           dueDate: iterationMetadata?.dueDate || new Date().toISOString(),
         },
       };
+
+      // Cache the result (fire-and-forget)
+      if (this.cacheRepository) {
+        this.cacheRepository.set(iterationId, iterationData).catch(err => {
+          console.warn(`Cache write failed for iteration ${iterationId}:`, err.message);
+        });
+      }
+
+      return iterationData;
     } catch (error) {
       // Re-throw with context for Core layer
       throw new Error(`Failed to fetch iteration data: ${error.message}`);
@@ -70,6 +96,7 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
   /**
    * Fetch data for multiple iterations efficiently in a single batch
    * Performance optimized: fetches iteration metadata once, then parallelizes details fetching
+   * Cache-aware: checks cache for each iteration before fetching from GitLab
    *
    * @param {Array<string>} iterationIds - Array of GitLab iteration IDs
    * @returns {Promise<Array<IterationData>>} Array of iteration data in same order as input
@@ -77,9 +104,41 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    */
   async fetchMultipleIterations(iterationIds) {
     try {
-      // Validate input
+      // Validate input FIRST before logging
       if (!Array.isArray(iterationIds) || iterationIds.length === 0) {
         throw new Error('iterationIds must be a non-empty array');
+      }
+
+      // Check cache for all iterations in parallel
+      const cacheResults = await Promise.all(
+        iterationIds.map(async (id) => {
+          if (!this.cacheRepository) {
+            return { id, cached: false, data: null };
+          }
+
+          try {
+            const hasCache = await this.cacheRepository.has(id);
+            if (hasCache) {
+              const cachedData = await this.cacheRepository.get(id);
+              return { id, cached: true, data: cachedData };
+            }
+            return { id, cached: false, data: null };
+          } catch (cacheError) {
+            console.warn(`Cache read failed for iteration ${id}:`, cacheError.message);
+            return { id, cached: false, data: null };
+          }
+        })
+      );
+
+      // Identify which iterations need fresh fetch
+      const cacheMisses = cacheResults.filter(r => !r.cached).map(r => r.id);
+
+      // If all cached, return early
+      if (cacheMisses.length === 0) {
+        return iterationIds.map(id => {
+          const result = cacheResults.find(r => r.id === id);
+          return result.data;
+        });
       }
 
       // Fetch iteration list ONCE to get all metadata (leverages 10-minute cache)
@@ -88,8 +147,8 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
       // Create lookup map for O(1) access
       const iterationMap = new Map(allIterations.map(it => [it.id, it]));
 
-      // Fetch details AND incidents for all iterations IN PARALLEL
-      const fetchPromises = iterationIds.map(async (id) => {
+      // Fetch details AND incidents ONLY for cache misses IN PARALLEL
+      const fetchPromises = cacheMisses.map(async (id) => {
         const metadata = iterationMap.get(id);
         const [details, incidents] = await Promise.all([
           this.gitlabClient.fetchIterationDetails(id),
@@ -98,16 +157,21 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
             metadata?.dueDate || new Date().toISOString()
           )
         ]);
-        return { details, incidents };
+        return { id, details, incidents, metadata };
       });
-      const allResults = await Promise.all(fetchPromises);
+      const freshResults = await Promise.all(fetchPromises);
 
-      // Combine metadata + details + incidents in original order
-      return iterationIds.map((id, index) => {
-        const metadata = iterationMap.get(id);
-        const { details, incidents } = allResults[index];
+      // Build result map with both cached and fresh data
+      const resultMap = new Map();
 
-        return {
+      // Add cached data to map
+      cacheResults.filter(r => r.cached).forEach(r => {
+        resultMap.set(r.id, r.data);
+      });
+
+      // Add fresh data to map and cache it
+      for (const { id, details, incidents, metadata } of freshResults) {
+        const iterationData = {
           issues: details.issues || [],
           mergeRequests: details.mergeRequests || [],
           pipelines: [], // TODO: Implement pipeline fetching
@@ -119,7 +183,19 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
             dueDate: metadata?.dueDate || new Date().toISOString(),
           },
         };
-      });
+
+        resultMap.set(id, iterationData);
+
+        // Cache the fresh data (fire-and-forget)
+        if (this.cacheRepository) {
+          this.cacheRepository.set(id, iterationData).catch(err => {
+            console.warn(`Cache write failed for iteration ${id}:`, err.message);
+          });
+        }
+      }
+
+      // Return results in original order
+      return iterationIds.map(id => resultMap.get(id));
     } catch (error) {
       // Re-throw with context for Core layer
       throw new Error(`Failed to fetch multiple iterations: ${error.message}`);

@@ -12,7 +12,6 @@ import { IncidentAnalyzer } from '../../../src/lib/core/services/IncidentAnalyze
 describe('MetricsService', () => {
   let service;
   let mockDataProvider;
-  let mockRepository;
   let mockIterationData;
 
   beforeEach(() => {
@@ -51,11 +50,7 @@ describe('MetricsService', () => {
     // Setup data provider mock (Core interface, not Infrastructure)
     mockDataProvider = {
       fetchIterationData: jest.fn().mockResolvedValue(mockIterationData),
-    };
-
-    // Setup repository mock
-    mockRepository = {
-      save: jest.fn().mockResolvedValue({ id: '123', saved: true }),
+      fetchMultipleIterations: jest.fn().mockResolvedValue([mockIterationData]),
     };
 
     // Setup calculator mocks to return expected values
@@ -65,8 +60,8 @@ describe('MetricsService', () => {
     LeadTimeCalculator.calculate = jest.fn().mockReturnValue({ avg: 2.0, p50: 1.5, p90: 3.0 });
     IncidentAnalyzer.calculateMTTR = jest.fn().mockReturnValue(2.5);
 
-    // Create service instance with Core interface mocks
-    service = new MetricsService(mockDataProvider, mockRepository);
+    // Create service instance with Core interface mock (no repository - see ADR 001)
+    service = new MetricsService(mockDataProvider);
   });
 
   afterEach(() => {
@@ -107,29 +102,6 @@ describe('MetricsService', () => {
           mttrAvg: 2.5,
           issueCount: expect.any(Number),
           createdAt: expect.any(String),
-        })
-      );
-    });
-
-    it('should persist results via repository after calculation', async () => {
-      const iterationId = 'gid://gitlab/Iteration/123';
-
-      const result = await service.calculateMetrics(iterationId);
-
-      // Verify repository.save() was called AFTER calculations
-      expect(mockRepository.save).toHaveBeenCalledTimes(1);
-
-      // Verify save() received a Metric entity (not plain object)
-      const savedEntity = mockRepository.save.mock.calls[0][0];
-      expect(savedEntity).toBeInstanceOf(Metric);
-      expect(savedEntity.velocityPoints).toBe(42);
-      expect(savedEntity.velocityStories).toBe(5);
-
-      // Verify method still returns the results (as JSON)
-      expect(result).toEqual(
-        expect.objectContaining({
-          velocityPoints: 42,
-          velocityStories: 5,
         })
       );
     });
@@ -199,55 +171,73 @@ describe('MetricsService', () => {
           mttrAvg: 0,
         })
       );
-
-      // Verify repository.save() still called (empty sprint is valid data)
-      expect(mockRepository.save).toHaveBeenCalledTimes(1);
     });
+  });
 
-    it('should save a proper Metric entity with toJSON method to repository (regression test)', async () => {
-      // REGRESSION TEST: Ensures service creates a Metric entity, not a plain object
-      // Bug: Previously saved plain object causing "metric.toJSON is not a function" error
-      const iterationId = 'gid://gitlab/Iteration/123';
+  describe('calculateMultipleMetrics', () => {
+    // NOTE: Metrics persistence removed (see ADR 001)
+    // These tests removed as repository.save() no longer called:
+    // - "should persist results via repository after calculation"
+    // - "should save a proper Metric entity with toJSON method to repository"
 
-      await service.calculateMetrics(iterationId);
+    it('should calculate metrics for multiple iterations efficiently', async () => {
+      const iterationIds = [
+        'gid://gitlab/Iteration/123',
+        'gid://gitlab/Iteration/124',
+        'gid://gitlab/Iteration/125'
+      ];
 
-      // Verify repository.save() was called
-      expect(mockRepository.save).toHaveBeenCalledTimes(1);
+      // Mock data provider to return data for all iterations
+      mockDataProvider.fetchMultipleIterations.mockResolvedValue([
+        {
+          issues: [],
+          mergeRequests: [],
+          pipelines: [],
+          incidents: [],
+          iteration: {
+            id: 'gid://gitlab/Iteration/123',
+            title: 'Sprint 1',
+            startDate: '2025-01-01',
+            dueDate: '2025-01-14',
+          },
+        },
+        {
+          issues: [],
+          mergeRequests: [],
+          pipelines: [],
+          incidents: [],
+          iteration: {
+            id: 'gid://gitlab/Iteration/124',
+            title: 'Sprint 2',
+            startDate: '2025-01-15',
+            dueDate: '2025-01-28',
+          },
+        },
+        {
+          issues: [],
+          mergeRequests: [],
+          pipelines: [],
+          incidents: [],
+          iteration: {
+            id: 'gid://gitlab/Iteration/125',
+            title: 'Sprint 3',
+            startDate: '2025-01-29',
+            dueDate: '2025-02-11',
+          },
+        }
+      ]);
 
-      // Get the argument passed to save()
-      const savedEntity = mockRepository.save.mock.calls[0][0];
+      const results = await service.calculateMultipleMetrics(iterationIds);
 
-      // CRITICAL: Verify it's a Metric entity, not a plain object
-      expect(savedEntity).toBeInstanceOf(Metric);
+      // Verify we get results for all iterations
+      expect(results).toHaveLength(3);
+      expect(results[0].iterationId).toBe('gid://gitlab/Iteration/123');
+      expect(results[1].iterationId).toBe('gid://gitlab/Iteration/124');
+      expect(results[2].iterationId).toBe('gid://gitlab/Iteration/125');
 
-      // CRITICAL: Verify the entity has toJSON method
-      expect(typeof savedEntity.toJSON).toBe('function');
-
-      // Verify toJSON() works and returns proper structure
-      const json = savedEntity.toJSON();
-      expect(json).toEqual(
-        expect.objectContaining({
-          id: expect.any(String),
-          iterationId: 'gid://gitlab/Iteration/123',
-          iterationTitle: 'Sprint 2025-01',
-          startDate: '2025-01-01',
-          endDate: '2025-01-14',
-          velocityPoints: 42,
-          velocityStories: 5,
-          cycleTimeAvg: 3.5,
-          cycleTimeP50: 3.0,
-          cycleTimeP90: 5.0,
-          issueCount: 1,
-          rawData: expect.any(Object),
-          createdAt: expect.any(String),
-        })
-      );
-
-      // Verify entity has all required Metric fields
-      expect(savedEntity.iterationId).toBe('gid://gitlab/Iteration/123');
-      expect(savedEntity.iterationTitle).toBe('Sprint 2025-01');
-      expect(savedEntity.startDate).toBe('2025-01-01');
-      expect(savedEntity.endDate).toBe('2025-01-14');
+      // Verify fetchMultipleIterations was called once (batch operation)
+      expect(mockDataProvider.fetchMultipleIterations).toHaveBeenCalledTimes(1);
+      expect(mockDataProvider.fetchMultipleIterations).toHaveBeenCalledWith(iterationIds);
     });
 
     it('should return JSON representation of metrics, not Metric entity', async () => {
