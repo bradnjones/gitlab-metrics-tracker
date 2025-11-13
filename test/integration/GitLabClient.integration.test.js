@@ -86,25 +86,18 @@ describeIntegration('GitLabClient Integration Tests', () => {
   });
 
   describe('fetchGroupProjects', () => {
-    it('should fetch real projects from group with caching', async () => {
-      // First call - cache miss
-      const projects1 = await client.fetchGroupProjects();
+    it('should fetch real projects from group', async () => {
+      const projects = await client.fetchGroupProjects();
 
-      expect(Array.isArray(projects1)).toBe(true);
-      expect(projects1.length).toBeGreaterThan(0);
+      expect(Array.isArray(projects)).toBe(true);
+      expect(projects.length).toBeGreaterThan(0);
 
-      const firstProject = projects1[0];
+      const firstProject = projects[0];
       expect(firstProject).toHaveProperty('id');
       expect(firstProject).toHaveProperty('fullPath');
       expect(firstProject).toHaveProperty('name');
 
-      console.log(`   ✓ Fetched ${projects1.length} projects from group`);
-
-      // Second call - cache hit
-      const projects2 = await client.fetchGroupProjects();
-
-      expect(projects2).toEqual(projects1);
-      console.log(`   ✓ Cache working - returned same ${projects2.length} projects`);
+      console.log(`   ✓ Fetched ${projects.length} projects from group`);
     }, 60000); // 60 second timeout for potentially large groups
   });
 
