@@ -130,7 +130,13 @@ export default function VelocityApp() {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        setSelectedIterations(parsed);
+        // Validate data structure: must be array of objects with id property
+        if (Array.isArray(parsed) && parsed.every(item => item && typeof item === 'object' && item.id)) {
+          setSelectedIterations(parsed);
+        } else {
+          console.warn('Invalid localStorage data format, clearing...');
+          localStorage.removeItem(STORAGE_KEY);
+        }
       }
     } catch (error) {
       console.warn('Failed to load selections from localStorage:', error);
