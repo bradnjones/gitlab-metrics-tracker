@@ -42,15 +42,8 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
       try {
         const hasCache = await this.cacheRepository.has(iterationId);
         if (hasCache) {
-          console.log('========================================');
-          console.log(`CACHE HIT: ${iterationId}`);
-          console.log('========================================');
           const cachedData = await this.cacheRepository.get(iterationId);
           return cachedData;
-        } else {
-          console.log('----------------------------------------');
-          console.log(`CACHE MISS: ${iterationId} - Fetching from GitLab...`);
-          console.log('----------------------------------------');
         }
       } catch (cacheError) {
         // Log cache error but continue with fresh fetch
@@ -88,9 +81,7 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
 
       // Cache the result (fire-and-forget)
       if (this.cacheRepository) {
-        this.cacheRepository.set(iterationId, iterationData).then(() => {
-          console.log(`>>> CACHED: ${iterationId}`);
-        }).catch(err => {
+        this.cacheRepository.set(iterationId, iterationData).catch(err => {
           console.warn(`Cache write failed for iteration ${iterationId}:`, err.message);
         });
       }
@@ -118,27 +109,19 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
         throw new Error('iterationIds must be a non-empty array');
       }
 
-      console.log('='.repeat(60));
-      console.log(`fetchMultipleIterations called with ${iterationIds.length} iterations`);
-      console.log('='.repeat(60));
-
       // Check cache for all iterations in parallel
-      console.log(`Checking cache for ${iterationIds.length} iterations...`);
       const cacheResults = await Promise.all(
         iterationIds.map(async (id) => {
           if (!this.cacheRepository) {
-            console.log(`No cache repository configured for ${id}`);
             return { id, cached: false, data: null };
           }
 
           try {
             const hasCache = await this.cacheRepository.has(id);
             if (hasCache) {
-              console.log(`CACHE HIT: ${id}`);
               const cachedData = await this.cacheRepository.get(id);
               return { id, cached: true, data: cachedData };
             }
-            console.log(`CACHE MISS: ${id}`);
             return { id, cached: false, data: null };
           } catch (cacheError) {
             console.warn(`Cache read failed for iteration ${id}:`, cacheError.message);
