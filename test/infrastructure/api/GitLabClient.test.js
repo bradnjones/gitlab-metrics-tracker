@@ -72,19 +72,6 @@ describe('GitLabClient', () => {
 
       expect(() => new GitLabClient(config)).toThrow('GITLAB_PROJECT_PATH is required');
     });
-
-    it('should initialize cache properties', () => {
-      const config = {
-        token: 'test-token',
-        projectPath: 'group/project'
-      };
-
-      const client = new GitLabClient(config);
-
-      expect(client._projectsCache).toBeNull();
-      expect(client._projectsCacheTime).toBeNull();
-      expect(client._cacheTimeout).toBe(600000); // 10 minutes in milliseconds
-    });
   });
 
   describe('fetchProject', () => {
@@ -313,9 +300,8 @@ describe('GitLabClient', () => {
     });
   });
 
-  describe('fetchGroupProjects (with cache)', () => {
+  describe('fetchGroupProjects', () => {
     let client;
-    let dateNowSpy;
 
     beforeEach(() => {
       client = new GitLabClient({
@@ -324,16 +310,9 @@ describe('GitLabClient', () => {
       });
       // Mock the delay method to avoid actual delays in tests
       client.delay = jest.fn().mockResolvedValue(undefined);
-
-      // Mock Date.now() for cache time control
-      dateNowSpy = jest.spyOn(Date, 'now');
     });
 
-    afterEach(() => {
-      dateNowSpy.mockRestore();
-    });
-
-    it('should fetch group projects on cache miss (first fetch)', async () => {
+    it('should fetch group projects', async () => {
       const mockProjectsData = {
         group: {
           id: 'gid://gitlab/Group/1',
@@ -348,7 +327,6 @@ describe('GitLabClient', () => {
         }
       };
 
-      dateNowSpy.mockReturnValue(1000000);
       mockRequest.mockResolvedValueOnce(mockProjectsData);
 
       const result = await client.fetchGroupProjects();
@@ -361,108 +339,6 @@ describe('GitLabClient', () => {
         expect.stringContaining('query getGroupProjects'),
         { fullPath: 'group/project', after: null }
       );
-
-      // Verify cache was populated
-      expect(client._projectsCache).toEqual(result);
-      expect(client._projectsCacheTime).toBe(1000000);
-    });
-
-    it('should return cached data on cache hit (data fresh, < 10 min)', async () => {
-      const cachedProjects = [
-        { id: 'gid://gitlab/Project/1', fullPath: 'group/project1', name: 'Cached Project 1' },
-        { id: 'gid://gitlab/Project/2', fullPath: 'group/project2', name: 'Cached Project 2' }
-      ];
-
-      // Set up cache with data at time 1000000
-      client._projectsCache = cachedProjects;
-      client._projectsCacheTime = 1000000;
-
-      // Current time is 5 minutes later (300000 ms = 5 min < 10 min timeout)
-      dateNowSpy.mockReturnValue(1000000 + 300000);
-
-      const result = await client.fetchGroupProjects();
-
-      // Should return cached data
-      expect(result).toEqual(cachedProjects);
-      expect(mockRequest).not.toHaveBeenCalled();
-    });
-
-    it('should refetch when cache is stale (> 10 min)', async () => {
-      const cachedProjects = [
-        { id: 'gid://gitlab/Project/1', fullPath: 'group/project1', name: 'Cached Project 1' }
-      ];
-
-      const freshProjects = {
-        group: {
-          id: 'gid://gitlab/Group/1',
-          name: 'Test Group',
-          projects: {
-            nodes: [
-              { id: 'gid://gitlab/Project/3', fullPath: 'group/project3', name: 'Fresh Project 3' },
-              { id: 'gid://gitlab/Project/4', fullPath: 'group/project4', name: 'Fresh Project 4' }
-            ],
-            pageInfo: { hasNextPage: false, endCursor: null }
-          }
-        }
-      };
-
-      // Set up stale cache at time 1000000
-      client._projectsCache = cachedProjects;
-      client._projectsCacheTime = 1000000;
-
-      // Current time is 11 minutes later (660000 ms = 11 min > 10 min timeout)
-      dateNowSpy.mockReturnValue(1000000 + 660000);
-      mockRequest.mockResolvedValueOnce(freshProjects);
-
-      const result = await client.fetchGroupProjects();
-
-      // Should fetch fresh data
-      expect(result).toHaveLength(2);
-      expect(result[0].name).toBe('Fresh Project 3');
-      expect(result[1].name).toBe('Fresh Project 4');
-      expect(mockRequest).toHaveBeenCalledTimes(1);
-
-      // Verify cache was updated
-      expect(client._projectsCache).toEqual(result);
-      expect(client._projectsCacheTime).toBe(1000000 + 660000);
-    });
-
-    it('should bypass cache when useCache is false', async () => {
-      const cachedProjects = [
-        { id: 'gid://gitlab/Project/1', fullPath: 'group/project1', name: 'Cached Project 1' }
-      ];
-
-      const freshProjects = {
-        group: {
-          id: 'gid://gitlab/Group/1',
-          name: 'Test Group',
-          projects: {
-            nodes: [
-              { id: 'gid://gitlab/Project/5', fullPath: 'group/project5', name: 'Bypassed Cache Project' }
-            ],
-            pageInfo: { hasNextPage: false, endCursor: null }
-          }
-        }
-      };
-
-      // Set up fresh cache (only 1 minute old)
-      client._projectsCache = cachedProjects;
-      client._projectsCacheTime = 1000000;
-      dateNowSpy.mockReturnValue(1000000 + 60000); // 1 minute later
-
-      mockRequest.mockResolvedValueOnce(freshProjects);
-
-      // Call with useCache = false
-      const result = await client.fetchGroupProjects(false);
-
-      // Should fetch fresh data despite valid cache
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Bypassed Cache Project');
-      expect(mockRequest).toHaveBeenCalledTimes(1);
-
-      // Verify cache was still updated
-      expect(client._projectsCache).toEqual(result);
-      expect(client._projectsCacheTime).toBe(1000000 + 60000);
     });
 
     it('should handle pagination with multiple pages', async () => {
@@ -494,8 +370,6 @@ describe('GitLabClient', () => {
         }
       });
 
-      dateNowSpy.mockReturnValue(1000000);
-
       const result = await client.fetchGroupProjects();
 
       expect(result).toHaveLength(2);
@@ -525,8 +399,6 @@ describe('GitLabClient', () => {
         group: null
       });
 
-      dateNowSpy.mockReturnValue(1000000);
-
       const result = await client.fetchGroupProjects();
 
       expect(result).toEqual([]);
@@ -543,7 +415,6 @@ describe('GitLabClient', () => {
       };
 
       mockRequest.mockRejectedValue(mockError);
-      dateNowSpy.mockReturnValue(1000000);
 
       const result = await client.fetchGroupProjects();
 
@@ -1510,181 +1381,6 @@ describe('GitLabClient', () => {
           expect.stringContaining('notes(first: 20'),
           expect.any(Object)
         );
-      });
-    });
-
-    describe('Optimization #2: Response Caching', () => {
-      let client;
-      let dateNowSpy;
-
-      beforeEach(() => {
-        client = new GitLabClient({
-          token: 'test-token',
-          projectPath: 'group/project'
-        });
-        client.delay = jest.fn().mockResolvedValue(undefined);
-
-        // Mock Date.now() for cache time control
-        dateNowSpy = jest.spyOn(Date, 'now');
-      });
-
-      afterEach(() => {
-        dateNowSpy.mockRestore();
-      });
-
-      it('should cache GraphQL responses with query+variables as key', async () => {
-        const mockData = {
-          project: { id: 'gid://gitlab/Project/123', name: 'Test' }
-        };
-
-        mockRequest.mockResolvedValueOnce(mockData);
-        dateNowSpy.mockReturnValue(1000000);
-
-        // First call - cache miss
-        const result1 = await client.fetchProject();
-
-        expect(mockRequest).toHaveBeenCalledTimes(1);
-        expect(result1.id).toBe('gid://gitlab/Project/123');
-
-        // Verify cache was populated
-        expect(client._responseCache).toBeDefined();
-        expect(client._responseCache.size).toBe(1);
-
-        // Extract cache key and verify structure
-        const cacheKey = Array.from(client._responseCache.keys())[0];
-        expect(cacheKey).toContain('getProject'); // Query name
-        expect(cacheKey).toContain('group/project'); // Variable
-      });
-
-      it('should return cached response when data is fresh (< 5 min)', async () => {
-        const mockData = {
-          project: { id: 'gid://gitlab/Project/123', name: 'Test' }
-        };
-
-        mockRequest.mockResolvedValueOnce(mockData);
-        dateNowSpy.mockReturnValue(1000000);
-
-        // First call - populates cache
-        const result1 = await client.fetchProject();
-        expect(mockRequest).toHaveBeenCalledTimes(1);
-        expect(result1.id).toBe('gid://gitlab/Project/123');
-
-        // Second call 2 minutes later (120000 ms < 300000 ms TTL)
-        dateNowSpy.mockReturnValue(1000000 + 120000);
-        const result2 = await client.fetchProject();
-
-        // Should NOT call API again (cache hit)
-        expect(mockRequest).toHaveBeenCalledTimes(1);
-        expect(result2.id).toBe('gid://gitlab/Project/123');
-        expect(result2).toEqual(result1);
-      });
-
-      it('should refetch when cached data is stale (> 5 min)', async () => {
-        const mockData1 = {
-          project: { id: 'gid://gitlab/Project/123', name: 'Original' }
-        };
-        const mockData2 = {
-          project: { id: 'gid://gitlab/Project/123', name: 'Updated' }
-        };
-
-        mockRequest
-          .mockResolvedValueOnce(mockData1)
-          .mockResolvedValueOnce(mockData2);
-        dateNowSpy.mockReturnValue(1000000);
-
-        // First call - populates cache
-        const result1 = await client.fetchProject();
-        expect(mockRequest).toHaveBeenCalledTimes(1);
-        expect(result1.name).toBe('Original');
-
-        // Second call 6 minutes later (360000 ms > 300000 ms TTL)
-        dateNowSpy.mockReturnValue(1000000 + 360000);
-        const result2 = await client.fetchProject();
-
-        // Should call API again (cache miss - stale data)
-        expect(mockRequest).toHaveBeenCalledTimes(2);
-        expect(result2.name).toBe('Updated');
-      });
-
-      it('should use separate cache entries for different queries and variables', async () => {
-        const projectData = {
-          project: { id: 'gid://gitlab/Project/123', name: 'Test Project' }
-        };
-        const iterationsData = {
-          group: {
-            iterations: {
-              nodes: [
-                { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' }
-              ],
-              pageInfo: { hasNextPage: false }
-            }
-          }
-        };
-
-        mockRequest
-          .mockResolvedValueOnce(projectData)
-          .mockResolvedValueOnce(iterationsData);
-        dateNowSpy.mockReturnValue(1000000);
-
-        // Call different methods (different queries)
-        await client.fetchProject();
-        await client.fetchIterations();
-
-        // Both should hit the API (different cache keys)
-        expect(mockRequest).toHaveBeenCalledTimes(2);
-
-        // Verify separate cache entries
-        expect(client._responseCache.size).toBe(2);
-        const cacheKeys = Array.from(client._responseCache.keys());
-        expect(cacheKeys[0]).not.toEqual(cacheKeys[1]);
-      });
-
-      it('should cache fetchIterationDetails responses for repeated calls', async () => {
-        const iterationId = 'gid://gitlab/Iteration/123';
-        const mockData = {
-          group: {
-            issues: {
-              nodes: [
-                {
-                  id: 'gid://gitlab/Issue/1',
-                  iid: '100',
-                  title: 'Test Issue',
-                  state: 'closed',
-                  createdAt: '2024-01-01T00:00:00Z',
-                  closedAt: '2024-01-02T00:00:00Z',
-                  weight: 5,
-                  webUrl: 'https://gitlab.com/group/project/-/issues/100',
-                  labels: { nodes: [] },
-                  notes: { nodes: [] }
-                }
-              ],
-              pageInfo: { hasNextPage: false }
-            }
-          }
-        };
-
-        mockRequest.mockResolvedValue(mockData);
-        dateNowSpy.mockReturnValue(1000000);
-
-        // Mock fetchIterations and fetchMergeRequestsForGroup (called by fetchIterationDetails)
-        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
-          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
-        ]);
-        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
-
-        // First call - cache miss
-        const result1 = await client.fetchIterationDetails(iterationId);
-        expect(mockRequest).toHaveBeenCalledTimes(1);
-        expect(result1.issues).toHaveLength(1);
-        expect(result1.issues[0].id).toBe('gid://gitlab/Issue/1');
-
-        // Second call 1 minute later - cache hit
-        dateNowSpy.mockReturnValue(1000000 + 60000);
-        const result2 = await client.fetchIterationDetails(iterationId);
-
-        // Should NOT call API again (cached)
-        expect(mockRequest).toHaveBeenCalledTimes(1);
-        expect(result2).toEqual(result1);
       });
     });
   });
