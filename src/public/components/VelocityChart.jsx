@@ -14,7 +14,7 @@ import {
   Legend
 } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
-import { calculateControlLimits } from '../utils/controlLimits.cjs';
+import { calculateControlLimits } from '../utils/controlLimits.js';
 
 // Register Chart.js components
 ChartJS.register(

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import IterationSelectionModal from '../../../src/public/components/IterationSelectionModal.jsx';
 
@@ -45,6 +45,20 @@ const theme = {
 };
 
 describe('IterationSelectionModal', () => {
+  beforeEach(() => {
+    // Mock fetch API for cache status
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ iterations: [] })
+      })
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   /**
    * Test 11.1: Does not render when isOpen is false
    * Verifies modal is hidden when not open
@@ -69,7 +83,7 @@ describe('IterationSelectionModal', () => {
    * Test 11.2: Renders modal overlay and dialog when isOpen is true
    * Verifies modal structure with backdrop and dialog
    */
-  test('renders modal overlay and dialog when isOpen is true', () => {
+  test('renders modal overlay and dialog when isOpen is true', async () => {
     render(
       <ThemeProvider theme={theme}>
         <IterationSelectionModal
@@ -80,6 +94,11 @@ describe('IterationSelectionModal', () => {
         />
       </ThemeProvider>
     );
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByText('Select Sprint Iterations')).toBeInTheDocument();
+    });
 
     // Should show modal header
     expect(screen.getByText('Select Sprint Iterations')).toBeInTheDocument();
@@ -93,7 +112,7 @@ describe('IterationSelectionModal', () => {
    * Test 11.3: Calls onClose when Cancel button clicked
    * Verifies cancel callback is invoked
    */
-  test('calls onClose when Cancel button is clicked', () => {
+  test('calls onClose when Cancel button is clicked', async () => {
     const mockOnClose = jest.fn();
 
     render(
@@ -106,6 +125,11 @@ describe('IterationSelectionModal', () => {
         />
       </ThemeProvider>
     );
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByText('Cancel')).toBeInTheDocument();
+    });
 
     // Click Cancel button
     const cancelButton = screen.getByText('Cancel');
@@ -119,7 +143,7 @@ describe('IterationSelectionModal', () => {
    * Test 11.4: Calls onClose when clicking backdrop
    * Verifies clicking outside modal closes it
    */
-  test('calls onClose when clicking modal backdrop', () => {
+  test('calls onClose when clicking modal backdrop', async () => {
     const mockOnClose = jest.fn();
 
     const { container } = render(
@@ -133,6 +157,11 @@ describe('IterationSelectionModal', () => {
       </ThemeProvider>
     );
 
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(container.firstChild).not.toBeNull();
+    });
+
     // Click backdrop (first child is the overlay)
     const backdrop = container.firstChild;
     fireEvent.click(backdrop);
@@ -145,7 +174,7 @@ describe('IterationSelectionModal', () => {
    * Test 11.5: Calls onApply with selected iteration objects when Apply clicked
    * Verifies apply callback receives full iteration objects (not just IDs)
    */
-  test('calls onApply with selected iteration objects when Apply is clicked', () => {
+  test('calls onApply with selected iteration objects when Apply is clicked', async () => {
     const mockOnApply = jest.fn();
     const mockSelectedIds = ['gid://gitlab/Iteration/1', 'gid://gitlab/Iteration/2'];
 
@@ -159,6 +188,11 @@ describe('IterationSelectionModal', () => {
         />
       </ThemeProvider>
     );
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByText('Apply')).toBeInTheDocument();
+    });
 
     // Click Apply button
     const applyButton = screen.getByText('Apply');
