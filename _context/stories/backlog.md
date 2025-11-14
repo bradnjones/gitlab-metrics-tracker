@@ -1,14 +1,14 @@
 # Story Backlog - Vertical Slices
 
 **Approach:** Vertical slices delivering complete user value (GitLab → Core → API → UI)
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-12
 **Previous Approach:** Horizontal architectural layers (archived in `archived-horizontal-backlog.md`)
 
 ---
 
 ## 🎯 NEXT STORY TO START
 
-**Story V10: Enhanced Progress Feedback for Iteration Selection**
+**Story V10.2: Download Status Badges and Progress Footer UI**
 
 See below for full details.
 
@@ -21,6 +21,7 @@ See below for full details.
 - ✅ V1.1: IterationSelector UX/UI Improvements (Issue #14, merged)
 - ✅ V2: Cycle Time Metrics (merged)
 - ✅ V3: Metrics Dashboard - Polish MVP (merged)
+- ✅ V4: Deployment Metrics - DORA Metrics (Issue #54, PRs #55, #56, #57, #59 merged)
 - ✅ Removed redundant ThroughputCalculator (PR #31, merged)
 - ✅ Performance Optimization (Issue #51, PRs #52, #53 merged)
 
