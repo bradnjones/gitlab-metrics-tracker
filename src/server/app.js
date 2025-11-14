@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import metricsRoutes from './routes/metrics.js';
 import iterationsRoutes from './routes/iterations.js';
 import cacheRoutes from './routes/cache.js';
+import annotationsRoutes from './routes/annotations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,7 @@ export function createApp() {
   app.use('/api/iterations', iterationsRoutes);
   app.use('/api/metrics', metricsRoutes);
   app.use('/api/cache', cacheRoutes);
+  app.use('/api/annotations', annotationsRoutes);
 
   // Health check
   app.get('/health', (req, res) => {
