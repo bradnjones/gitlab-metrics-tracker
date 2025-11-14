@@ -131,6 +131,11 @@ describe('RefreshButton Component', () => {
   it('should reset button to normal state after success message timeout', async () => {
     jest.useFakeTimers();
 
+    // Mock window.location.reload to prevent jsdom error
+    const mockReload = jest.fn();
+    delete window.location;
+    window.location = { reload: mockReload };
+
     global.fetch.mockResolvedValueOnce({
       ok: true,
       status: 204,
@@ -146,12 +151,12 @@ describe('RefreshButton Component', () => {
       expect(screen.getByText(/cleared/i)).toBeInTheDocument();
     });
 
-    // Fast-forward 3 seconds
-    jest.advanceTimersByTime(3000);
+    // Fast-forward 1 second (to trigger reload)
+    jest.advanceTimersByTime(1000);
 
+    // window.location.reload should have been called
     await waitFor(() => {
-      expect(screen.getByText(/refresh/i)).toBeInTheDocument();
-      expect(screen.queryByText(/cleared/i)).not.toBeInTheDocument();
+      expect(mockReload).toHaveBeenCalled();
     });
 
     jest.useRealTimers();

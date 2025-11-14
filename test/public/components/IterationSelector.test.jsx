@@ -58,6 +58,14 @@ describe('IterationSelector', () => {
   let mockSetStateFilter, mockSetCadenceFilter, mockSetSearchQuery, mockHandleSelectAll;
 
   beforeEach(() => {
+    // Mock fetch API for cache status
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ iterations: [] })
+      })
+    );
+
     // Create fresh mock functions for each test
     mockSetStateFilter = jest.fn();
     mockSetCadenceFilter = jest.fn();
@@ -95,8 +103,13 @@ describe('IterationSelector', () => {
     jest.restoreAllMocks();
   });
 
-  test('displays iterations when hook returns data', () => {
+  test('displays iterations when hook returns data', async () => {
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for async fetch to complete
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+    });
 
     // Verify all iterations are displayed
     expect(screen.getByText('Sprint 1')).toBeInTheDocument();
@@ -132,7 +145,7 @@ describe('IterationSelector', () => {
     });
   });
 
-  test('displays loading message when hook returns loading state', () => {
+  test('displays loading message when hook returns loading state', async () => {
     mockUseIterations.mockReturnValue({
       iterations: [],
       loading: true,
@@ -141,10 +154,12 @@ describe('IterationSelector', () => {
 
     render(<IterationSelector onSelectionChange={jest.fn()} />);
 
-    expect(screen.getByText(/loading iterations/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/loading iterations/i)).toBeInTheDocument();
+    });
   });
 
-  test('displays error message when hook returns error', () => {
+  test('displays error message when hook returns error', async () => {
     mockUseIterations.mockReturnValue({
       iterations: [],
       loading: false,
@@ -153,10 +168,12 @@ describe('IterationSelector', () => {
 
     render(<IterationSelector onSelectionChange={jest.fn()} />);
 
-    expect(screen.getByText(/error.*loading iterations.*network error/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/error.*loading iterations.*network error/i)).toBeInTheDocument();
+    });
   });
 
-  test('displays empty state when no iterations are returned', () => {
+  test('displays empty state when no iterations are returned', async () => {
     mockUseIterations.mockReturnValue({
       iterations: [],
       loading: false,
@@ -165,12 +182,19 @@ describe('IterationSelector', () => {
 
     render(<IterationSelector onSelectionChange={jest.fn()} />);
 
-    expect(screen.getByText(/no iterations found/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/no iterations found/i)).toBeInTheDocument();
+    });
   });
 
   test('calls setStateFilter when state filter is changed', async () => {
     const user = userEvent.setup();
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByLabelText(/state:/i)).toBeInTheDocument();
+    });
 
     // Select "current" state filter
     const stateFilter = screen.getByLabelText(/state:/i);
@@ -180,7 +204,7 @@ describe('IterationSelector', () => {
     expect(mockSetStateFilter).toHaveBeenCalledWith('current');
   });
 
-  test('displays only filtered iterations when useIterationFilters returns filtered list', () => {
+  test('displays only filtered iterations when useIterationFilters returns filtered list', async () => {
     // Mock useIterationFilters to return only Sprint 2
     mockUseIterationFilters.mockReturnValue({
       stateFilter: 'current',
@@ -196,6 +220,11 @@ describe('IterationSelector', () => {
 
     render(<IterationSelector onSelectionChange={jest.fn()} />);
 
+    // Wait for render to complete
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    });
+
     // Only Sprint 2 should be visible
     expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
     expect(screen.getByText('Sprint 2')).toBeInTheDocument();
@@ -205,6 +234,11 @@ describe('IterationSelector', () => {
   test('calls setCadenceFilter when cadence filter is changed', async () => {
     const user = userEvent.setup();
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByLabelText(/cadence:/i)).toBeInTheDocument();
+    });
 
     // Select cadence filter
     const cadenceFilter = screen.getByLabelText(/cadence:/i);
@@ -217,6 +251,11 @@ describe('IterationSelector', () => {
   test('calls setSearchQuery when search input changes', async () => {
     const user = userEvent.setup();
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/search iterations/i)).toBeInTheDocument();
+    });
 
     // Type in search input
     const searchInput = screen.getByPlaceholderText(/search iterations/i);
@@ -251,7 +290,7 @@ describe('IterationSelector', () => {
     expect(mockSetSearchQuery).toHaveBeenCalledWith('');
   });
 
-  test('displays search results when filtered', () => {
+  test('displays search results when filtered', async () => {
     // Mock filtered results for "Sprint 2" search
     mockUseIterationFilters.mockReturnValue({
       stateFilter: '',
@@ -267,14 +306,24 @@ describe('IterationSelector', () => {
 
     render(<IterationSelector onSelectionChange={jest.fn()} />);
 
+    // Wait for render to complete
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 2')).toBeInTheDocument();
+    });
+
     // Only Sprint 2 should be visible
     expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument();
     expect(screen.getByText('Sprint 2')).toBeInTheDocument();
     expect(screen.queryByText('Sprint 3')).not.toBeInTheDocument();
   });
 
-  test('renders state filter with correct options', () => {
+  test('renders state filter with correct options', async () => {
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByLabelText(/state:/i)).toBeInTheDocument();
+    });
 
     const stateFilter = screen.getByLabelText(/state:/i);
 
@@ -285,8 +334,13 @@ describe('IterationSelector', () => {
     expect(screen.getByRole('option', { name: /upcoming/i })).toBeInTheDocument();
   });
 
-  test('renders cadence filter with correct options', () => {
+  test('renders cadence filter with correct options', async () => {
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByLabelText(/cadence:/i)).toBeInTheDocument();
+    });
 
     const cadenceFilter = screen.getByLabelText(/cadence:/i);
 
@@ -295,8 +349,13 @@ describe('IterationSelector', () => {
     expect(screen.getByRole('option', { name: /q1 2025/i })).toBeInTheDocument();
   });
 
-  test('displays iteration dates in correct format', () => {
+  test('displays iteration dates in correct format', async () => {
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByText(/dec 31, 2024/i)).toBeInTheDocument();
+    });
 
     // Dates should be formatted as "MMM D, YYYY - MMM D, YYYY"
     // Check for actual rendered dates (formatDate converts them)
@@ -308,8 +367,14 @@ describe('IterationSelector', () => {
     expect(screen.getByText(/feb 10, 2025/i)).toBeInTheDocument();
   });
 
-  test('displays iteration states', () => {
+  test('displays iteration states', async () => {
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      const states = screen.getAllByText(/closed|current|upcoming/);
+      expect(states.length).toBeGreaterThan(0);
+    });
 
     // States should be displayed
     const states = screen.getAllByText(/closed|current|upcoming/);
@@ -319,6 +384,11 @@ describe('IterationSelector', () => {
   test('Select All checkbox calls handleSelectAll when clicked', async () => {
     const user = userEvent.setup();
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByLabelText(/select all/i)).toBeInTheDocument();
+    });
 
     // Find Select All checkbox
     const selectAllCheckbox = screen.getByLabelText(/select all/i);
@@ -332,6 +402,11 @@ describe('IterationSelector', () => {
     const user = userEvent.setup();
     render(<IterationSelector onSelectionChange={jest.fn()} />);
 
+    // Wait for component to fully load
+    await waitFor(() => {
+      expect(screen.getByLabelText(/select all/i)).toBeInTheDocument();
+    });
+
     // Find Select All checkbox and click it twice (check then uncheck)
     const selectAllCheckbox = screen.getByLabelText(/select all/i);
     await user.click(selectAllCheckbox);
@@ -341,7 +416,7 @@ describe('IterationSelector', () => {
     expect(mockHandleSelectAll).toHaveBeenCalledWith(false);
   });
 
-  test('displays correct iteration titles with fallback', () => {
+  test('displays correct iteration titles with fallback', async () => {
     const iterationsWithMissingTitle = [
       {
         id: 'gid://gitlab/Iteration/4',
@@ -373,6 +448,12 @@ describe('IterationSelector', () => {
     });
 
     render(<IterationSelector onSelectionChange={jest.fn()} />);
+
+    // Wait for component to fully load
+    await waitFor(() => {
+      const q1Texts = screen.getAllByText('Q1 2025');
+      expect(q1Texts.length).toBeGreaterThan(0);
+    });
 
     // Should display cadence title as fallback (will appear multiple times - in dropdown and as title)
     const q1Texts = screen.getAllByText('Q1 2025');

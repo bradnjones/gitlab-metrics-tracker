@@ -4,7 +4,7 @@
  * @module test/public/utils/controlLimits
  */
 
-import { calculateControlLimits } from '../../../src/public/utils/controlLimits.cjs';
+import { calculateControlLimits } from '../../../src/public/utils/controlLimits.js';
 
 describe('calculateControlLimits', () => {
   describe('basic calculations', () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useIterations } from '../hooks/useIterations.js';
 import { useIterationFilters } from '../hooks/useIterationFilters.js';
 import { useSelectAll } from '../hooks/useSelectAll.js';
@@ -61,10 +61,18 @@ const IterationSelector = ({ onSelectionChange, initialSelectedIds = [] }) => {
   } = useIterationFilters(iterations, formatDate);
 
   const [selectedIds, setSelectedIds] = useState(initialSelectedIds);
+  const [isInitialMount, setIsInitialMount] = useState(true);
 
   // Update selectedIds when initialSelectedIds prop changes (e.g., modal opens)
+  // Use ref to track previous value to avoid unnecessary updates
+  const prevInitialSelectedIdsRef = useRef(initialSelectedIds);
   useEffect(() => {
-    setSelectedIds(initialSelectedIds);
+    // Only update if initialSelectedIds actually changed (deep comparison of arrays)
+    const hasChanged = JSON.stringify(prevInitialSelectedIdsRef.current) !== JSON.stringify(initialSelectedIds);
+    if (hasChanged) {
+      prevInitialSelectedIdsRef.current = initialSelectedIds;
+      setSelectedIds(initialSelectedIds);
+    }
   }, [initialSelectedIds]);
 
   // Fetch cache status to know which iterations are cached
@@ -95,10 +103,21 @@ const IterationSelector = ({ onSelectionChange, initialSelectedIds = [] }) => {
     setSelectedIds
   );
 
-  // Call onSelectionChange when selection changes
+  // Call onSelectionChange when selection changes (but not on initial mount)
   useEffect(() => {
-    onSelectionChange(selectedIds);
-  }, [selectedIds, onSelectionChange]);
+    if (isInitialMount) {
+      setIsInitialMount(false);
+      // Call onSelectionChange with initial value on mount
+      onSelectionChange(selectedIds);
+      return;
+    }
+
+    // Only call if selectedIds is different from initialSelectedIds
+    // This prevents infinite loops when parent updates initialSelectedIds in response to onSelectionChange
+    if (JSON.stringify(selectedIds) !== JSON.stringify(initialSelectedIds)) {
+      onSelectionChange(selectedIds);
+    }
+  }, [selectedIds]); // Removed onSelectionChange from dependencies to prevent loops
 
   /**
    * Handle checkbox change for an iteration

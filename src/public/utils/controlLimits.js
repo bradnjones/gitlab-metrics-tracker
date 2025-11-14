@@ -82,4 +82,4 @@ function calculateControlLimits(data) {
   };
 }
 
-module.exports = { calculateControlLimits };
+export { calculateControlLimits };
