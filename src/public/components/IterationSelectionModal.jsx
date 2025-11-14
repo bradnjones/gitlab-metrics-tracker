@@ -209,13 +209,20 @@ const ApplyButton = styled.button`
   cursor: pointer;
   transition: background ${props => props.theme.transitions.normal} ${props => props.theme.transitions.easing};
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: ${props => props.theme.colors.primaryDark};
   }
 
   &:focus {
     outline: 2px solid ${props => props.theme.colors.primary};
     outline-offset: 2px;
+  }
+
+  &:disabled {
+    background: ${props => props.theme.colors.bgTertiary};
+    color: ${props => props.theme.colors.textSecondary};
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   @media (max-width: ${props => props.theme.breakpoints.mobile}) {
@@ -244,6 +251,27 @@ export default function IterationSelectionModal({
   const [prefetchedIds, setPrefetchedIds] = useState(new Set());
   const [selectorKey, setSelectorKey] = useState(0);
 
+  /**
+   * Download state tracking for each iteration
+   * Format: { 'gid://gitlab/Iteration/123': { status: 'downloading'|'complete'|'error', progress: 0-100 } }
+   * @type {Object.<string, {status: string, progress: number, error?: string}>}
+   */
+  const [downloadStates, setDownloadStates] = useState({});
+
+  /**
+   * Set of iteration IDs that are cached on the server
+   * @type {Set<string>}
+   */
+  const [cachedIterationIds, setCachedIterationIds] = useState(new Set());
+
+  /**
+   * Whether Apply button should be enabled
+   * True when all selected iterations are either cached or download-complete
+   * False when any selected iteration is downloading or has error
+   * @type {boolean}
+   */
+  const [isApplyReady, setIsApplyReady] = useState(true);
+
   // Update temp selection when prop changes
   useEffect(() => {
     setTempSelectedIds(selectedIterationIds);
@@ -270,11 +298,54 @@ export default function IterationSelectionModal({
         }
       };
       fetchIterations();
+
+      // Fetch cache status to know which iterations are already cached
+      const fetchCacheStatus = async () => {
+        try {
+          const response = await fetch('/api/cache/status');
+          const data = await response.json();
+          setCachedIterationIds(new Set(data.cachedIterations || []));
+        } catch (error) {
+          console.error('Failed to fetch cache status:', error);
+          setCachedIterationIds(new Set());
+        }
+      };
+      fetchCacheStatus();
     } else {
       // Reset prefetch tracking when modal closes
       setPrefetchedIds(new Set());
+      setDownloadStates({});
+      setCachedIterationIds(new Set());
     }
   }, [isOpen, selectedIterationIds]);
+
+  // Compute isApplyReady based on download states and cached iterations
+  // Apply button is enabled only when ALL selected iterations are ready (cached or download complete)
+  useEffect(() => {
+    if (tempSelectedIds.length === 0) {
+      // No selections - button can be enabled (though it won't do anything useful)
+      setIsApplyReady(true);
+      return;
+    }
+
+    const allReady = tempSelectedIds.every(id => {
+      // Check if iteration is cached on server
+      if (cachedIterationIds.has(id)) {
+        return true;
+      }
+
+      // Check if download is complete
+      const downloadState = downloadStates[id];
+      if (downloadState && downloadState.status === 'complete') {
+        return true;
+      }
+
+      // Otherwise, not ready (downloading, error, or not started)
+      return false;
+    });
+
+    setIsApplyReady(allReady);
+  }, [tempSelectedIds, downloadStates, cachedIterationIds]);
 
   // Background prefetch: When user selects new iterations, start fetching their data
   // This populates the cache so data loads instantly when they click "Apply"
@@ -292,12 +363,30 @@ export default function IterationSelectionModal({
         // Mark as prefetching to avoid duplicate requests
         setPrefetchedIds(prev => new Set([...prev, iterationId]));
 
+        // Update download state to 'downloading' before fetch starts
+        setDownloadStates(prev => ({
+          ...prev,
+          [iterationId]: { status: 'downloading', progress: 0 }
+        }));
+
         // Trigger cache population by calling velocity endpoint
         // We don't need the response - just want to populate the cache
         await fetch(`/api/metrics/velocity?iterations=${encodeURIComponent(iterationId)}`);
 
+        // Update download state to 'complete' after successful fetch
+        setDownloadStates(prev => ({
+          ...prev,
+          [iterationId]: { status: 'complete', progress: 100 }
+        }));
+
         // Note: We're ignoring the response. The goal is cache population, not UI update.
       } catch (error) {
+        // Update download state to 'error' on failure
+        setDownloadStates(prev => ({
+          ...prev,
+          [iterationId]: { status: 'error', progress: 0, error: error.message }
+        }));
+
         // Silent failure - prefetch is optional optimization
         // If it fails, data will be fetched normally when user clicks Apply
         console.debug(`Background prefetch failed for ${iterationId}:`, error.message);
@@ -393,8 +482,17 @@ export default function IterationSelectionModal({
           <CancelButton onClick={handleClose} type="button">
             Cancel
           </CancelButton>
-          <ApplyButton onClick={handleApply} type="button">
-            Apply
+          <ApplyButton
+            onClick={handleApply}
+            type="button"
+            disabled={!isApplyReady}
+            title={
+              isApplyReady
+                ? "Apply selected iterations"
+                : "Waiting for downloads to complete..."
+            }
+          >
+            {isApplyReady ? "Apply" : "Apply (downloading...)"}
           </ApplyButton>
         </ModalFooter>
       </ModalDialog>
