@@ -114,7 +114,7 @@ const IterationSelector = ({
   }, [propCachedIterationIds]);
 
   // Use Select All hook for Select All checkbox functionality
-  const { selectAllRef, handleSelectAll } = useSelectAll(
+  const { selectAllRef, isChecked, isIndeterminate, handleSelectAll } = useSelectAll(
     filteredIterations,
     selectedIds,
     setSelectedIds
@@ -192,6 +192,7 @@ const IterationSelector = ({
             <input
               ref={selectAllRef}
               type="checkbox"
+              checked={isChecked}
               onChange={(e) => handleSelectAll(e.target.checked)}
               aria-label="Select All"
             />
@@ -256,11 +257,14 @@ const IterationSelector = ({
           const isChecked = selectedIds.includes(iteration.id);
           const downloadState = downloadStates[iteration.id];
 
-          // Determine download badge status (only show for checked iterations - Option A)
+          // Determine download badge status
           const getDownloadStatus = () => {
-            if (!isChecked) return null; // Don't show badge on unchecked iterations
-
+            // Always show cached badge if iteration is cached
             if (isCached) return 'cached';
+
+            // Only show download progress badges on checked iterations
+            if (!isChecked) return null;
+
             if (!downloadState) return 'not-downloaded';
             if (downloadState.status === 'downloading') return 'downloading';
             if (downloadState.status === 'complete') return 'cached';

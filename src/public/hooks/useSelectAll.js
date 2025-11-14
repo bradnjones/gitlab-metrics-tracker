@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 
 /**
  * Custom hook for managing "Select All" checkbox functionality
@@ -9,11 +9,13 @@ import { useRef, useEffect } from 'react';
  * @param {Function} setSelectedIds - Function to update selected IDs
  * @returns {{
  *   selectAllRef: Object,
+ *   isChecked: boolean,
+ *   isIndeterminate: boolean,
  *   handleSelectAll: Function
  * }}
  *
  * @example
- * const { selectAllRef, handleSelectAll } = useSelectAll(
+ * const { selectAllRef, isChecked, isIndeterminate, handleSelectAll } = useSelectAll(
  *   filteredIterations,
  *   selectedIds,
  *   setSelectedIds
@@ -21,6 +23,30 @@ import { useRef, useEffect } from 'react';
  */
 export function useSelectAll(filteredIterations, selectedIds, setSelectedIds) {
   const selectAllRef = useRef(null);
+
+  /**
+   * Compute checkbox state based on current selections
+   */
+  const { isChecked, isIndeterminate } = useMemo(() => {
+    // If no filtered iterations or no selections, unchecked
+    if (filteredIterations.length === 0 || selectedIds.length === 0) {
+      return { isChecked: false, isIndeterminate: false };
+    }
+
+    const filteredIds = filteredIterations.map(iteration => iteration.id);
+    const selectedFilteredCount = filteredIds.filter(id => selectedIds.includes(id)).length;
+
+    if (selectedFilteredCount === 0) {
+      // None selected
+      return { isChecked: false, isIndeterminate: false };
+    } else if (selectedFilteredCount === filteredIds.length) {
+      // All selected
+      return { isChecked: true, isIndeterminate: false };
+    } else {
+      // Some selected (indeterminate)
+      return { isChecked: false, isIndeterminate: true };
+    }
+  }, [filteredIterations, selectedIds]);
 
   /**
    * Handle Select All checkbox change
@@ -39,30 +65,17 @@ export function useSelectAll(filteredIterations, selectedIds, setSelectedIds) {
     }
   };
 
-  // Update Select All checkbox state (checked/unchecked/indeterminate)
+  // Update indeterminate state on ref (can't be set via prop)
   useEffect(() => {
-    if (!selectAllRef.current || filteredIterations.length === 0) return;
-
-    const filteredIds = filteredIterations.map(iteration => iteration.id);
-    const selectedFilteredCount = filteredIds.filter(id => selectedIds.includes(id)).length;
-
-    if (selectedFilteredCount === 0) {
-      // None selected
-      selectAllRef.current.checked = false;
-      selectAllRef.current.indeterminate = false;
-    } else if (selectedFilteredCount === filteredIds.length) {
-      // All selected
-      selectAllRef.current.checked = true;
-      selectAllRef.current.indeterminate = false;
-    } else {
-      // Some selected
-      selectAllRef.current.checked = false;
-      selectAllRef.current.indeterminate = true;
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isIndeterminate;
     }
-  }, [selectedIds, filteredIterations]);
+  }, [isIndeterminate]);
 
   return {
     selectAllRef,
+    isChecked,
+    isIndeterminate,
     handleSelectAll
   };
 }

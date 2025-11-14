@@ -310,7 +310,9 @@ export default function IterationSelectionModal({
         try {
           const response = await fetch('/api/cache/status');
           const data = await response.json();
-          setCachedIterationIds(new Set(data.cachedIterations || []));
+          // Extract iteration IDs from the iterations array
+          const cachedIds = (data.iterations || []).map(iter => iter.iterationId);
+          setCachedIterationIds(new Set(cachedIds));
         } catch (error) {
           console.error('Failed to fetch cache status:', error);
           setCachedIterationIds(new Set());

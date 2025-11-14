@@ -169,8 +169,11 @@ export default function VelocityApp() {
 
   /**
    * Handle opening the iteration selection modal
+   * Clears graphs and selections to start fresh
    */
   const handleOpenModal = () => {
+    // Clear all selections when opening modal (graphs will clear automatically)
+    setSelectedIterations([]);
     setIsModalOpen(true);
   };
 

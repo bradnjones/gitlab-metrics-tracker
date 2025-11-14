@@ -443,11 +443,13 @@ describe('IterationSelectionModal', () => {
         return fetchPromise;
       }
       if (url.includes('/api/cache/status')) {
-        // Simulate some iterations are already cached
+        // Simulate some iterations are already cached (match real API format)
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
-            cachedIterations: ['gid://gitlab/Iteration/1']
+            iterations: [
+              { iterationId: 'gid://gitlab/Iteration/1', status: 'cached' }
+            ]
           })
         });
       }
