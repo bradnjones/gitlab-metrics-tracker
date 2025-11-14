@@ -179,6 +179,10 @@ const VelocityChart = ({ iterationIds }) => {
       scales: {
         y: {
           beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Point / Story Count'
+          },
           ticks: {
             stepSize: 1
           }
