@@ -489,4 +489,148 @@ describe('IterationSelector', () => {
       expect(onSelectionChange).toHaveBeenCalledWith(['gid://gitlab/Iteration/2']);
     });
   });
+
+  describe('Download Status Badges (Story V10.2)', () => {
+    test('renders DownloadBadge with "cached" variant correctly', async () => {
+      // Mock fetch to return cached iteration
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            iterations: [{
+              iterationId: 'gid://gitlab/Iteration/1',
+              lastFetched: new Date().toISOString(),
+              status: 'cached'
+            }]
+          })
+        })
+      );
+
+      const { container } = render(<IterationSelector onSelectionChange={jest.fn()} initialSelectedIds={['gid://gitlab/Iteration/1']} />);
+
+      await waitFor(() => {
+        const badge = container.querySelector('.cached');
+        expect(badge).toBeInTheDocument();
+        // Should have green background
+        expect(badge).toHaveStyle('background: #d1fae5');
+        // Should have dark green text
+        expect(badge).toHaveStyle('color: #065f46');
+        // Should display "Cached" text
+        expect(badge).toHaveTextContent(/cached/i);
+      });
+    });
+
+    test('renders DownloadBadge with "downloading" variant with animation', async () => {
+      const { container } = render(<IterationSelector
+        onSelectionChange={jest.fn()}
+        initialSelectedIds={['gid://gitlab/Iteration/1']}
+        downloadStates={{ 'gid://gitlab/Iteration/1': { status: 'downloading', progress: 45 } }}
+      />);
+
+      await waitFor(() => {
+        const badge = container.querySelector('.downloading');
+        expect(badge).toBeInTheDocument();
+        // Should have blue background
+        expect(badge).toHaveStyle('background: #dbeafe');
+        // Should have dark blue text
+        expect(badge).toHaveStyle('color: #1e40af');
+        // Should display "Downloading..." text
+        expect(badge).toHaveTextContent(/downloading/i);
+        // Should have downloading class (animation is in CSS, can't test in JSDOM)
+        expect(badge).toHaveClass('downloading');
+      });
+    });
+
+    test('renders DownloadBadge with "not-downloaded" variant correctly', async () => {
+      const { container } = render(<IterationSelector
+        onSelectionChange={jest.fn()}
+        initialSelectedIds={['gid://gitlab/Iteration/1']}
+        downloadStates={{}}
+      />);
+
+      await waitFor(() => {
+        const badge = container.querySelector('.not-downloaded');
+        expect(badge).toBeInTheDocument();
+        // Should have gray background
+        expect(badge).toHaveStyle('background: #f3f4f6');
+        // Should have dark gray text
+        expect(badge).toHaveStyle('color: #4b5563');
+        // Should display "Not Downloaded" text
+        expect(badge).toHaveTextContent(/not downloaded/i);
+      });
+    });
+
+    test('renders DownloadBadge with "failed" variant correctly', async () => {
+      const { container } = render(<IterationSelector
+        onSelectionChange={jest.fn()}
+        initialSelectedIds={['gid://gitlab/Iteration/1']}
+        downloadStates={{ 'gid://gitlab/Iteration/1': { status: 'error', error: 'Network timeout' } }}
+      />);
+
+      await waitFor(() => {
+        const badge = container.querySelector('.failed');
+        expect(badge).toBeInTheDocument();
+        // Should have red background
+        expect(badge).toHaveStyle('background: #fee2e2');
+        // Should have dark red text
+        expect(badge).toHaveStyle('color: #991b1b');
+        // Should display "Failed" text
+        expect(badge).toHaveTextContent(/failed/i);
+      });
+    });
+
+    test('download badges only appear on checked iterations', async () => {
+      render(<IterationSelector
+        onSelectionChange={jest.fn()}
+        initialSelectedIds={['gid://gitlab/Iteration/1']}
+        downloadStates={{}}
+      />);
+
+      await waitFor(() => {
+        // Checked iteration (Sprint 1) should have a download badge
+        const allBadges = screen.getAllByText(/cached|downloading|not downloaded|failed/i);
+        expect(allBadges.length).toBeGreaterThan(0);
+
+        // Verify Sprint 1 checkbox is checked
+        const sprint1Checkbox = screen.getByLabelText(/Sprint 1/i);
+        expect(sprint1Checkbox).toBeChecked();
+
+        // Verify Sprint 2 and Sprint 3 checkboxes are unchecked
+        const sprint2Checkbox = screen.getByLabelText(/Sprint 2/i);
+        const sprint3Checkbox = screen.getByLabelText(/Sprint 3/i);
+        expect(sprint2Checkbox).not.toBeChecked();
+        expect(sprint3Checkbox).not.toBeChecked();
+
+        // Count total download badges - should only be 1 (for checked Sprint 1)
+        expect(allBadges.length).toBe(1);
+      });
+    });
+
+    test('badge transitions from "downloading" to "cached" when download completes', async () => {
+      const { rerender } = render(<IterationSelector
+        onSelectionChange={jest.fn()}
+        initialSelectedIds={['gid://gitlab/Iteration/1']}
+        downloadStates={{ 'gid://gitlab/Iteration/1': { status: 'downloading', progress: 50 } }}
+      />);
+
+      // Initially should show "downloading" badge
+      await waitFor(() => {
+        expect(screen.getByText(/⟳ downloading/i)).toBeInTheDocument();
+      });
+
+      // Simulate download completion
+      rerender(<IterationSelector
+        onSelectionChange={jest.fn()}
+        initialSelectedIds={['gid://gitlab/Iteration/1']}
+        downloadStates={{ 'gid://gitlab/Iteration/1': { status: 'complete', progress: 100 } }}
+        cachedIterationIds={new Set(['gid://gitlab/Iteration/1'])}
+      />);
+
+      // Badge should transition to "cached"
+      await waitFor(() => {
+        expect(screen.getByText(/✓ cached/i)).toBeInTheDocument();
+        expect(screen.queryByText(/⟳ downloading/i)).not.toBeInTheDocument();
+      });
+    });
+  });
 });

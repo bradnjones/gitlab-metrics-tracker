@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 
 /**
  * Styled components for IterationSelector
@@ -439,4 +439,191 @@ export const SelectAllLabel = styled.label`
     height: 16px;
     cursor: pointer;
   }
+`;
+
+/**
+ * Pulse animation keyframe for downloading badge
+ * Fades opacity in/out to indicate active download
+ */
+const pulse = keyframes`
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+`;
+
+/**
+ * Download status badge with color-coded variants
+ * Shows real-time download progress for iteration data
+ *
+ * Variants:
+ * - .cached (green) - Data is cached, instant load
+ * - .downloading (blue, animated) - Currently prefetching
+ * - .not-downloaded (gray) - Will need to download if selected
+ * - .failed (red) - Download error occurred
+ *
+ * @component
+ */
+export const DownloadBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  width: fit-content;
+  border: 1px solid transparent;
+
+  /* Cached variant - Green (success) */
+  &.cached {
+    background: #d1fae5;
+    color: #065f46;
+    border-color: #a7f3d0;
+  }
+
+  /* Downloading variant - Blue (primary) with pulse animation */
+  &.downloading {
+    background: #dbeafe;
+    color: #1e40af;
+    border-color: #bfdbfe;
+    animation: ${pulse} 2s ease-in-out infinite;
+  }
+
+  /* Not Downloaded variant - Gray (secondary) */
+  &.not-downloaded {
+    background: #f3f4f6;
+    color: #4b5563;
+    border-color: #d1d5db;
+  }
+
+  /* Failed variant - Red (danger) */
+  &.failed {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
+  }
+`;
+
+/**
+ * Spin animation keyframe for spinner icon
+ * Rotates continuously to indicate active download
+ */
+const spin = keyframes`
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+`;
+
+/**
+ * Progress footer container
+ * Positioned above modal footer buttons (Cancel/Apply)
+ * Shows aggregate download status with counts and progress bar
+ * @component
+ */
+export const ProgressFooter = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+
+  /* Responsive: Stack vertically on mobile */
+  @media (max-width: 640px) {
+    gap: 0.5rem;
+  }
+`;
+
+/**
+ * Progress text component
+ * Displays aggregate counts (e.g., "3 cached | 2 downloading...")
+ * @component
+ */
+export const ProgressText = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+
+  /* Emphasize numbers */
+  strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  /* Spinner icon for active downloads */
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: ${spin} 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+`;
+
+/**
+ * Progress bar container
+ * Visual indicator of aggregate download progress
+ * @component
+ */
+export const ProgressBar = styled.div`
+  width: 100%;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+`;
+
+/**
+ * Progress bar fill
+ * Animated fill showing completion percentage
+ * @component
+ */
+export const ProgressBarFill = styled.div`
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+  border-radius: 3px;
+  transition: width 0.3s ease-out;
+  width: ${props => props.$progress || 0}%;
+
+  /* Shimmer animation for active downloads */
+  ${props => props.$isDownloading && `
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+      );
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        transform: translateX(-100%);
+      }
+      100% {
+        transform: translateX(100%);
+      }
+    }
+  `}
 `;

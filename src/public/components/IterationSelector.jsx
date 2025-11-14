@@ -14,7 +14,7 @@ import {
   IterationDates,
   IterationState,
   BadgesContainer,
-  CachedBadge,
+  DownloadBadge,
   ControlsBar,
   SearchWrapper,
   FilterSection,
@@ -34,14 +34,21 @@ import {
  * @param {Object} props - Component props
  * @param {Function} props.onSelectionChange - Callback function called when selection changes
  * @param {Array<string>} [props.initialSelectedIds] - Initially selected iteration IDs
+ * @param {Object} [props.downloadStates] - Download state for each iteration (from Phase 1-2)
+ * @param {Set<string>} [props.cachedIterationIds] - Set of cached iteration IDs (optional override)
  * @returns {JSX.Element} Rendered component
  */
-const IterationSelector = ({ onSelectionChange, initialSelectedIds = [] }) => {
+const IterationSelector = ({
+  onSelectionChange,
+  initialSelectedIds = [],
+  downloadStates = {},
+  cachedIterationIds: propCachedIterationIds
+}) => {
   // Use custom hooks for data fetching and filtering
   const { iterations, loading, error } = useIterations();
 
-  // Cache status state
-  const [cachedIterationIds, setCachedIterationIds] = useState(new Set());
+  // Cache status state (use prop if provided, otherwise fetch from API)
+  const [cachedIterationIds, setCachedIterationIds] = useState(propCachedIterationIds || new Set());
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -75,8 +82,18 @@ const IterationSelector = ({ onSelectionChange, initialSelectedIds = [] }) => {
     }
   }, [initialSelectedIds]);
 
-  // Fetch cache status to know which iterations are cached
+  // Update cached IDs if prop changes
   useEffect(() => {
+    if (propCachedIterationIds) {
+      setCachedIterationIds(propCachedIterationIds);
+    }
+  }, [propCachedIterationIds]);
+
+  // Fetch cache status to know which iterations are cached (only if not provided via props)
+  useEffect(() => {
+    // Skip fetch if cachedIterationIds provided via props
+    if (propCachedIterationIds) return;
+
     const fetchCacheStatus = async () => {
       try {
         const response = await fetch('/api/cache/status');
@@ -94,7 +111,7 @@ const IterationSelector = ({ onSelectionChange, initialSelectedIds = [] }) => {
     };
 
     fetchCacheStatus();
-  }, []);
+  }, [propCachedIterationIds]);
 
   // Use Select All hook for Select All checkbox functionality
   const { selectAllRef, handleSelectAll } = useSelectAll(
@@ -236,12 +253,28 @@ const IterationSelector = ({ onSelectionChange, initialSelectedIds = [] }) => {
       <IterationList>
         {filteredIterations.map(iteration => {
           const isCached = cachedIterationIds.has(iteration.id);
+          const isChecked = selectedIds.includes(iteration.id);
+          const downloadState = downloadStates[iteration.id];
+
+          // Determine download badge status (only show for checked iterations - Option A)
+          const getDownloadStatus = () => {
+            if (!isChecked) return null; // Don't show badge on unchecked iterations
+
+            if (isCached) return 'cached';
+            if (!downloadState) return 'not-downloaded';
+            if (downloadState.status === 'downloading') return 'downloading';
+            if (downloadState.status === 'complete') return 'cached';
+            if (downloadState.status === 'error') return 'failed';
+            return 'not-downloaded';
+          };
+
+          const downloadStatus = getDownloadStatus();
 
           return (
             <IterationItem key={iteration.id}>
               <input
                 type="checkbox"
-                checked={selectedIds.includes(iteration.id)}
+                checked={isChecked}
                 onChange={(e) => handleCheckboxChange(iteration.id, e.target.checked)}
                 aria-label={iteration.title || `Sprint ${iteration.iid}`}
               />
@@ -256,10 +289,21 @@ const IterationSelector = ({ onSelectionChange, initialSelectedIds = [] }) => {
                   <IterationState className={iteration.state}>
                     {iteration.state}
                   </IterationState>
-                  {isCached && (
-                    <CachedBadge title="Data is cached and will load instantly">
-                      Cached
-                    </CachedBadge>
+                  {downloadStatus && (
+                    <DownloadBadge
+                      className={downloadStatus}
+                      title={
+                        downloadStatus === 'cached' ? 'Data is cached and will load instantly' :
+                        downloadStatus === 'downloading' ? 'Downloading iteration data...' :
+                        downloadStatus === 'failed' ? 'Download failed' :
+                        'Not yet downloaded'
+                      }
+                    >
+                      {downloadStatus === 'cached' && '✓ Cached'}
+                      {downloadStatus === 'downloading' && '⟳ Downloading...'}
+                      {downloadStatus === 'not-downloaded' && '○ Not Downloaded'}
+                      {downloadStatus === 'failed' && '✗ Failed'}
+                    </DownloadBadge>
                   )}
                 </BadgesContainer>
               </IterationDetails>

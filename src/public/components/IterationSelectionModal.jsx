@@ -22,9 +22,15 @@
  * @returns {JSX.Element|null} Rendered modal or null if not open
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import IterationSelector from './IterationSelector.jsx';
+import {
+  ProgressFooter,
+  ProgressText,
+  ProgressBar,
+  ProgressBarFill
+} from './IterationSelector.styles.jsx';
 
 /**
  * Full-screen overlay backdrop
@@ -455,6 +461,57 @@ export default function IterationSelectionModal({
     setTempSelectedIds(iterationIds);
   };
 
+  /**
+   * Calculate aggregate download progress statistics
+   * Memoized to avoid recalculation on every render
+   */
+  const progressStats = useMemo(() => {
+    if (tempSelectedIds.length === 0) {
+      return {
+        cachedCount: 0,
+        downloadingCount: 0,
+        notDownloadedCount: 0,
+        failedCount: 0,
+        totalProgress: 0
+      };
+    }
+
+    let cachedCount = 0;
+    let downloadingCount = 0;
+    let notDownloadedCount = 0;
+    let failedCount = 0;
+
+    tempSelectedIds.forEach(id => {
+      if (cachedIterationIds.has(id)) {
+        cachedCount++;
+      } else {
+        const downloadState = downloadStates[id];
+        if (!downloadState) {
+          notDownloadedCount++;
+        } else if (downloadState.status === 'downloading') {
+          downloadingCount++;
+        } else if (downloadState.status === 'complete') {
+          cachedCount++;
+        } else if (downloadState.status === 'error') {
+          failedCount++;
+        } else {
+          notDownloadedCount++;
+        }
+      }
+    });
+
+    // Calculate overall progress percentage
+    const totalProgress = Math.round((cachedCount / tempSelectedIds.length) * 100);
+
+    return {
+      cachedCount,
+      downloadingCount,
+      notDownloadedCount,
+      failedCount,
+      totalProgress
+    };
+  }, [tempSelectedIds, downloadStates, cachedIterationIds]);
+
   // Don't render if not open
   if (!isOpen) {
     return null;
@@ -475,8 +532,42 @@ export default function IterationSelectionModal({
             key={selectorKey} // Force remount when modal opens to get fresh state
             onSelectionChange={handleSelectionChange}
             initialSelectedIds={tempSelectedIds}
+            downloadStates={downloadStates}
+            cachedIterationIds={cachedIterationIds}
           />
         </ModalBody>
+
+        {/* Progress Footer - Shows aggregate download status */}
+        {tempSelectedIds.length > 0 && (
+          <ProgressFooter>
+            <ProgressText>
+              {progressStats.downloadingCount > 0 && (
+                <span className="spinner" aria-label="Downloading" />
+              )}
+              <span>
+                <strong>{progressStats.cachedCount}</strong> cached
+                {progressStats.downloadingCount > 0 && (
+                  <> | <strong>{progressStats.downloadingCount}</strong> downloading</>
+                )}
+                {progressStats.notDownloadedCount > 0 && (
+                  <> | <strong>{progressStats.notDownloadedCount}</strong> not downloaded</>
+                )}
+                {progressStats.failedCount > 0 && (
+                  <> | <strong>{progressStats.failedCount}</strong> failed</>
+                )}
+              </span>
+            </ProgressText>
+
+            {/* Progress bar - shows aggregate completion percentage */}
+            <ProgressBar>
+              <ProgressBarFill
+                $progress={progressStats.totalProgress}
+                $isDownloading={progressStats.downloadingCount > 0}
+                aria-label={`Download progress: ${progressStats.totalProgress}%`}
+              />
+            </ProgressBar>
+          </ProgressFooter>
+        )}
 
         <ModalFooter>
           <CancelButton onClick={handleClose} type="button">
@@ -489,7 +580,7 @@ export default function IterationSelectionModal({
             title={
               isApplyReady
                 ? "Apply selected iterations"
-                : "Waiting for downloads to complete..."
+                : `Waiting for ${progressStats.downloadingCount} downloads to complete...`
             }
           >
             {isApplyReady ? "Apply" : "Apply (downloading...)"}
