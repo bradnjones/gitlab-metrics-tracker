@@ -13,6 +13,8 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
+import { calculateControlLimits } from '../utils/controlLimits.cjs';
 
 // Register Chart.js components
 ChartJS.register(
@@ -22,7 +24,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  annotationPlugin
 );
 
 const Container = styled.div`
@@ -65,6 +68,7 @@ const ChartContainer = styled.div`
  */
 const VelocityChart = ({ iterationIds }) => {
   const [chartData, setChartData] = useState(null);
+  const [controlLimits, setControlLimits] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -94,6 +98,11 @@ const VelocityChart = ({ iterationIds }) => {
         // Transform API response to Chart.js format
         const transformedData = transformToChartData(data);
         setChartData(transformedData);
+
+        // Calculate control limits for Story Points data
+        const pointsData = data.metrics.map(m => m.completedPoints);
+        const limits = calculateControlLimits(pointsData);
+        setControlLimits(limits);
       } catch (err) {
         setError(`Error loading velocity data: ${err.message}`);
       } finally {
@@ -146,32 +155,98 @@ const VelocityChart = ({ iterationIds }) => {
   };
 
   /**
-   * Chart.js options configuration
+   * Generate Chart.js options configuration with control limit annotations
+   * @param {Object|null} limits - Control limits (average, upperLimit, lowerLimit)
+   * @returns {Object} Chart.js options
    */
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top'
+  const getChartOptions = (limits) => {
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top'
+        },
+        title: {
+          display: true,
+          text: 'Velocity Metrics'
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false
+        }
       },
-      title: {
-        display: true,
-        text: 'Velocity Metrics'
-      },
-      tooltip: {
-        mode: 'index',
-        intersect: false
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          stepSize: 1
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1
+          }
         }
       }
+    };
+
+    // Add control limit annotations if available (for Story Points)
+    if (limits) {
+      options.plugins.annotation = {
+        annotations: {
+          upperLimit: {
+            type: 'line',
+            yMin: limits.upperLimit,
+            yMax: limits.upperLimit,
+            borderColor: '#93c5fd', // Light blue solid line
+            borderWidth: 2,
+            label: {
+              display: true,
+              content: `UCL: ${limits.upperLimit.toFixed(1)}`,
+              position: 'end',
+              backgroundColor: 'rgba(147, 197, 253, 0.8)',
+              color: 'white',
+              font: {
+                size: 11
+              }
+            }
+          },
+          average: {
+            type: 'line',
+            yMin: limits.average,
+            yMax: limits.average,
+            borderColor: '#1976d2', // Blue dotted line (matches Story Points)
+            borderWidth: 2,
+            borderDash: [5, 5],
+            label: {
+              display: true,
+              content: `Avg: ${limits.average.toFixed(1)}`,
+              position: 'end',
+              backgroundColor: 'rgba(25, 118, 210, 0.8)',
+              color: 'white',
+              font: {
+                size: 11
+              }
+            }
+          },
+          lowerLimit: {
+            type: 'line',
+            yMin: limits.lowerLimit,
+            yMax: limits.lowerLimit,
+            borderColor: '#93c5fd', // Light blue solid line
+            borderWidth: 2,
+            label: {
+              display: true,
+              content: `LCL: ${limits.lowerLimit.toFixed(1)}`,
+              position: 'end',
+              backgroundColor: 'rgba(147, 197, 253, 0.8)',
+              color: 'white',
+              font: {
+                size: 11
+              }
+            }
+          }
+        }
+      };
     }
+
+    return options;
   };
 
   // Empty state - no iterations selected
@@ -206,7 +281,7 @@ const VelocityChart = ({ iterationIds }) => {
     <Container>
       {chartData && (
         <ChartContainer>
-          <Line data={chartData} options={chartOptions} />
+          <Line data={chartData} options={getChartOptions(controlLimits)} />
         </ChartContainer>
       )}
     </Container>

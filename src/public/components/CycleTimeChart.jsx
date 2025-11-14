@@ -11,6 +11,8 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
+import { calculateControlLimits } from '../utils/controlLimits.cjs';
 
 // Register Chart.js components
 ChartJS.register(
@@ -20,7 +22,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  annotationPlugin
 );
 
 const Container = styled.div`
@@ -69,6 +72,7 @@ const ChartContainer = styled.div`
  */
 const CycleTimeChart = ({ iterationIds }) => {
   const [chartData, setChartData] = useState(null);
+  const [controlLimits, setControlLimits] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -117,6 +121,11 @@ const CycleTimeChart = ({ iterationIds }) => {
         // Transform API response to Chart.js format
         const transformedData = transformToChartData(data);
         setChartData(transformedData);
+
+        // Calculate control limits for the Average data
+        const avgData = data.metrics.map(m => m.cycleTimeAvg);
+        const limits = calculateControlLimits(avgData);
+        setControlLimits(limits);
       } catch (err) {
         setError(`Error loading cycle time data: ${err.message}`);
       } finally {
@@ -178,40 +187,106 @@ const CycleTimeChart = ({ iterationIds }) => {
   };
 
   /**
-   * Chart.js options configuration
+   * Generate Chart.js options configuration with control limit annotations
+   * @param {Object|null} limits - Control limits (average, upperLimit, lowerLimit)
+   * @returns {Object} Chart.js options
    */
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top'
+  const getChartOptions = (limits) => {
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top'
+        },
+        title: {
+          display: true,
+          text: 'Cycle Time'
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function(context) {
+              const label = context.dataset.label || '';
+              const value = context.parsed.y;
+              return `${label}: ${value.toFixed(1)} days`;
+            }
+          }
+        }
       },
-      title: {
-        display: true,
-        text: 'Cycle Time'
-      },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-        callbacks: {
-          label: function(context) {
-            const label = context.dataset.label || '';
-            const value = context.parsed.y;
-            return `${label}: ${value.toFixed(1)} days`;
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Days'
           }
         }
       }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Days'
+    };
+
+    // Add control limit annotations if available
+    if (limits) {
+      options.plugins.annotation = {
+        annotations: {
+          upperLimit: {
+            type: 'line',
+            yMin: limits.upperLimit,
+            yMax: limits.upperLimit,
+            borderColor: '#93c5fd', // Light blue solid line
+            borderWidth: 2,
+            label: {
+              display: true,
+              content: `UCL: ${limits.upperLimit.toFixed(2)}`,
+              position: 'end',
+              backgroundColor: 'rgba(147, 197, 253, 0.8)',
+              color: 'white',
+              font: {
+                size: 11
+              }
+            }
+          },
+          average: {
+            type: 'line',
+            yMin: limits.average,
+            yMax: limits.average,
+            borderColor: '#3b82f6', // Blue dotted line (matches Average)
+            borderWidth: 2,
+            borderDash: [5, 5],
+            label: {
+              display: true,
+              content: `Avg: ${limits.average.toFixed(2)}`,
+              position: 'end',
+              backgroundColor: 'rgba(59, 130, 246, 0.8)',
+              color: 'white',
+              font: {
+                size: 11
+              }
+            }
+          },
+          lowerLimit: {
+            type: 'line',
+            yMin: limits.lowerLimit,
+            yMax: limits.lowerLimit,
+            borderColor: '#93c5fd', // Light blue solid line
+            borderWidth: 2,
+            label: {
+              display: true,
+              content: `LCL: ${limits.lowerLimit.toFixed(2)}`,
+              position: 'end',
+              backgroundColor: 'rgba(147, 197, 253, 0.8)',
+              color: 'white',
+              font: {
+                size: 11
+              }
+            }
+          }
         }
-      }
+      };
     }
+
+    return options;
   };
 
   // Empty state - no iterations selected
@@ -248,8 +323,8 @@ const CycleTimeChart = ({ iterationIds }) => {
         <ChartContainer>
           <Line
             data={chartData}
-            options={chartOptions}
-            aria-label="Line chart showing cycle time trends with average, P50, and P90 metrics across selected iterations"
+            options={getChartOptions(controlLimits)}
+            aria-label="Line chart showing cycle time trends with average, P50, and P90 metrics across selected iterations, including statistical control limits"
             role="img"
           />
         </ChartContainer>
