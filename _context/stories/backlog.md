@@ -8,11 +8,11 @@
 
 ## 🎯 NEXT STORY TO START
 
-**Story V8: Remove Legacy Caching Implementation**
+**Story V10: Enhanced Progress Feedback for Iteration Selection**
 
 See below for full details.
 
-**PRIORITY SHIFT:** Performance optimization takes priority over V4-V7 feature development. Must complete V8 → V9.1 → V9.2 → V9.3 before resuming DORA metrics work.
+**CONTEXT:** Background prefetch works but creates poor UX expectations - users click Apply before downloads complete, then wait with no feedback. This story improves expectation management with progress indicators and controlled Apply button.
 
 **✅ MVP COMPLETE! (V1 + V2 + V3)**
 
@@ -987,6 +987,428 @@ src/data/cache/iterations/
 
 ---
 
+### Story V10: Enhanced Progress Feedback for Iteration Selection
+
+**User Story:** As a user, I want clear visual feedback about which iterations are downloading and when they're ready, so I understand why the Apply button is disabled and know when my data will be ready.
+
+**Priority:** HIGH (UX Critical)
+**Complexity:** MEDIUM
+**Estimate:** 3-4 hours
+**Prerequisites:** V9.3 complete (cache system exists)
+
+#### Context
+
+**Current Behavior:**
+- Background prefetch starts automatically when user checks an iteration (V9.1)
+- Prefetch happens silently in the background
+- User can click Apply before prefetch completes
+- Dashboard shows loading spinner while waiting for incomplete downloads
+- No visual feedback about what's downloading or how long to wait
+
+**Problem:** Poor User Expectations
+- User checks 5 iterations
+- Background prefetch starts (takes 30-60 seconds total)
+- User clicks Apply after 10 seconds (thinking it's ready)
+- Dashboard shows loading spinner for another 20-50 seconds
+- User doesn't know why they're waiting or how long
+- **Result:** Feels broken, user doesn't understand the system
+
+**Solution:** Enhanced Progress Feedback
+- Show download status for each iteration (Not Downloaded, Downloading, Cached)
+- Show progress in modal footer ("3 cached | 2 downloading...")
+- Disable Apply button until all selected iterations are ready
+- Only render graphs when Apply is clicked (prevents auto-render during prefetch)
+- Sets clear expectations: "You must wait for downloads to complete"
+
+#### Acceptance Criteria
+
+**1. Download Status Badges on Iteration Rows**
+- [ ] Each iteration shows status badge next to state badge
+- [ ] Status badges:
+  - "✓ Cached" (green) - Data is cached, instant load
+  - "⟳ Downloading..." (blue, animated) - Currently prefetching
+  - "○ Not Downloaded" (gray) - Will need to download if selected
+- [ ] Badges update in real-time as downloads progress
+- [ ] Badges are visually distinct (colored, pill-shaped)
+
+**2. Progress Footer in Modal**
+- [ ] Footer shows aggregate status: "3 cached | 2 downloading..."
+- [ ] Updates in real-time as downloads complete
+- [ ] Shows percentage if downloading: "Downloading 2 of 5 iterations (40%)..."
+- [ ] Positioned above Cancel/Apply buttons
+
+**3. Smart Apply Button State**
+- [ ] Apply button is DISABLED when any selected iteration is downloading
+- [ ] Button text changes: "Apply (downloading...)" when disabled
+- [ ] Button enables automatically when all downloads complete
+- [ ] Button text returns to "Apply" when enabled
+- [ ] Tooltip on disabled button: "Waiting for 2 downloads to complete..."
+
+**4. Prevent Auto-Rendering of Graphs**
+- [ ] Graphs do NOT render until Apply button is clicked
+- [ ] Currently: Graphs auto-render when selection changes (causes slowdown)
+- [ ] New: Graphs only render on explicit Apply click
+- [ ] After Apply: Instant render (all data is cached/ready)
+
+**5. Download Progress Tracking**
+- [ ] Track download state per iteration: `{ status: 'idle'|'downloading'|'complete', progress: 0-100 }`
+- [ ] State persists in IterationSelectionModal component
+- [ ] Updates propagate to badges and footer
+- [ ] Handles multiple simultaneous downloads
+
+**6. Error Handling**
+- [ ] If download fails, show error badge: "✗ Failed" (red)
+- [ ] Error tooltip: "Download failed - click to retry"
+- [ ] Clicking failed iteration triggers retry
+- [ ] Failed downloads prevent Apply button from enabling
+
+**7. Testing**
+- [ ] Unit tests for download state management (5-7 tests)
+- [ ] Component tests for badges and footer (6-8 tests)
+- [ ] Integration test for Apply button disable logic (3-4 tests)
+- [ ] All tests pass, coverage ≥85%
+
+**8. Manual Validation**
+- [ ] Open iteration selector modal
+- [ ] Check 5 iterations (mix of cached and uncached)
+- [ ] See badges show correct status
+- [ ] See footer show "X cached | Y downloading..."
+- [ ] Verify Apply button is disabled with text "Apply (downloading...)"
+- [ ] Wait for downloads to complete
+- [ ] Verify badges change to "✓ Cached"
+- [ ] Verify Apply button enables with text "Apply"
+- [ ] Click Apply
+- [ ] Verify dashboard renders instantly (no loading spinner)
+
+#### Technical Scope
+
+**State Management:**
+```javascript
+// Add to IterationSelectionModal.jsx
+const [downloadStates, setDownloadStates] = useState({});
+// Format: { 'gid://gitlab/Iteration/123': { status: 'downloading', progress: 45 } }
+
+const [isApplyReady, setIsApplyReady] = useState(true);
+// Computed: true if all selected iterations are cached or complete
+```
+
+**Download Status Logic:**
+```javascript
+// Enhance existing prefetch logic (lines 279-306)
+const triggerPrefetch = async (iterationId) => {
+  setDownloadStates(prev => ({
+    ...prev,
+    [iterationId]: { status: 'downloading', progress: 0 }
+  }));
+
+  try {
+    await fetch(`/api/metrics/velocity?iterations=${iterationId}`);
+
+    setDownloadStates(prev => ({
+      ...prev,
+      [iterationId]: { status: 'complete', progress: 100 }
+    }));
+  } catch (error) {
+    setDownloadStates(prev => ({
+      ...prev,
+      [iterationId]: { status: 'error', progress: 0, error: error.message }
+    }));
+  }
+};
+```
+
+**Apply Button Disable Logic:**
+```javascript
+// Check if all selected iterations are ready
+useEffect(() => {
+  const allReady = tempSelectedIds.every(id => {
+    const state = downloadStates[id];
+    const cached = cachedIterationIds.has(id);
+    return cached || state?.status === 'complete';
+  });
+  setIsApplyReady(allReady);
+}, [tempSelectedIds, downloadStates, cachedIterationIds]);
+```
+
+**Prevent Auto-Render:**
+```javascript
+// Update VelocityApp.jsx to NOT auto-render on selection change
+// Only render when iterations prop changes via Apply button
+```
+
+#### Files to Create/Modify
+
+**New Styled Components** (add to IterationSelector.styles.jsx):
+- `DownloadBadge` - Status badge component
+- `ProgressFooter` - Footer showing aggregate progress
+- `ProgressText` - Text showing "X cached | Y downloading..."
+
+**Modified Components:**
+- `src/public/components/IterationSelectionModal.jsx` (add download state tracking)
+- `src/public/components/IterationSelector.jsx` (add download badges)
+- `src/public/components/IterationSelector.styles.jsx` (add badge and footer styles)
+- `src/public/components/VelocityApp.jsx` (prevent auto-render)
+- `src/public/components/CompactHeaderWithIterations.jsx` (update iteration change handler)
+
+**New Tests:**
+- `test/public/components/IterationSelectionModal.test.jsx` (enhance with download state tests)
+- `test/public/components/IterationSelector.test.jsx` (test badges and footer)
+
+#### Implementation Steps (TDD)
+
+**Phase 1: Download State Tracking (Infrastructure)**
+1. [ ] Write tests for download state management (RED)
+2. [ ] Add downloadStates to IterationSelectionModal (GREEN)
+3. [ ] Update prefetch logic to set download status (GREEN)
+4. [ ] Test state updates correctly (GREEN)
+
+**Phase 2: Visual Feedback Components**
+5. [ ] Write tests for DownloadBadge component (RED)
+6. [ ] Implement DownloadBadge with three states (GREEN)
+7. [ ] Write tests for ProgressFooter component (RED)
+8. [ ] Implement ProgressFooter with aggregate counts (GREEN)
+9. [ ] Add styled components for badges and footer (REFACTOR)
+
+**Phase 3: Apply Button Logic**
+10. [ ] Write tests for Apply button disable logic (RED)
+11. [ ] Implement isApplyReady computed state (GREEN)
+12. [ ] Update Apply button to use disabled prop (GREEN)
+13. [ ] Add button text changes and tooltip (GREEN)
+
+**Phase 4: Prevent Auto-Render**
+14. [ ] Identify where graphs auto-render on selection change
+15. [ ] Update logic to only render on Apply click
+16. [ ] Test that graphs don't render until Apply clicked
+
+**Phase 5: Integration & Testing**
+17. [ ] Run all tests (≥85% coverage)
+18. [ ] Manual testing with slow network (throttle to 3G)
+19. [ ] Verify UX flow end-to-end
+20. [ ] Polish animations and transitions
+
+#### UI Design Specification
+
+**Download Badge Styles:**
+```javascript
+export const DownloadBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: 12px;
+  white-space: nowrap;
+
+  /* Status variants */
+  &.cached {
+    background: #d1fae5; /* Light green */
+    color: #065f46; /* Dark green */
+  }
+
+  &.downloading {
+    background: #dbeafe; /* Light blue */
+    color: #1e40af; /* Dark blue */
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  &.not-downloaded {
+    background: #f3f4f6; /* Light gray */
+    color: #6b7280; /* Gray */
+  }
+
+  &.error {
+    background: #fee2e2; /* Light red */
+    color: #991b1b; /* Dark red */
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+`;
+```
+
+**Progress Footer Styles:**
+```javascript
+export const ProgressFooter = styled.div`
+  padding: ${props => props.theme.spacing.md} ${props => props.theme.spacing.xl};
+  border-top: 1px solid ${props => props.theme.colors.border};
+  background: ${props => props.theme.colors.bgTertiary};
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  color: ${props => props.theme.colors.textSecondary};
+  gap: ${props => props.theme.spacing.md};
+`;
+
+export const ProgressText = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${props => props.theme.spacing.sm};
+
+  .count {
+    font-weight: ${props => props.theme.typography.fontWeight.semibold};
+    color: ${props => props.theme.colors.textPrimary};
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid ${props => props.theme.colors.primary};
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+```
+
+**Apply Button Updates:**
+```javascript
+// In ModalFooter
+<ApplyButton
+  onClick={handleApply}
+  type="button"
+  disabled={!isApplyReady}
+  title={
+    isApplyReady
+      ? "Apply selected iterations"
+      : `Waiting for ${pendingDownloads} downloads to complete...`
+  }
+>
+  {isApplyReady ? "Apply" : "Apply (downloading...)"}
+</ApplyButton>
+```
+
+#### Validation Checklist
+
+**Scenario 1: All Iterations Cached (Best Case)**
+- [ ] Open modal, select 5 cached iterations
+- [ ] All badges show "✓ Cached" (green)
+- [ ] Footer shows "5 cached | 0 downloading"
+- [ ] Apply button is enabled immediately
+- [ ] Click Apply, graphs render instantly
+- [ ] No loading spinner on dashboard
+
+**Scenario 2: Mix of Cached and Uncached (Common Case)**
+- [ ] Open modal, select 3 cached + 2 uncached iterations
+- [ ] 3 badges show "✓ Cached" (green)
+- [ ] 2 badges show "⟳ Downloading..." (blue, animated)
+- [ ] Footer shows "3 cached | 2 downloading..."
+- [ ] Apply button is disabled with text "Apply (downloading...)"
+- [ ] Wait 30 seconds for downloads to complete
+- [ ] Badges update to all "✓ Cached"
+- [ ] Footer updates to "5 cached | 0 downloading"
+- [ ] Apply button enables with text "Apply"
+- [ ] Click Apply, graphs render instantly
+
+**Scenario 3: All Uncached (Worst Case)**
+- [ ] Clear cache (DELETE /api/cache/clear)
+- [ ] Open modal, select 5 uncached iterations
+- [ ] All badges show "○ Not Downloaded" (gray)
+- [ ] Check first iteration
+- [ ] Badge changes to "⟳ Downloading..." (blue, animated)
+- [ ] Footer shows "0 cached | 1 downloading..."
+- [ ] Check remaining 4 iterations
+- [ ] All badges change to "⟳ Downloading..."
+- [ ] Footer shows "0 cached | 5 downloading..."
+- [ ] Apply button disabled
+- [ ] Wait ~60 seconds for all downloads
+- [ ] All badges change to "✓ Cached"
+- [ ] Footer shows "5 cached | 0 downloading"
+- [ ] Apply button enables
+- [ ] Click Apply, graphs render instantly
+
+**Scenario 4: Download Failure (Error Case)**
+- [ ] Disconnect network mid-download
+- [ ] Badge changes to "✗ Failed" (red)
+- [ ] Footer shows "3 cached | 1 failed | 1 downloading"
+- [ ] Apply button stays disabled
+- [ ] Reconnect network
+- [ ] Click failed iteration to retry
+- [ ] Badge changes back to "⟳ Downloading..."
+- [ ] Download completes, badge shows "✓ Cached"
+- [ ] Apply button enables
+
+**Scenario 5: Change Selection While Downloading**
+- [ ] Select 5 iterations, downloads start
+- [ ] Uncheck 2 downloading iterations
+- [ ] Downloads continue in background (don't cancel)
+- [ ] Footer updates to "1 cached | 2 downloading..."
+- [ ] Apply button reflects new selection state
+- [ ] Downloads complete, get cached for future use
+
+#### Agents to Use
+
+- 🤖 Product Owner Agent - Validate UX improvement aligns with user needs
+- 🤖 UX/UI Design Agent - Design badges and progress footer matching prototype style
+- 🤖 Test Coverage Agent - Plan TDD strategy for state management
+- 🤖 Code Review Agent - Review download state logic and error handling
+- 🤖 Clean Architecture Agent - Ensure state management doesn't violate architecture
+
+#### Key Decisions
+
+**Design Decision: Status Badges**
+- Use pill-shaped badges (like prototype's state badges)
+- Color-coded for quick recognition (green=ready, blue=loading, gray=waiting)
+- Animated "Downloading" badge provides feedback
+
+**Interaction Decision: Apply Button**
+- Disable (don't hide) to maintain visual consistency
+- Change text to explain why disabled
+- Tooltip provides details on what's waiting
+
+**Performance Decision: Background Prefetch**
+- Keep existing prefetch logic (lines 279-306)
+- Enhance with progress tracking
+- Don't cancel in-progress downloads if unchecked (cache for future use)
+
+**Architecture Decision: State Location**
+- Download state lives in IterationSelectionModal (not Redux/Context)
+- Simple useState is sufficient for modal-scoped state
+- Follows existing pattern (tempSelectedIds, cachedIterationIds)
+
+#### Performance Impact
+
+**Before (Current Behavior):**
+- User checks 5 iterations → background prefetch starts
+- User clicks Apply after 5 seconds → still downloading
+- Dashboard shows loading spinner for 25 more seconds
+- **User perception:** "Why is this so slow?" (bad UX)
+
+**After (Enhanced Feedback):**
+- User checks 5 iterations → sees "⟳ Downloading..." badges
+- Apply button disabled with "Apply (downloading...)" text
+- Footer shows "2 cached | 3 downloading..."
+- After 30 seconds, all badges show "✓ Cached"
+- Apply button enables, user clicks Apply
+- Dashboard renders instantly (< 100ms)
+- **User perception:** "I can see it's downloading, now it's ready!" (good UX)
+
+**Key Improvement:** Setting correct expectations, not faster downloads.
+
+#### Definition of Done
+
+- [ ] Download badges implemented and styled
+- [ ] Progress footer showing aggregate status
+- [ ] Apply button disabled during downloads
+- [ ] Graphs don't auto-render until Apply clicked
+- [ ] All tests pass (≥85% coverage)
+- [ ] Manual testing completed (all scenarios)
+- [ ] UX feels responsive and informative
+- [ ] Code reviewed and approved
+- [ ] Committed and pushed
+
+**Note:** This is a UX enhancement, not a performance optimization. Download times don't change, but user expectations are correctly set.
+
+---
+
 ## 🚀 Post-MVP Stories (Deferred Until After Performance Optimization)
 
 ### Story V4: Deployment Metrics - Add DORA Metrics
@@ -1141,10 +1563,11 @@ V1 (Velocity) ✅
 ├─ V2 (Throughput + Cycle Time) ✅
 │  └─ V3 (Dashboard Polish) ✅ ──> MVP COMPLETE
 │     │
-│     ├─ V8 (Remove Legacy Cache) ← CURRENT PRIORITY
-│     │  └─ V9.1 (Persistent File Cache)
-│     │     └─ V9.2 (Smart Invalidation)
-│     │        └─ V9.3 (Cache Management UI) ──> PERFORMANCE OPTIMIZED
+│     ├─ V8 (Remove Legacy Cache) ✅
+│     │  └─ V9.1 (Persistent File Cache) ✅
+│     │     └─ V9.2 (Smart Invalidation) ✅
+│     │        └─ V9.3 (Cache Management UI) ✅ ──> PERFORMANCE OPTIMIZED
+│     │           └─ V10 (Enhanced Progress Feedback) ← CURRENT PRIORITY
 │     │
 │     ├─ V4 (Deployment Metrics) ← DEFERRED
 │     ├─ V5 (Incident Metrics) ← DEFERRED
@@ -1153,11 +1576,12 @@ V1 (Velocity) ✅
 ```
 
 **Current Execution Order (MUST follow this sequence):**
-1. V8: Remove Legacy Cache (prerequisite for V9)
-2. V9.1: Core cache implementation (100x faster warm cache)
-3. V9.2: Smart invalidation (TTL + manual refresh)
-4. V9.3: Cache UI (user-friendly cache management)
-5. THEN resume V4-V7 feature development
+1. V8: Remove Legacy Cache ✅ (prerequisite for V9)
+2. V9.1: Core cache implementation ✅ (100x faster warm cache)
+3. V9.2: Smart invalidation ✅ (TTL + manual refresh)
+4. V9.3: Cache UI ✅ (user-friendly cache management)
+5. V10: Enhanced Progress Feedback ← CURRENT (UX improvement for cache downloads)
+6. THEN resume V4-V7 feature development
 
 **Parallel Execution (Post-V9.3):**
 - V4 and V5 can be done in any order (both independent of each other)
