@@ -173,12 +173,14 @@ describe('useSelectAll', () => {
 
     // Start with none selected
     rerender({ selectedIds: [] });
-    expect(mockCheckboxRef.checked).toBe(false);
+    expect(result.current.isChecked).toBe(false);
+    expect(result.current.isIndeterminate).toBe(false);
     expect(mockCheckboxRef.indeterminate).toBe(false);
 
     // Select one
     rerender({ selectedIds: ['gid://gitlab/Iteration/1'] });
-    expect(mockCheckboxRef.checked).toBe(false);
+    expect(result.current.isChecked).toBe(false);
+    expect(result.current.isIndeterminate).toBe(true);
     expect(mockCheckboxRef.indeterminate).toBe(true);
 
     // Select all
@@ -189,7 +191,8 @@ describe('useSelectAll', () => {
         'gid://gitlab/Iteration/3'
       ]
     });
-    expect(mockCheckboxRef.checked).toBe(true);
+    expect(result.current.isChecked).toBe(true);
+    expect(result.current.isIndeterminate).toBe(false);
     expect(mockCheckboxRef.indeterminate).toBe(false);
   });
 
