@@ -93,7 +93,12 @@ export default function AnnotationsList({ onEdit }) {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Fetch annotations when dropdown opens
+  // Fetch annotations on mount to display correct count
+  useEffect(() => {
+    fetchAnnotations();
+  }, []);
+
+  // Refresh annotations when dropdown opens (in case they changed)
   useEffect(() => {
     if (isOpen) {
       fetchAnnotations();
