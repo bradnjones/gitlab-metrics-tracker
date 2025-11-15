@@ -6,7 +6,7 @@
  * @module components/MTTRChart
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
 import {
@@ -22,6 +22,8 @@ import {
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
 import { useAnnotations } from '../hooks/useAnnotations.js';
+import ChartFilterDropdown from './ChartFilterDropdown';
+
 
 // Register Chart.js components for Line charts with annotations
 ChartJS.register(
@@ -35,6 +37,9 @@ ChartJS.register(
   annotationPlugin
 );
 
+// localStorage key for per-chart filter exclusions
+const FILTER_STORAGE_KEY = 'chart-filters-mttr';
+
 /**
  * Styled components
  */
@@ -46,6 +51,12 @@ const Container = styled.div`
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
   }
+`;
+
+const FilterContainer = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
 `;
 
 const LoadingMessage = styled.div`
@@ -198,11 +209,66 @@ const getChartOptions = (limits, eventAnnotations = {}) => {
  * @param {number} [props.annotationRefreshKey=0] - Key that triggers annotation re-fetch
  * @returns {JSX.Element} Rendered component
  */
-const MTTRChart = ({ iterationIds, annotationRefreshKey = 0 }) => {
+const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) => {
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [controlLimits, setControlLimits] = useState(null);
   const [error, setError] = useState(null);
+  const [excludedIterationIds, setExcludedIterationIds] = useState([]);
+
+  // Load excluded iterations from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(FILTER_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setExcludedIterationIds(parsed);
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load chart filters from localStorage:', error);
+    }
+  }, []);
+
+  // Save excluded iterations to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (excludedIterationIds.length > 0) {
+        localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(excludedIterationIds));
+      } else {
+        localStorage.removeItem(FILTER_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to save chart filters to localStorage:', error);
+    }
+  }, [excludedIterationIds]);
+
+  // Clean up excluded iterations that are no longer in selectedIterations
+  useEffect(() => {
+    if (!selectedIterations || selectedIterations.length === 0) {
+      return;
+    }
+
+    const selectedIds = selectedIterations.map(iter => iter.id);
+    const validExcludedIds = excludedIterationIds.filter(id => selectedIds.includes(id));
+
+    // Only update if some excluded iterations were removed from selection
+    if (validExcludedIds.length !== excludedIterationIds.length) {
+      setExcludedIterationIds(validExcludedIds);
+    }
+  }, [selectedIterations]);
+
+  // Filter iterations based on exclusions (memoized to prevent flickering)
+  const visibleIterations = useMemo(
+    () => selectedIterations.filter(iter => !excludedIterationIds.includes(iter.id)),
+    [selectedIterations, excludedIterationIds]
+  );
+
+  const iterationIds = useMemo(
+    () => visibleIterations.map(iter => iter.id),
+    [visibleIterations]
+  );
 
   // Fetch annotations for MTTR metric
   const { annotations: mttrAnnotations } = useAnnotations(
@@ -212,7 +278,13 @@ const MTTRChart = ({ iterationIds, annotationRefreshKey = 0 }) => {
   );
 
   useEffect(() => {
-    if (!iterationIds || iterationIds.length === 0) {
+    if (!selectedIterations || selectedIterations.length === 0) {
+      return;
+    }
+
+    // All iterations filtered out via filter dropdown
+    if (iterationIds.length === 0) {
+      setChartData(null);
       return;
     }
 
@@ -261,8 +333,23 @@ const MTTRChart = ({ iterationIds, annotationRefreshKey = 0 }) => {
     fetchMTTRData();
   }, [iterationIds]);
 
+ /**
+   * Handle filter change from ChartFilterDropdown
+   *  {Array<string>} newExcludedIds - New array of excluded iteration IDs
+   */
+  const handleFilterChange = (newExcludedIds) => {
+    setExcludedIterationIds(newExcludedIds);
+  };
+
+  /**
+   * Handle reset filter to global selection
+   */
+  const handleResetFilter = () => {
+    setExcludedIterationIds([]);
+  };
+
   // Empty state - no iterations selected
-  if (!iterationIds || iterationIds.length === 0) {
+  if (!selectedIterations || selectedIterations.length === 0) {
     return (
       <Container role="region" aria-label="Mean Time To Recovery Metrics Chart">
         <EmptyState>Select iterations to view MTTR metrics</EmptyState>
@@ -291,6 +378,15 @@ const MTTRChart = ({ iterationIds, annotationRefreshKey = 0 }) => {
   // Success state - render chart
   return (
     <Container role="region" aria-label="Mean Time To Recovery Metrics Chart">
+      <FilterContainer>
+        <ChartFilterDropdown
+          availableIterations={selectedIterations}
+          excludedIterationIds={excludedIterationIds}
+          onFilterChange={handleFilterChange}
+          onReset={handleResetFilter}
+          chartTitle="MTTR Chart"
+        />
+      </FilterContainer>
       {chartData && (
         <ChartContainer>
           <Line

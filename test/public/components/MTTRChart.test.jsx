@@ -5,7 +5,55 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { ThemeProvider } from 'styled-components';
 import MTTRChart from '../../../src/public/components/MTTRChart.jsx';
+
+// Mock theme object matching application theme
+const theme = {
+  colors: {
+    primary: '#3b82f6',
+    primaryDark: '#2563eb',
+    textPrimary: '#111827',
+    textSecondary: '#6b7280',
+    bgPrimary: '#ffffff',
+    bgSecondary: '#f9fafb',
+    bgTertiary: '#f3f4f6',
+    border: '#e5e7eb',
+  },
+  spacing: {
+    xs: '4px',
+    sm: '8px',
+    md: '16px',
+    lg: '24px',
+  },
+  typography: {
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      base: '1rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+    },
+  },
+  borderRadius: {
+    sm: '4px',
+    md: '6px',
+    lg: '8px',
+    full: '999px',
+  },
+};
+
+// Helper to render component with theme
+const renderWithTheme = (component) => {
+  return render(
+    <ThemeProvider theme={theme}>
+      {component}
+    </ThemeProvider>
+  );
+};
 
 // Mock Chart.js Line component
 jest.mock('react-chartjs-2', () => ({
@@ -47,7 +95,7 @@ describe('MTTRChart', () => {
    * Drives: Basic component structure and prop handling
    */
   it('renders empty state when no iterations are selected', () => {
-    render(<MTTRChart iterationIds={[]} />);
+    renderWithTheme(<MTTRChart selectedIterations={[]} />);
 
     expect(screen.getByText(/select iterations to view mttr metrics/i))
       .toBeInTheDocument();
@@ -58,7 +106,7 @@ describe('MTTRChart', () => {
    * Drives: useState for loading state and useEffect hook setup
    */
   it('displays loading state while fetching MTTR data', () => {
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123']} />);
+    renderWithTheme(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}]} />);
 
     expect(screen.getByText(/loading mttr data/i))
       .toBeInTheDocument();
@@ -95,7 +143,7 @@ describe('MTTRChart', () => {
       })
     });
 
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124']} />);
+    renderWithTheme(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}, {id: 'gid://gitlab/Iteration/124', title: 'Sprint 2'}]} />);
 
     // Wait for data to load and chart to render
     await waitFor(() => {
@@ -119,7 +167,7 @@ describe('MTTRChart', () => {
     // Mock failed API response (fetch throws error)
     global.fetch.mockRejectedValue(new Error('Failed to fetch MTTR data'));
 
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123']} />);
+    renderWithTheme(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}]} />);
 
     // Wait for error to be displayed
     await waitFor(() => {
@@ -164,7 +212,7 @@ describe('MTTRChart', () => {
       })
     });
 
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124']} />);
+    renderWithTheme(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}, {id: 'gid://gitlab/Iteration/124', title: 'Sprint 2'}]} />);
 
     // Wait for data to load and chart to render
     await waitFor(() => {
@@ -215,7 +263,7 @@ describe('MTTRChart', () => {
       })
     });
 
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123']} />);
+    renderWithTheme(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}]} />);
 
     // Wait for chart to render
     await waitFor(() => {
