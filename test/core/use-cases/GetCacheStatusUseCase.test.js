@@ -172,19 +172,19 @@ describe('GetCacheStatusUseCase', () => {
   });
 
   // Test 7: Calculates globalLastUpdated correctly
-  test('execute() calculates globalLastUpdated as most recent timestamp', async () => {
+  test('execute() calculates globalLastUpdated matching aggregate status', async () => {
     const now = Date.now();
-    const mostRecentTimestamp = new Date(now - 1 * 3600 * 1000).toISOString(); // 1 hour ago (most recent)
+    const oldestAgingTimestamp = new Date(now - 5 * 3600 * 1000).toISOString(); // 5 hours ago (oldest aging)
 
     const mockMetadata = [
       {
         iterationId: 'gid://gitlab/Iteration/123',
-        lastFetched: new Date(now - 5 * 3600 * 1000).toISOString(), // 5 hours ago
+        lastFetched: oldestAgingTimestamp, // 5 hours ago (oldest aging)
         fileSize: 45678,
       },
       {
         iterationId: 'gid://gitlab/Iteration/456',
-        lastFetched: mostRecentTimestamp, // 1 hour ago (most recent)
+        lastFetched: new Date(now - 1 * 3600 * 1000).toISOString(), // 1 hour ago (most recent)
         fileSize: 52341,
       },
       {
@@ -198,8 +198,8 @@ describe('GetCacheStatusUseCase', () => {
 
     const result = await useCase.execute();
 
-    // Verify globalLastUpdated is the most recent
-    expect(result.globalLastUpdated).toBe(mostRecentTimestamp);
+    // All iterations are "aging" (1-6 hours), so globalLastUpdated should be oldest aging
+    expect(result.globalLastUpdated).toBe(oldestAgingTimestamp);
   });
 
   // Test 8: Preserves iteration metadata (iterationId, fileSize)
@@ -261,5 +261,99 @@ describe('GetCacheStatusUseCase', () => {
     // Verify exactly TTL is "stale" (not aging)
     expect(result.iterations[0].ageHours).toBe(6.0);
     expect(result.iterations[0].status).toBe('stale');
+  });
+
+  // Test 11: globalLastUpdated returns oldest stale when status is stale
+  test('execute() returns oldest stale timestamp when aggregate status is stale', async () => {
+    const now = Date.now();
+    const oldestStaleTimestamp = new Date(now - 8 * 3600 * 1000).toISOString(); // 8 hours ago (oldest stale)
+
+    const mockMetadata = [
+      {
+        iterationId: 'gid://gitlab/Iteration/123',
+        lastFetched: oldestStaleTimestamp, // 8 hours ago (oldest stale)
+        fileSize: 45678,
+      },
+      {
+        iterationId: 'gid://gitlab/Iteration/456',
+        lastFetched: new Date(now - 7 * 3600 * 1000).toISOString(), // 7 hours ago (newer stale)
+        fileSize: 52341,
+      },
+      {
+        iterationId: 'gid://gitlab/Iteration/789',
+        lastFetched: new Date(now - 0.5 * 3600 * 1000).toISOString(), // 30 min ago (fresh)
+        fileSize: 38912,
+      },
+    ];
+
+    mockCacheRepository.getAllMetadata.mockResolvedValue(mockMetadata);
+
+    const result = await useCase.execute();
+
+    // Status should be stale (any stale = aggregate stale)
+    // globalLastUpdated should be oldest stale timestamp
+    expect(result.globalLastUpdated).toBe(oldestStaleTimestamp);
+  });
+
+  // Test 12: globalLastUpdated returns newest fresh when status is fresh
+  test('execute() returns newest fresh timestamp when aggregate status is fresh', async () => {
+    const now = Date.now();
+    const newestFreshTimestamp = new Date(now - 0.1 * 3600 * 1000).toISOString(); // 6 min ago (newest fresh)
+
+    const mockMetadata = [
+      {
+        iterationId: 'gid://gitlab/Iteration/123',
+        lastFetched: new Date(now - 0.5 * 3600 * 1000).toISOString(), // 30 min ago (fresh)
+        fileSize: 45678,
+      },
+      {
+        iterationId: 'gid://gitlab/Iteration/456',
+        lastFetched: newestFreshTimestamp, // 6 min ago (newest fresh)
+        fileSize: 52341,
+      },
+      {
+        iterationId: 'gid://gitlab/Iteration/789',
+        lastFetched: new Date(now - 0.3 * 3600 * 1000).toISOString(), // 18 min ago (fresh)
+        fileSize: 38912,
+      },
+    ];
+
+    mockCacheRepository.getAllMetadata.mockResolvedValue(mockMetadata);
+
+    const result = await useCase.execute();
+
+    // All fresh, so globalLastUpdated should be newest fresh
+    expect(result.globalLastUpdated).toBe(newestFreshTimestamp);
+  });
+
+  // Test 13: globalLastUpdated with mixed statuses (stale priority)
+  test('execute() returns oldest stale when mixed with fresh iterations', async () => {
+    const now = Date.now();
+    const oldestStaleTimestamp = new Date(now - 10 * 3600 * 1000).toISOString(); // 10 hours ago (stale)
+
+    const mockMetadata = [
+      {
+        iterationId: 'gid://gitlab/Iteration/123',
+        lastFetched: new Date(now - 0.2 * 3600 * 1000).toISOString(), // 12 min ago (fresh, most recent)
+        fileSize: 45678,
+      },
+      {
+        iterationId: 'gid://gitlab/Iteration/456',
+        lastFetched: oldestStaleTimestamp, // 10 hours ago (stale, oldest)
+        fileSize: 52341,
+      },
+      {
+        iterationId: 'gid://gitlab/Iteration/789',
+        lastFetched: new Date(now - 2 * 3600 * 1000).toISOString(), // 2 hours ago (aging)
+        fileSize: 38912,
+      },
+    ];
+
+    mockCacheRepository.getAllMetadata.mockResolvedValue(mockMetadata);
+
+    const result = await useCase.execute();
+
+    // Stale has highest priority, so return oldest stale (not most recent fresh)
+    expect(result.globalLastUpdated).toBe(oldestStaleTimestamp);
   });
 });

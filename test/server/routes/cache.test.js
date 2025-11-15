@@ -134,21 +134,21 @@ describe('Cache API', () => {
     expect(mockCacheRepository.getAllMetadata).toHaveBeenCalledTimes(1);
   });
 
-  // Test 13: GET /api/cache/status calculates globalLastUpdated as most recent timestamp
-  it('should calculate globalLastUpdated as most recent cache timestamp', async () => {
+  // Test 13: GET /api/cache/status calculates globalLastUpdated matching aggregate status
+  it('should calculate globalLastUpdated matching aggregate status', async () => {
     const now = Date.now();
-    const mostRecentTimestamp = new Date(now - 1 * 3600 * 1000).toISOString(); // 1 hour ago
+    const oldestAgingTimestamp = new Date(now - 5 * 3600 * 1000).toISOString(); // 5 hours ago (oldest aging)
 
     // Mock cache metadata
     mockCacheRepository.getAllMetadata.mockResolvedValue([
       {
         iterationId: 'gid://gitlab/Iteration/123',
-        lastFetched: new Date(now - 5 * 3600 * 1000).toISOString(), // 5 hours ago
+        lastFetched: oldestAgingTimestamp, // 5 hours ago (oldest aging)
         fileSize: 45678,
       },
       {
         iterationId: 'gid://gitlab/Iteration/456',
-        lastFetched: mostRecentTimestamp, // 1 hour ago (most recent)
+        lastFetched: new Date(now - 1 * 3600 * 1000).toISOString(), // 1 hour ago (most recent)
         fileSize: 52341,
       },
       {
@@ -162,8 +162,8 @@ describe('Cache API', () => {
       .get('/api/cache/status')
       .expect(200);
 
-    // Verify globalLastUpdated is the most recent timestamp
-    expect(response.body.globalLastUpdated).toBe(mostRecentTimestamp);
+    // All iterations are "aging" (1-6 hours), so globalLastUpdated should be oldest aging
+    expect(response.body.globalLastUpdated).toBe(oldestAgingTimestamp);
   });
 
   // Test 14: GET /api/cache/status returns 500 on repository error

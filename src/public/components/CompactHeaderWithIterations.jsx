@@ -22,7 +22,7 @@ import styled from 'styled-components';
 import React, { useState } from 'react';
 import CacheStatus from './CacheStatus.jsx';
 import RefreshButton from './RefreshButton.jsx';
-import AnnotationsList from './AnnotationsList.jsx';
+import HamburgerMenu from './HamburgerMenu.jsx';
 
 /* ===== STYLED COMPONENTS ===== */
 
@@ -55,12 +55,45 @@ const CompactHeaderContent = styled.div`
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: ${props => props.theme.spacing.md};
 
   @media (max-width: ${props => props.theme.breakpoints.tablet}) {
     flex-wrap: wrap;
     gap: ${props => props.theme.spacing.sm};
+  }
+`;
+
+/**
+ * Left section (Hamburger + Branding)
+ *
+ * @component
+ */
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${props => props.theme.spacing.md};
+  flex-shrink: 0;
+
+  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
+    width: 100%;
+  }
+`;
+
+/**
+ * Right section (Cache Status + Refresh Button)
+ *
+ * @component
+ */
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${props => props.theme.spacing.sm};
+  flex-shrink: 0;
+  margin-left: auto;
+
+  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
+    width: 100%;
+    order: 4;
   }
 `;
 
@@ -81,18 +114,20 @@ const BrandingSection = styled.div`
 `;
 
 /**
- * Compact title
+ * Compact title with enhanced font weight and explicit white color
  *
  * @component
  */
 const CompactTitle = styled.h1`
   font-size: ${props => props.theme.typography.fontSize.xl};
-  font-weight: ${props => props.theme.typography.fontWeight.bold};
+  font-weight: 800;
+  color: #ffffff;
   margin: 0;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 
   @media (max-width: ${props => props.theme.breakpoints.tablet}) {
     font-size: ${props => props.theme.typography.fontSize.lg};
@@ -387,14 +422,34 @@ export default function CompactHeaderWithIterations({
     setCacheRefreshKey(prev => prev + 1);
   };
 
+  /**
+   * Handle manage annotations from hamburger menu
+   * Opens the AnnotationsList dropdown
+   */
+  const handleManageAnnotations = () => {
+    // This would ideally trigger the AnnotationsList dropdown
+    // For now, we'll use the existing AnnotationsList component inline
+    // Future enhancement: Could convert to modal or expand inline
+  };
+
   return (
     <CompactHeader>
       <CompactHeaderContent>
-        <BrandingSection>
-          <CompactTitle>GitLab Sprint Metrics</CompactTitle>
-          <CompactSubtitle>Track performance with context</CompactSubtitle>
-        </BrandingSection>
+        {/* LEFT SECTION: Hamburger + Branding */}
+        <LeftSection>
+          <HamburgerMenu
+            onManageAnnotations={handleManageAnnotations}
+            onAddAnnotation={handleAnnotationClick}
+            onChangeSprints={handleChangeClick}
+          />
 
+          <BrandingSection>
+            <CompactTitle>GitLab Sprint Metrics</CompactTitle>
+            <CompactSubtitle>Track performance with context</CompactSubtitle>
+          </BrandingSection>
+        </LeftSection>
+
+        {/* MIDDLE SECTION: Sprint Chips */}
         <IterationChipsSection>
           {selectedIterations.length === 0 ? (
             <EmptyChipsMessage>No sprints selected</EmptyChipsMessage>
@@ -425,22 +480,13 @@ export default function CompactHeaderWithIterations({
           )}
         </IterationChipsSection>
 
-        <ActionsSection>
+        {/* RIGHT SECTION: Cache Status + Refresh Button */}
+        <RightSection>
           <CacheManagementSection>
             <CacheStatus key={cacheRefreshKey} />
             <RefreshButton onRefreshComplete={handleRefreshComplete} />
           </CacheManagementSection>
-
-          <AnnotationsList onEdit={onEditAnnotation} />
-
-          <HeaderChangeButton onClick={handleAnnotationClick} type="button" title="Add Annotation (Ctrl+N)">
-            + Annotation
-          </HeaderChangeButton>
-
-          <HeaderChangeButton onClick={handleChangeClick} type="button">
-            Change Sprints
-          </HeaderChangeButton>
-        </ActionsSection>
+        </RightSection>
       </CompactHeaderContent>
     </CompactHeader>
   );

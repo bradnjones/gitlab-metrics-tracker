@@ -5,13 +5,18 @@
  * Business Logic:
  * - Calculate cache age for each iteration
  * - Determine status based on age and TTL
- * - Calculate global last updated timestamp
- * - Aggregate cache metadata
+ * - Calculate aggregate status (priority: stale > aging > fresh)
+ * - Return timestamp matching aggregate status (not most recent)
  *
  * Status Rules:
  * - fresh: ageHours < 1
  * - aging: 1 <= ageHours < cacheTTL
  * - stale: ageHours >= cacheTTL
+ *
+ * Timestamp Selection (globalLastUpdated):
+ * - If stale: oldest stale iteration's timestamp (most concerning)
+ * - If aging: oldest aging iteration's timestamp
+ * - If fresh: most recent fresh iteration's timestamp
  *
  * Clean Architecture:
  * - Lives in Core layer (business rules)
@@ -45,7 +50,7 @@ export class GetCacheStatusUseCase {
    * @returns {Promise<Object>} Cache status object
    * @returns {number} return.cacheTTL - Cache time-to-live in hours
    * @returns {number} return.totalCachedIterations - Total number of cached iterations
-   * @returns {string|null} return.globalLastUpdated - Most recent cache timestamp (ISO 8601)
+   * @returns {string|null} return.globalLastUpdated - Timestamp matching aggregate status (ISO 8601)
    * @returns {Array} return.iterations - Array of iteration metadata with status
    */
   async execute() {
@@ -58,8 +63,9 @@ export class GetCacheStatusUseCase {
       return this._calculateIterationStatus(item, cacheTTL);
     });
 
-    // Business logic: Calculate global last updated (most recent timestamp)
-    const globalLastUpdated = this._calculateGlobalLastUpdated(iterations);
+    // Business logic: Calculate aggregate status and matching timestamp
+    const aggregateStatus = this._calculateAggregateStatus(iterations);
+    const globalLastUpdated = this._calculateRelevantTimestamp(iterations, aggregateStatus);
 
     // Return cache status aggregate
     return {
@@ -107,24 +113,74 @@ export class GetCacheStatusUseCase {
   }
 
   /**
-   * Calculate global last updated timestamp
-   * Returns the most recent cache timestamp across all iterations
+   * Calculate aggregate status from iterations
+   * Priority: stale > aging > fresh > none
+   *
+   * @private
+   * @param {Array} iterations - Array of iterations with status
+   * @returns {string} Aggregate status ('stale', 'aging', 'fresh', or 'none')
+   */
+  _calculateAggregateStatus(iterations) {
+    if (!iterations || iterations.length === 0) {
+      return 'none';
+    }
+
+    // Check for stale (highest priority)
+    if (iterations.some(item => item.status === 'stale')) {
+      return 'stale';
+    }
+
+    // Check for aging (medium priority)
+    if (iterations.some(item => item.status === 'aging')) {
+      return 'aging';
+    }
+
+    // All fresh (lowest priority)
+    return 'fresh';
+  }
+
+  /**
+   * Calculate timestamp that corresponds to the aggregate status
+   * - If stale: return oldest stale iteration's timestamp
+   * - If aging: return oldest aging iteration's timestamp
+   * - If fresh: return most recent fresh iteration's timestamp
    *
    * @private
    * @param {Array} iterations - Array of iterations with lastFetched timestamps
-   * @returns {string|null} Most recent timestamp (ISO 8601) or null if no iterations
+   * @param {string} aggregateStatus - Aggregate status ('stale', 'aging', 'fresh', or 'none')
+   * @returns {string|null} Relevant timestamp (ISO 8601) or null if no iterations
    */
-  _calculateGlobalLastUpdated(iterations) {
+  _calculateRelevantTimestamp(iterations, aggregateStatus) {
     if (iterations.length === 0) {
       return null;
     }
 
-    const mostRecent = iterations.reduce((latest, current) => {
-      return new Date(current.lastFetched) > new Date(latest.lastFetched)
-        ? current
-        : latest;
-    });
+    // Filter iterations by the aggregate status
+    const relevantIterations = iterations.filter(item => item.status === aggregateStatus);
 
-    return mostRecent.lastFetched;
+    if (relevantIterations.length === 0) {
+      return null;
+    }
+
+    // For stale/aging: return the OLDEST timestamp (most concerning)
+    // For fresh: return the NEWEST timestamp (most recent)
+    let selected;
+    if (aggregateStatus === 'stale' || aggregateStatus === 'aging') {
+      // Find oldest (earliest timestamp)
+      selected = relevantIterations.reduce((oldest, current) => {
+        return new Date(current.lastFetched) < new Date(oldest.lastFetched)
+          ? current
+          : oldest;
+      });
+    } else {
+      // Find newest (latest timestamp)
+      selected = relevantIterations.reduce((newest, current) => {
+        return new Date(current.lastFetched) > new Date(newest.lastFetched)
+          ? current
+          : newest;
+      });
+    }
+
+    return selected.lastFetched;
   }
 }

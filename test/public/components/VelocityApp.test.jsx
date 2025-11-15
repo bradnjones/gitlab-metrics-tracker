@@ -125,7 +125,9 @@ describe('VelocityApp', () => {
 
     // Should show the empty state message in header
     expect(screen.getByText(/no sprints selected/i)).toBeInTheDocument();
-    expect(screen.getByText(/change sprints/i)).toBeInTheDocument();
+
+    // Should show the hamburger menu button
+    expect(screen.getByRole('button', { name: 'Menu' })).toBeInTheDocument();
   });
 
   /**

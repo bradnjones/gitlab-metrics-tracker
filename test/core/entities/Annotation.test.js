@@ -158,6 +158,7 @@ describe('Annotation', () => {
         eventType: annotation.eventType,
         impact: annotation.impact,
         affectedMetrics: annotation.affectedMetrics,
+        color: annotation.color,
         createdAt: annotation.createdAt,
         updatedAt: annotation.updatedAt
       });
