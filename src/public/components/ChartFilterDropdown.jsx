@@ -229,6 +229,8 @@ const ChartFilterDropdown = ({
           {availableIterations.map(iteration => {
             const isExcluded = pendingExcluded.includes(iteration.id);
             const isVisible = !isExcluded;
+            // Fallback title if not provided (similar to IterationSelectorToolbar)
+            const displayTitle = iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}` || iteration.id;
 
             return (
               <IterationItem key={iteration.id}>
@@ -236,10 +238,10 @@ const ChartFilterDropdown = ({
                   type="checkbox"
                   checked={isVisible}
                   onChange={() => toggleIteration(iteration.id)}
-                  aria-label={`${isVisible ? 'Hide' : 'Show'} ${iteration.title}`}
+                  aria-label={`${isVisible ? 'Hide' : 'Show'} ${displayTitle}`}
                 />
                 <IterationDetails>
-                  <IterationTitle>{iteration.title}</IterationTitle>
+                  <IterationTitle>{displayTitle}</IterationTitle>
                   <IterationDates>
                     {formatDate(iteration.startDate)} - {formatDate(iteration.dueDate)}
                   </IterationDates>
@@ -274,7 +276,7 @@ ChartFilterDropdown.propTypes = {
   availableIterations: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
-      title: PropTypes.string.isRequired,
+      title: PropTypes.string,  // Optional - may be null/undefined from localStorage
       startDate: PropTypes.string,
       dueDate: PropTypes.string
     })
