@@ -11,6 +11,7 @@ import { Line } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
+import { useAnnotations } from '../hooks/useAnnotations.js';
 
 // Register Chart.js components
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, annotationPlugin);
@@ -62,13 +63,21 @@ const ChartContainer = styled.div`
  *
  * @param {Object} props - Component props
  * @param {Array<string>} props.iterationIds - Array of iteration IDs to fetch metrics for
+ * @param {number} [props.annotationRefreshKey=0] - Key that triggers annotation re-fetch
  * @returns {JSX.Element} Rendered component
  */
-const ChangeFailureRateChart = ({ iterationIds }) => {
+const ChangeFailureRateChart = ({ iterationIds, annotationRefreshKey = 0 }) => {
   const [chartData, setChartData] = useState(null);
   const [controlLimits, setControlLimits] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Fetch annotations for change failure rate metric
+  const { annotations: changeFailureAnnotations } = useAnnotations(
+    'change_failure_rate',
+    chartData ? chartData.labels : [],
+    annotationRefreshKey
+  );
 
   useEffect(() => {
     if (!iterationIds || iterationIds.length === 0) {
@@ -151,7 +160,7 @@ const ChangeFailureRateChart = ({ iterationIds }) => {
    * @param {Object|null} limits - Control limits (average, upperLimit, lowerLimit)
    * @returns {Object} Chart.js options
    */
-  const getChartOptions = (limits) => {
+  const getChartOptions = (limits, eventAnnotations = {}) => {
     const options = {
       responsive: true,
       maintainAspectRatio: false,
@@ -186,63 +195,71 @@ const ChangeFailureRateChart = ({ iterationIds }) => {
       }
     };
 
+    // Build annotation config by merging control limits and event annotations
+    const allAnnotations = { ...eventAnnotations };
+
     // Add control limit annotations if available
     if (limits) {
-      options.plugins.annotation = {
-        annotations: {
-          upperLimit: {
-            type: 'line',
-            yMin: limits.upperLimit,
-            yMax: limits.upperLimit,
-            borderColor: '#fca5a5', // Light red solid line
-            borderWidth: 2,
-            label: {
-              display: true,
-              content: `UCL: ${limits.upperLimit.toFixed(1)}%`,
-              position: 'end',
-              backgroundColor: 'rgba(252, 165, 165, 0.8)',
-              color: 'white',
-              font: {
-                size: 11
-              }
-            }
-          },
-          average: {
-            type: 'line',
-            yMin: limits.average,
-            yMax: limits.average,
-            borderColor: '#ef4444', // Red dotted line (matches main data)
-            borderWidth: 2,
-            borderDash: [5, 5],
-            label: {
-              display: true,
-              content: `Avg: ${limits.average.toFixed(1)}%`,
-              position: 'end',
-              backgroundColor: 'rgba(239, 68, 68, 0.8)',
-              color: 'white',
-              font: {
-                size: 11
-              }
-            }
-          },
-          lowerLimit: {
-            type: 'line',
-            yMin: limits.lowerLimit,
-            yMax: limits.lowerLimit,
-            borderColor: '#fca5a5', // Light red solid line
-            borderWidth: 2,
-            label: {
-              display: true,
-              content: `LCL: ${limits.lowerLimit.toFixed(1)}%`,
-              position: 'end',
-              backgroundColor: 'rgba(252, 165, 165, 0.8)',
-              color: 'white',
-              font: {
-                size: 11
-              }
-            }
+      allAnnotations.upperLimit = {
+        type: 'line',
+        yMin: limits.upperLimit,
+        yMax: limits.upperLimit,
+        borderColor: '#fca5a5', // Light red solid line
+        borderWidth: 2,
+        label: {
+          display: true,
+          content: `UCL: ${limits.upperLimit.toFixed(1)}%`,
+          position: 'end',
+          backgroundColor: 'rgba(252, 165, 165, 0.8)',
+          color: 'white',
+          font: {
+            size: 11
           }
         }
+      };
+
+      allAnnotations.average = {
+        type: 'line',
+        yMin: limits.average,
+        yMax: limits.average,
+        borderColor: '#ef4444', // Red dotted line (matches main data)
+        borderWidth: 2,
+        borderDash: [5, 5],
+        label: {
+          display: true,
+          content: `Avg: ${limits.average.toFixed(1)}%`,
+          position: 'end',
+          backgroundColor: 'rgba(239, 68, 68, 0.8)',
+          color: 'white',
+          font: {
+            size: 11
+          }
+        }
+      };
+
+      allAnnotations.lowerLimit = {
+        type: 'line',
+        yMin: limits.lowerLimit,
+        yMax: limits.lowerLimit,
+        borderColor: '#fca5a5', // Light red solid line
+        borderWidth: 2,
+        label: {
+          display: true,
+          content: `LCL: ${limits.lowerLimit.toFixed(1)}%`,
+          position: 'end',
+          backgroundColor: 'rgba(252, 165, 165, 0.8)',
+          color: 'white',
+          font: {
+            size: 11
+          }
+        }
+      };
+    }
+
+    // Set annotations if we have any
+    if (Object.keys(allAnnotations).length > 0) {
+      options.plugins.annotation = {
+        annotations: allAnnotations
       };
     }
 
@@ -283,7 +300,7 @@ const ChangeFailureRateChart = ({ iterationIds }) => {
         <ChartContainer>
           <Line
             data={chartData}
-            options={getChartOptions(controlLimits)}
+            options={getChartOptions(controlLimits, changeFailureAnnotations)}
             aria-label="Line chart showing change failure rate trends across selected iterations"
             role="img"
           />

@@ -13,6 +13,7 @@ import {
 } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
+import { useAnnotations } from '../hooks/useAnnotations.js';
 
 // Register Chart.js components
 ChartJS.register(
@@ -68,13 +69,21 @@ const ChartContainer = styled.div`
  *
  * @param {Object} props - Component props
  * @param {string[]} props.iterationIds - Array of iteration IDs to fetch cycle time data for
+ * @param {number} [props.annotationRefreshKey=0] - Key that triggers annotation re-fetch
  * @returns {JSX.Element} Rendered component
  */
-const CycleTimeChart = ({ iterationIds }) => {
+const CycleTimeChart = ({ iterationIds, annotationRefreshKey = 0 }) => {
   const [chartData, setChartData] = useState(null);
   const [controlLimits, setControlLimits] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Fetch annotations for cycle time metric
+  const { annotations: cycleTimeAnnotations } = useAnnotations(
+    'cycle_time_avg',
+    chartData ? chartData.labels : [],
+    annotationRefreshKey
+  );
 
   // Fetch cycle time data when iterationIds change
   useEffect(() => {
@@ -187,11 +196,12 @@ const CycleTimeChart = ({ iterationIds }) => {
   };
 
   /**
-   * Generate Chart.js options configuration with control limit annotations
+   * Generate Chart.js options configuration with control limit annotations and event annotations
    * @param {Object|null} limits - Control limits (average, upperLimit, lowerLimit)
+   * @param {Object} eventAnnotations - Event annotations from useAnnotations hook
    * @returns {Object} Chart.js options
    */
-  const getChartOptions = (limits) => {
+  const getChartOptions = (limits, eventAnnotations = {}) => {
     const options = {
       responsive: true,
       maintainAspectRatio: false,
@@ -226,63 +236,71 @@ const CycleTimeChart = ({ iterationIds }) => {
       }
     };
 
+    // Build annotation config by merging control limits and event annotations
+    const allAnnotations = { ...eventAnnotations };
+
     // Add control limit annotations if available
     if (limits) {
-      options.plugins.annotation = {
-        annotations: {
-          upperLimit: {
-            type: 'line',
-            yMin: limits.upperLimit,
-            yMax: limits.upperLimit,
-            borderColor: '#93c5fd', // Light blue solid line
-            borderWidth: 2,
-            label: {
-              display: true,
-              content: `UCL: ${limits.upperLimit.toFixed(2)}`,
-              position: 'end',
-              backgroundColor: 'rgba(147, 197, 253, 0.8)',
-              color: 'white',
-              font: {
-                size: 11
-              }
-            }
-          },
-          average: {
-            type: 'line',
-            yMin: limits.average,
-            yMax: limits.average,
-            borderColor: '#3b82f6', // Blue dotted line (matches Average)
-            borderWidth: 2,
-            borderDash: [5, 5],
-            label: {
-              display: true,
-              content: `Avg: ${limits.average.toFixed(2)}`,
-              position: 'end',
-              backgroundColor: 'rgba(59, 130, 246, 0.8)',
-              color: 'white',
-              font: {
-                size: 11
-              }
-            }
-          },
-          lowerLimit: {
-            type: 'line',
-            yMin: limits.lowerLimit,
-            yMax: limits.lowerLimit,
-            borderColor: '#93c5fd', // Light blue solid line
-            borderWidth: 2,
-            label: {
-              display: true,
-              content: `LCL: ${limits.lowerLimit.toFixed(2)}`,
-              position: 'end',
-              backgroundColor: 'rgba(147, 197, 253, 0.8)',
-              color: 'white',
-              font: {
-                size: 11
-              }
-            }
+      allAnnotations.upperLimit = {
+        type: 'line',
+        yMin: limits.upperLimit,
+        yMax: limits.upperLimit,
+        borderColor: '#93c5fd', // Light blue solid line
+        borderWidth: 2,
+        label: {
+          display: true,
+          content: `UCL: ${limits.upperLimit.toFixed(2)}`,
+          position: 'end',
+          backgroundColor: 'rgba(147, 197, 253, 0.8)',
+          color: 'white',
+          font: {
+            size: 11
           }
         }
+      };
+
+      allAnnotations.average = {
+        type: 'line',
+        yMin: limits.average,
+        yMax: limits.average,
+        borderColor: '#3b82f6', // Blue dotted line (matches Average)
+        borderWidth: 2,
+        borderDash: [5, 5],
+        label: {
+          display: true,
+          content: `Avg: ${limits.average.toFixed(2)}`,
+          position: 'end',
+          backgroundColor: 'rgba(59, 130, 246, 0.8)',
+          color: 'white',
+          font: {
+            size: 11
+          }
+        }
+      };
+
+      allAnnotations.lowerLimit = {
+        type: 'line',
+        yMin: limits.lowerLimit,
+        yMax: limits.lowerLimit,
+        borderColor: '#93c5fd', // Light blue solid line
+        borderWidth: 2,
+        label: {
+          display: true,
+          content: `LCL: ${limits.lowerLimit.toFixed(2)}`,
+          position: 'end',
+          backgroundColor: 'rgba(147, 197, 253, 0.8)',
+          color: 'white',
+          font: {
+            size: 11
+          }
+        }
+      };
+    }
+
+    // Set annotations if we have any
+    if (Object.keys(allAnnotations).length > 0) {
+      options.plugins.annotation = {
+        annotations: allAnnotations
       };
     }
 
@@ -323,7 +341,7 @@ const CycleTimeChart = ({ iterationIds }) => {
         <ChartContainer>
           <Line
             data={chartData}
-            options={getChartOptions(controlLimits)}
+            options={getChartOptions(controlLimits, cycleTimeAnnotations)}
             aria-label="Line chart showing cycle time trends with average, P50, and P90 metrics across selected iterations, including statistical control limits"
             role="img"
           />

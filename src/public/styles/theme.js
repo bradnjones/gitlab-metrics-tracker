@@ -97,6 +97,14 @@ const theme = {
     desktop: '1024px',
     wide: '1400px',
   },
+
+  zIndex: {
+    base: 1,
+    dropdown: 1000,
+    sticky: 1100,
+    modal: 2000,
+    tooltip: 3000,
+  },
 };
 
 export { theme as default };

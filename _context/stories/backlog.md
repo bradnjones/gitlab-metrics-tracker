@@ -1,20 +1,21 @@
 # Story Backlog - Vertical Slices
 
 **Approach:** Vertical slices delivering complete user value (GitLab → Core → API → UI)
-**Last Updated:** 2025-11-12
+**Last Updated:** 2025-11-14
 **Previous Approach:** Horizontal architectural layers (archived in `archived-horizontal-backlog.md`)
 
 ---
 
 ## 🎯 NEXT STORY TO START
 
-**Story V10.2: Download Status Badges and Progress Footer UI**
+**Story V6: Annotation System - Event Tracking**
 
 See below for full details.
 
-**CONTEXT:** Background prefetch works but creates poor UX expectations - users click Apply before downloads complete, then wait with no feedback. This story improves expectation management with progress indicators and controlled Apply button.
+**CONTEXT:** Core annotation entity and repository exist. Need to build API endpoints and UI for creating/managing annotations, plus Chart.js integration to display annotation markers on all charts.
 
 **✅ MVP COMPLETE! (V1 + V2 + V3)**
+**✅ PERFORMANCE OPTIMIZATION COMPLETE! (V8 + V9.1 + V9.2 + V9.3 + V10)**
 
 **Completed Stories:**
 - ✅ V1: Velocity Tracking (Issue #11, merged)
@@ -22,8 +23,15 @@ See below for full details.
 - ✅ V2: Cycle Time Metrics (merged)
 - ✅ V3: Metrics Dashboard - Polish MVP (merged)
 - ✅ V4: Deployment Metrics - DORA Metrics (Issue #54, PRs #55, #56, #57, #59 merged)
+- ✅ V5: Incident Metrics - MTTR (PR #63, merged)
 - ✅ Removed redundant ThroughputCalculator (PR #31, merged)
 - ✅ Performance Optimization (Issue #51, PRs #52, #53 merged)
+- ✅ V8: Remove Legacy Caching Implementation (PR #65, merged)
+- ✅ V9.1: Persistent File Cache - Core Implementation (PR #69, merged)
+- ✅ V9.2: Intelligent Cache Invalidation (PR #73, merged)
+- ✅ V9.3: Cache Management UI (PR #76, merged)
+- ✅ V10: Enhanced Progress Feedback for Iteration Selection - Phase 1 (PR #80, merged)
+- ✅ V10: Enhanced Progress Feedback - Phase 2 (PRs #87, #90, #91, merged)
 
 ---
 

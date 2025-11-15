@@ -8,6 +8,7 @@
 import { GitLabClient } from '../../lib/infrastructure/api/GitLabClient.js';
 import { GitLabIterationDataProvider } from '../../lib/infrastructure/adapters/GitLabIterationDataProvider.js';
 import { IterationCacheRepository } from '../../lib/infrastructure/repositories/IterationCacheRepository.js';
+import { FileAnnotationsRepository } from '../../lib/infrastructure/repositories/FileAnnotationsRepository.js';
 import { MetricsService } from '../../lib/core/services/MetricsService.js';
 import { GetCacheStatusUseCase } from '../../lib/core/use-cases/GetCacheStatusUseCase.js';
 
@@ -102,5 +103,15 @@ export class ServiceFactory {
 
     // Create and return use case with injected repository
     return new GetCacheStatusUseCase(cacheRepository);
+  }
+
+  /**
+   * Create FileAnnotationsRepository with configuration
+   *
+   * @param {string} [dataDir='./src/data'] - Data directory path
+   * @returns {FileAnnotationsRepository} Configured annotations repository instance
+   */
+  static createAnnotationsRepository(dataDir = './src/data') {
+    return new FileAnnotationsRepository(dataDir);
   }
 }
