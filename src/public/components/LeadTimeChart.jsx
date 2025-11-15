@@ -5,7 +5,7 @@
  * @module components/LeadTimeChart
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
@@ -111,11 +111,16 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) =>
     }
   }, [excludedIterationIds]);
 
-  // Filter iterations based on exclusions
-  const visibleIterations = selectedIterations.filter(
-    iter => !excludedIterationIds.includes(iter.id)
+  // Filter iterations based on exclusions (memoized to prevent flickering)
+  const visibleIterations = useMemo(
+    () => selectedIterations.filter(iter => !excludedIterationIds.includes(iter.id)),
+    [selectedIterations, excludedIterationIds]
   );
-  const iterationIds = visibleIterations.map(iter => iter.id);
+
+  const iterationIds = useMemo(
+    () => visibleIterations.map(iter => iter.id),
+    [visibleIterations]
+  );
 
   // Fetch annotations for lead time metric
   const { annotations: leadTimeAnnotations } = useAnnotations(
