@@ -30,6 +30,7 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 import CompactHeaderWithIterations from './CompactHeaderWithIterations.jsx';
 import EmptyState from './EmptyState.jsx';
 import IterationSelectionModal from './IterationSelectionModal.jsx';
+import AnnotationModal from './AnnotationModal.jsx';
 import VelocityChart from './VelocityChart.jsx';
 import CycleTimeChart from './CycleTimeChart.jsx';
 import DeploymentFrequencyChart from './DeploymentFrequencyChart.jsx';
@@ -123,6 +124,9 @@ const STORAGE_KEY = 'gitlab-metrics-selected-iterations';
 export default function VelocityApp() {
   const [selectedIterations, setSelectedIterations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAnnotationModalOpen, setIsAnnotationModalOpen] = useState(false);
+  const [editingAnnotation, setEditingAnnotation] = useState(null);
+  const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
 
   // Load selected iterations from localStorage on mount
   useEffect(() => {
@@ -159,6 +163,24 @@ export default function VelocityApp() {
     }
   }, [selectedIterations]);
 
+  // Add keyboard shortcut listener for Ctrl+N to open annotation modal
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      // Check for Ctrl+N (or Cmd+N on Mac)
+      if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
+        event.preventDefault(); // Prevent browser's default "new window" behavior
+        setIsAnnotationModalOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+
+    // Cleanup listener on unmount
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, []);
+
   /**
    * Handle removing an iteration from the header chips
    * @param {string} iterationId - ID of iteration to remove
@@ -193,6 +215,83 @@ export default function VelocityApp() {
     setIsModalOpen(false);
   };
 
+  /**
+   * Handle closing the annotation modal
+   */
+  const handleCloseAnnotationModal = () => {
+    setIsAnnotationModalOpen(false);
+    setEditingAnnotation(null);
+  };
+
+  /**
+   * Handle saving an annotation from the modal
+   * @param {Object} annotationData - Annotation data to save
+   */
+  const handleSaveAnnotation = async (annotationData) => {
+    try {
+      const isEditing = editingAnnotation !== null;
+      const url = isEditing ? `/api/annotations/${editingAnnotation.id}` : '/api/annotations';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(annotationData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Close modal on success
+      setIsAnnotationModalOpen(false);
+      setEditingAnnotation(null);
+
+      // Trigger charts to refresh and show updated annotation
+      setAnnotationRefreshKey(prev => prev + 1);
+    } catch (error) {
+      console.error('Error saving annotation:', error);
+      // TODO: Show error message to user
+    }
+  };
+
+  /**
+   * Handle deleting an annotation
+   * @param {string} annotationId - ID of annotation to delete
+   */
+  const handleDeleteAnnotation = async (annotationId) => {
+    try {
+      const response = await fetch(`/api/annotations/${annotationId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Close modal on success
+      setIsAnnotationModalOpen(false);
+      setEditingAnnotation(null);
+
+      // Trigger charts to refresh and remove deleted annotation
+      setAnnotationRefreshKey(prev => prev + 1);
+    } catch (error) {
+      console.error('Error deleting annotation:', error);
+      // TODO: Show error message to user
+    }
+  };
+
+  /**
+   * Handle editing an annotation
+   * @param {Object} annotation - Annotation to edit
+   */
+  const handleEditAnnotation = (annotation) => {
+    setEditingAnnotation(annotation);
+    setIsAnnotationModalOpen(true);
+  };
+
   return (
     <ErrorBoundary>
       <AppContainer>
@@ -200,6 +299,8 @@ export default function VelocityApp() {
           selectedIterations={selectedIterations}
           onRemoveIteration={handleRemoveIteration}
           onOpenModal={handleOpenModal}
+          onOpenAnnotationModal={() => setIsAnnotationModalOpen(true)}
+          onEditAnnotation={handleEditAnnotation}
         />
 
         <Content>
@@ -212,32 +313,50 @@ export default function VelocityApp() {
             <ChartsGrid>
               <ChartCard>
                 <ChartTitle>Velocity Trend</ChartTitle>
-                <VelocityChart iterationIds={selectedIterations.map(iter => iter.id)} />
+                <VelocityChart
+                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  annotationRefreshKey={annotationRefreshKey}
+                />
               </ChartCard>
 
               <ChartCard>
                 <ChartTitle>Cycle Time</ChartTitle>
-                <CycleTimeChart iterationIds={selectedIterations.map(iter => iter.id)} />
+                <CycleTimeChart
+                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  annotationRefreshKey={annotationRefreshKey}
+                />
               </ChartCard>
 
               <ChartCard>
                 <ChartTitle>Deployment Frequency</ChartTitle>
-                <DeploymentFrequencyChart iterationIds={selectedIterations.map(iter => iter.id)} />
+                <DeploymentFrequencyChart
+                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  annotationRefreshKey={annotationRefreshKey}
+                />
               </ChartCard>
 
               <ChartCard>
                 <ChartTitle>Lead Time</ChartTitle>
-                <LeadTimeChart iterationIds={selectedIterations.map(iter => iter.id)} />
+                <LeadTimeChart
+                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  annotationRefreshKey={annotationRefreshKey}
+                />
               </ChartCard>
 
               <ChartCard>
                 <ChartTitle>MTTR (Mean Time to Recovery)</ChartTitle>
-                <MTTRChart iterationIds={selectedIterations.map(iter => iter.id)} />
+                <MTTRChart
+                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  annotationRefreshKey={annotationRefreshKey}
+                />
               </ChartCard>
 
               <ChartCard>
                 <ChartTitle>Change Failure Rate</ChartTitle>
-                <ChangeFailureRateChart iterationIds={selectedIterations.map(iter => iter.id)} />
+                <ChangeFailureRateChart
+                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  annotationRefreshKey={annotationRefreshKey}
+                />
               </ChartCard>
             </ChartsGrid>
           )}
@@ -248,6 +367,14 @@ export default function VelocityApp() {
           onClose={handleCloseModal}
           onApply={handleApplyIterations}
           selectedIterationIds={selectedIterations.map(iter => iter.id)}
+        />
+
+        <AnnotationModal
+          isOpen={isAnnotationModalOpen}
+          onClose={handleCloseAnnotationModal}
+          onSave={handleSaveAnnotation}
+          onDelete={handleDeleteAnnotation}
+          annotation={editingAnnotation}
         />
       </AppContainer>
     </ErrorBoundary>

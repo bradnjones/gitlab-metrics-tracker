@@ -68,7 +68,9 @@
       "\\.(css|less|scss|sass)$": "identity-obj-proxy",
       "^@/(.*)$": "<rootDir>/src/$1",
       "^../utils/controlLimits\\.js$": "<rootDir>/src/public/utils/__mocks__/controlLimits.cjs",
-      "^\\.\\./utils/controlLimits\\.js$": "<rootDir>/src/public/utils/__mocks__/controlLimits.cjs"
+      "^\\.\\./utils/controlLimits\\.js$": "<rootDir>/src/public/utils/__mocks__/controlLimits.cjs",
+      "^../hooks/useAnnotations\\.js$": "<rootDir>/src/public/hooks/__mocks__/useAnnotations.cjs",
+      "^\\.\\./hooks/useAnnotations\\.js$": "<rootDir>/src/public/hooks/__mocks__/useAnnotations.cjs"
     },
     "setupFilesAfterEnv": [
       "<rootDir>/src/test/setup.js"

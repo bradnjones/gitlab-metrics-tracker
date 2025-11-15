@@ -22,6 +22,7 @@ import styled from 'styled-components';
 import React, { useState } from 'react';
 import CacheStatus from './CacheStatus.jsx';
 import RefreshButton from './RefreshButton.jsx';
+import AnnotationsList from './AnnotationsList.jsx';
 
 /* ===== STYLED COMPONENTS ===== */
 
@@ -311,12 +312,16 @@ const HeaderChangeButton = styled.button`
  * @param {Array<{id: string, title: string, iterationCadence?: {title: string}, iid?: number}>} props.selectedIterations
  * @param {Function} props.onRemoveIteration
  * @param {Function} props.onOpenModal
+ * @param {Function} props.onOpenAnnotationModal - Callback when "Add Annotation" clicked
+ * @param {Function} props.onEditAnnotation - Callback when annotation is clicked for editing
  * @returns {JSX.Element}
  */
 export default function CompactHeaderWithIterations({
   selectedIterations = [],
   onRemoveIteration,
-  onOpenModal
+  onOpenModal,
+  onOpenAnnotationModal,
+  onEditAnnotation
 }) {
   // State to trigger cache status refresh
   const [cacheRefreshKey, setCacheRefreshKey] = useState(0);
@@ -362,6 +367,15 @@ export default function CompactHeaderWithIterations({
   const handleChangeClick = () => {
     if (onOpenModal) {
       onOpenModal();
+    }
+  };
+
+  /**
+   * Handle add annotation button click
+   */
+  const handleAnnotationClick = () => {
+    if (onOpenAnnotationModal) {
+      onOpenAnnotationModal();
     }
   };
 
@@ -416,6 +430,12 @@ export default function CompactHeaderWithIterations({
             <CacheStatus key={cacheRefreshKey} />
             <RefreshButton onRefreshComplete={handleRefreshComplete} />
           </CacheManagementSection>
+
+          <AnnotationsList onEdit={onEditAnnotation} />
+
+          <HeaderChangeButton onClick={handleAnnotationClick} type="button" title="Add Annotation (Ctrl+N)">
+            + Annotation
+          </HeaderChangeButton>
 
           <HeaderChangeButton onClick={handleChangeClick} type="button">
             Change Sprints

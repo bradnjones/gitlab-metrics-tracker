@@ -85,9 +85,9 @@ function transformToEntity(data) {
     transformed.impact = transformed.impact.charAt(0).toUpperCase() + transformed.impact.slice(1);
   }
 
-  // Handle optional description (make empty string if not provided)
+  // Handle optional description (entity requires non-empty string)
   if (!transformed.description || (typeof transformed.description === 'string' && transformed.description.trim() === '')) {
-    transformed.description = ' '; // Entity validation requires non-empty, use space as placeholder
+    transformed.description = '-'; // Use dash as placeholder for empty descriptions
   }
 
   return transformed;
@@ -101,14 +101,16 @@ function transformToEntity(data) {
  */
 function transformFromEntity(annotation) {
   const json = annotation.toJSON();
+  const trimmedDescription = json.description.trim();
   return {
     id: json.id,
     date: json.date,
     title: json.title,
-    description: json.description.trim() || null, // Return null if just whitespace
+    description: (trimmedDescription === '' || trimmedDescription === '-') ? null : json.description, // Return null if empty or placeholder
     type: json.eventType.toLowerCase(),
     impact: json.impact.toLowerCase(),
     affectedMetrics: json.affectedMetrics || [],
+    color: json.color, // Custom annotation color
     createdAt: json.createdAt,
     updatedAt: json.updatedAt,
   };

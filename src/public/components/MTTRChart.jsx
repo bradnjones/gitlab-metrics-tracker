@@ -21,6 +21,7 @@ import {
 } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
+import { useAnnotations } from '../hooks/useAnnotations.js';
 
 // Register Chart.js components for Line charts with annotations
 ChartJS.register(
@@ -91,7 +92,7 @@ const formatDate = (dateString) => {
  * @param {Object|null} limits - Control limits (average, upperLimit, lowerLimit)
  * @returns {Object} Chart.js options
  */
-const getChartOptions = (limits) => {
+const getChartOptions = (limits, eventAnnotations = {}) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -126,64 +127,64 @@ const getChartOptions = (limits) => {
     }
   };
 
+  // Build annotation config by merging control limits and event annotations
+  const allAnnotations = { ...eventAnnotations };
+
   // Add control limit annotations if available
   if (limits) {
-    options.plugins.annotation = {
-      annotations: {
-        upperLimit: {
-          type: 'line',
-          yMin: limits.upperLimit,
-          yMax: limits.upperLimit,
-          borderColor: '#fca5a5',
-          borderWidth: 2,
-          label: {
-            display: true,
-            content: `UCL: ${limits.upperLimit.toFixed(1)} hrs`,
-            position: 'end',
-            backgroundColor: 'rgba(252, 165, 165, 0.8)',
-            color: 'white',
-            font: {
-              size: 11
-            }
-          }
-        },
-        average: {
-          type: 'line',
-          yMin: limits.average,
-          yMax: limits.average,
-          borderColor: '#ef4444',
-          borderWidth: 2,
-          borderDash: [5, 5],
-          label: {
-            display: true,
-            content: `Avg: ${limits.average.toFixed(1)} hrs`,
-            position: 'end',
-            backgroundColor: 'rgba(239, 68, 68, 0.8)',
-            color: 'white',
-            font: {
-              size: 11
-            }
-          }
-        },
-        lowerLimit: {
-          type: 'line',
-          yMin: limits.lowerLimit,
-          yMax: limits.lowerLimit,
-          borderColor: '#fca5a5',
-          borderWidth: 2,
-          label: {
-            display: true,
-            content: `LCL: ${limits.lowerLimit.toFixed(1)} hrs`,
-            position: 'end',
-            backgroundColor: 'rgba(252, 165, 165, 0.8)',
-            color: 'white',
-            font: {
-              size: 11
-            }
-          }
-        }
+    allAnnotations.upperLimit = {
+      type: 'line',
+      yMin: limits.upperLimit,
+      yMax: limits.upperLimit,
+      borderColor: '#fca5a5',
+      borderWidth: 2,
+      label: {
+        display: true,
+        content: `UCL: ${limits.upperLimit.toFixed(1)} hrs`,
+        position: 'end',
+        backgroundColor: 'rgba(252, 165, 165, 0.8)',
+        color: 'white',
+        font: { size: 11 }
       }
     };
+
+    allAnnotations.average = {
+      type: 'line',
+      yMin: limits.average,
+      yMax: limits.average,
+      borderColor: '#ef4444',
+      borderWidth: 2,
+      borderDash: [5, 5],
+      label: {
+        display: true,
+        content: `Avg: ${limits.average.toFixed(1)} hrs`,
+        position: 'end',
+        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+        color: 'white',
+        font: { size: 11 }
+      }
+    };
+
+    allAnnotations.lowerLimit = {
+      type: 'line',
+      yMin: limits.lowerLimit,
+      yMax: limits.lowerLimit,
+      borderColor: '#fca5a5',
+      borderWidth: 2,
+      label: {
+        display: true,
+        content: `LCL: ${limits.lowerLimit.toFixed(1)} hrs`,
+        position: 'end',
+        backgroundColor: 'rgba(252, 165, 165, 0.8)',
+        color: 'white',
+        font: { size: 11 }
+      }
+    };
+  }
+
+  // Set annotations if we have any
+  if (Object.keys(allAnnotations).length > 0) {
+    options.plugins.annotation = { annotations: allAnnotations };
   }
 
   return options;
@@ -194,13 +195,21 @@ const getChartOptions = (limits) => {
  *
  * @param {Object} props - Component props
  * @param {Array<string>} props.iterationIds - Array of iteration IDs to fetch metrics for
+ * @param {number} [props.annotationRefreshKey=0] - Key that triggers annotation re-fetch
  * @returns {JSX.Element} Rendered component
  */
-const MTTRChart = ({ iterationIds}) => {
+const MTTRChart = ({ iterationIds, annotationRefreshKey = 0 }) => {
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [controlLimits, setControlLimits] = useState(null);
   const [error, setError] = useState(null);
+
+  // Fetch annotations for MTTR metric
+  const { annotations: mttrAnnotations } = useAnnotations(
+    'mttr_avg',
+    chartData ? chartData.labels : [],
+    annotationRefreshKey
+  );
 
   useEffect(() => {
     if (!iterationIds || iterationIds.length === 0) {
@@ -286,7 +295,7 @@ const MTTRChart = ({ iterationIds}) => {
         <ChartContainer>
           <Line
             data={chartData}
-            options={getChartOptions(controlLimits)}
+            options={getChartOptions(controlLimits, mttrAnnotations)}
             aria-label="Line chart showing MTTR trends across selected iterations"
             role="img"
           />

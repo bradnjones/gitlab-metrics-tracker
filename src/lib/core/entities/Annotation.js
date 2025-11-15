@@ -53,6 +53,7 @@ export class Annotation {
    * @param {string} data.eventType - Event type (must be in EventType enum)
    * @param {string} data.impact - Impact level (must be in ImpactLevel enum)
    * @param {Array<string>} [data.affectedMetrics] - Metric names affected by this event
+   * @param {string} [data.color] - Hex color code for annotation display (e.g., '#3b82f6')
    * @param {string} [data.createdAt] - ISO 8601 timestamp of creation
    * @param {string} [data.updatedAt] - ISO 8601 timestamp of last update
    */
@@ -64,6 +65,7 @@ export class Annotation {
     this.eventType = data.eventType;
     this.impact = data.impact;
     this.affectedMetrics = data.affectedMetrics || [];
+    this.color = data.color || null; // Optional custom color
     this.createdAt = data.createdAt || new Date().toISOString();
     this.updatedAt = data.updatedAt || new Date().toISOString();
 
@@ -116,6 +118,7 @@ export class Annotation {
       eventType: this.eventType,
       impact: this.impact,
       affectedMetrics: this.affectedMetrics,
+      color: this.color,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };
