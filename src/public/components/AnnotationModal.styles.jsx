@@ -116,7 +116,8 @@ export const ModalFooter = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: ${props => props.theme.spacing.md};
-  padding-top: ${props => props.theme.spacing.md};
+  padding: ${props => props.theme.spacing.lg};
+  border-top: 1px solid ${props => props.theme.colors.border};
 `;
 
 /**

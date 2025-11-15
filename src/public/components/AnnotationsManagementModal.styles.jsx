@@ -12,7 +12,7 @@ import styled from 'styled-components';
 export const ScrollableList = styled.div`
   max-height: 50vh;
   overflow-y: auto;
-  padding: ${props => props.theme.spacing.lg};
+  padding: ${props => props.theme.spacing.md} ${props => props.theme.spacing.lg};
   margin: 0;
 
   /* Firefox scrollbar */
@@ -47,8 +47,8 @@ export const ScrollableList = styled.div`
 export const AnnotationListItem = styled.div`
   display: flex;
   gap: ${props => props.theme.spacing.sm};
-  padding: ${props => props.theme.spacing.md};
-  margin-bottom: ${props => props.theme.spacing.md};
+  padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
+  margin-bottom: ${props => props.theme.spacing.sm};
 
   /* Clean white background */
   background: ${props => props.theme.colors.bgPrimary};
@@ -84,7 +84,7 @@ export const AnnotationContent = styled.div`
   min-width: 0; /* Allow text truncation */
   display: flex;
   flex-direction: column;
-  gap: ${props => props.theme.spacing.sm};
+  gap: 4px;
 `;
 
 /**
@@ -93,7 +93,7 @@ export const AnnotationContent = styled.div`
  */
 export const AnnotationTitle = styled.h4`
   margin: 0;
-  font-size: ${props => props.theme.typography.fontSize.lg};
+  font-size: ${props => props.theme.typography.fontSize.base};
   font-weight: ${props => props.theme.typography.fontWeight.semibold};
   color: ${props => props.theme.colors.textPrimary};
   line-height: ${props => props.theme.typography.lineHeight.tight};
@@ -132,7 +132,7 @@ export const DescriptionPreview = styled.p`
   color: ${props => props.theme.colors.textSecondary};
   line-height: ${props => props.theme.typography.lineHeight.normal};
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
