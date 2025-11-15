@@ -3,7 +3,7 @@
  * Simple dropdown list showing all annotations with edit capability
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import styled from 'styled-components';
 
 const ListContainer = styled.div`
@@ -85,13 +85,21 @@ const EmptyState = styled.div`
  * AnnotationsList component
  * @param {Object} props
  * @param {Function} props.onEdit - Callback when annotation is clicked for editing
+ * @param {React.Ref} ref - Ref to expose imperative handle
  * @returns {JSX.Element}
  */
-export default function AnnotationsList({ onEdit }) {
+const AnnotationsList = forwardRef(({ onEdit }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [annotations, setAnnotations] = useState([]);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Expose open method to parent via ref
+  useImperativeHandle(ref, () => ({
+    open: () => setIsOpen(true),
+    close: () => setIsOpen(false),
+    toggle: () => setIsOpen(prev => !prev),
+  }));
 
   // Fetch annotations on mount to display correct count
   useEffect(() => {
@@ -172,4 +180,8 @@ export default function AnnotationsList({ onEdit }) {
       )}
     </ListContainer>
   );
-}
+});
+
+AnnotationsList.displayName = 'AnnotationsList';
+
+export default AnnotationsList;

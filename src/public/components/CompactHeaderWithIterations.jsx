@@ -348,7 +348,7 @@ const HeaderChangeButton = styled.button`
  * @param {Function} props.onRemoveIteration
  * @param {Function} props.onOpenModal
  * @param {Function} props.onOpenAnnotationModal - Callback when "Add Annotation" clicked
- * @param {Function} props.onEditAnnotation - Callback when annotation is clicked for editing
+ * @param {Function} props.onOpenManageAnnotations - Callback when "Manage Annotations" clicked
  * @returns {JSX.Element}
  */
 export default function CompactHeaderWithIterations({
@@ -356,7 +356,7 @@ export default function CompactHeaderWithIterations({
   onRemoveIteration,
   onOpenModal,
   onOpenAnnotationModal,
-  onEditAnnotation
+  onOpenManageAnnotations
 }) {
   // State to trigger cache status refresh
   const [cacheRefreshKey, setCacheRefreshKey] = useState(0);
@@ -424,12 +424,12 @@ export default function CompactHeaderWithIterations({
 
   /**
    * Handle manage annotations from hamburger menu
-   * Opens the AnnotationsList dropdown
+   * Opens the AnnotationsManagementModal
    */
   const handleManageAnnotations = () => {
-    // This would ideally trigger the AnnotationsList dropdown
-    // For now, we'll use the existing AnnotationsList component inline
-    // Future enhancement: Could convert to modal or expand inline
+    if (onOpenManageAnnotations) {
+      onOpenManageAnnotations();
+    }
   };
 
   return (
