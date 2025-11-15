@@ -333,23 +333,33 @@ export const PrimaryButton = styled.button`
  * @component
  */
 export const SecondaryButton = styled.button`
-  /* Layout */
-  padding: 0.75rem 1.5rem;
+  /* More compact padding */
+  padding: 0.5rem 1rem;
+  min-width: 70px;
 
-  /* Visual */
-  background: ${props => props.theme.colors.bgTertiary};
-  color: ${props => props.theme.colors.textPrimary};
-  border: none;
-  border-radius: ${props => props.theme.borderRadius.lg};
-  font-size: ${props => props.theme.typography.fontSize.base};
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  /* Outlined style instead of filled */
+  background: transparent;
+  color: ${props => props.theme.colors.primary};
+  border: 1.5px solid ${props => props.theme.colors.primary};
+  border-radius: ${props => props.theme.borderRadius.md};
+
+  /* Typography */
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  font-weight: ${props => props.theme.typography.fontWeight.semibold};
   cursor: pointer;
 
-  /* Interaction */
-  transition: all ${props => props.theme.transitions.normal} ${props => props.theme.transitions.easing};
+  /* Smooth transitions */
+  transition: all ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing};
 
   &:hover {
-    background: ${props => props.theme.colors.border};
+    background: ${props => props.theme.colors.primary};
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 
   &:focus {
@@ -363,25 +373,29 @@ export const SecondaryButton = styled.button`
  * @component
  */
 export const DangerButton = styled.button`
-  /* Layout */
-  padding: 0.75rem 1.5rem;
+  /* More compact padding */
+  padding: 0.5rem 1rem;
+  min-width: 70px;
 
-  /* Visual */
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: ${props => props.theme.borderRadius.lg};
-  font-size: ${props => props.theme.typography.fontSize.base};
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  /* Outlined style (not filled red - too aggressive) */
+  background: transparent;
+  color: ${props => props.theme.colors.danger};
+  border: 1.5px solid ${props => props.theme.colors.danger};
+  border-radius: ${props => props.theme.borderRadius.md};
+
+  /* Typography */
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  font-weight: ${props => props.theme.typography.fontWeight.semibold};
   cursor: pointer;
 
-  /* Interaction */
-  transition: all ${props => props.theme.transitions.normal} ${props => props.theme.transitions.easing};
+  /* Smooth transitions */
+  transition: all ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing};
 
   &:hover:not(:disabled) {
-    background: #dc2626;
+    background: ${props => props.theme.colors.danger};
+    color: white;
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.25);
   }
 
   &:active:not(:disabled) {
@@ -389,13 +403,15 @@ export const DangerButton = styled.button`
   }
 
   &:disabled {
-    background: ${props => props.theme.colors.textSecondary};
+    background: transparent;
+    border-color: ${props => props.theme.colors.textSecondary};
+    color: ${props => props.theme.colors.textSecondary};
     cursor: not-allowed;
     opacity: 0.5;
   }
 
   &:focus {
-    outline: 2px solid #ef4444;
+    outline: 2px solid ${props => props.theme.colors.danger};
     outline-offset: 2px;
   }
 `;

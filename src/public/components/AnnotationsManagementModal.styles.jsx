@@ -13,26 +13,30 @@ export const ScrollableList = styled.div`
   max-height: 60vh;
   overflow-y: auto;
   margin: ${props => props.theme.spacing.md} 0;
+  padding-right: ${props => props.theme.spacing.xs}; /* Space for scrollbar */
 
-  /* Scrollbar styling */
+  /* Firefox scrollbar */
   scrollbar-width: thin;
-  scrollbar-color: ${props => props.theme.colors.border} transparent;
+  scrollbar-color: ${props => props.theme.colors.textSecondary} ${props => props.theme.colors.bgTertiary};
 
+  /* Webkit scrollbar */
   &::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
   }
 
   &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: ${props => props.theme.colors.border};
+    background: ${props => props.theme.colors.bgTertiary};
     border-radius: ${props => props.theme.borderRadius.md};
   }
 
-  &::-webkit-scrollbar-thumb:hover {
+  &::-webkit-scrollbar-thumb {
     background: ${props => props.theme.colors.textSecondary};
+    border-radius: ${props => props.theme.borderRadius.md};
+    border: 2px solid ${props => props.theme.colors.bgTertiary};
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: ${props => props.theme.colors.textPrimary};
   }
 `;
 
@@ -42,13 +46,19 @@ export const ScrollableList = styled.div`
  */
 export const AnnotationListItem = styled.div`
   display: flex;
-  gap: ${props => props.theme.spacing.md};
-  padding: ${props => props.theme.spacing.md};
-  margin-bottom: ${props => props.theme.spacing.sm};
-  background: ${props => props.theme.colors.bgPrimary};
+  gap: ${props => props.theme.spacing.sm};
+  padding: ${props => props.theme.spacing.md} ${props => props.theme.spacing.lg};
+  margin-bottom: ${props => props.theme.spacing.md};
+
+  /* Enhanced background with subtle gradient */
+  background: linear-gradient(to right,
+    ${props => props.theme.colors.bgPrimary} 0%,
+    ${props => props.theme.colors.bgSecondary} 100%
+  );
+
+  /* Thicker, more prominent impact border */
   border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.lg};
-  border-left: 4px solid ${props => {
+  border-left: 6px solid ${props => {
     switch (props.$impact) {
       case 'positive':
         return props.theme.colors.success;
@@ -59,12 +69,19 @@ export const AnnotationListItem = styled.div`
         return props.theme.colors.warning;
     }
   }};
+
+  border-radius: ${props => props.theme.borderRadius.md};
   box-shadow: ${props => props.theme.shadows.sm};
+
+  /* Smoother transition */
   transition: all ${props => props.theme.transitions.normal} ${props => props.theme.transitions.easing};
 
   &:hover {
-    background: ${props => props.theme.colors.bgTertiary};
+    /* Lift effect with stronger shadow */
+    transform: translateY(-2px);
     box-shadow: ${props => props.theme.shadows.md};
+    background: ${props => props.theme.colors.bgPrimary};
+    border-color: ${props => props.theme.colors.border};
   }
 
   &:last-child {
@@ -81,7 +98,7 @@ export const AnnotationContent = styled.div`
   min-width: 0; /* Allow text truncation */
   display: flex;
   flex-direction: column;
-  gap: ${props => props.theme.spacing.xs};
+  gap: ${props => props.theme.spacing.sm};
 `;
 
 /**
@@ -90,10 +107,11 @@ export const AnnotationContent = styled.div`
  */
 export const AnnotationTitle = styled.h4`
   margin: 0;
-  font-size: ${props => props.theme.typography.fontSize.base};
+  font-size: ${props => props.theme.typography.fontSize.lg};
   font-weight: ${props => props.theme.typography.fontWeight.semibold};
   color: ${props => props.theme.colors.textPrimary};
   line-height: ${props => props.theme.typography.lineHeight.tight};
+  transition: color ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing};
 `;
 
 /**
@@ -104,13 +122,17 @@ export const AnnotationMeta = styled.div`
   display: flex;
   align-items: center;
   gap: ${props => props.theme.spacing.sm};
-  font-size: ${props => props.theme.typography.fontSize.sm};
+  font-size: ${props => props.theme.typography.fontSize.xs};
   color: ${props => props.theme.colors.textSecondary};
   line-height: ${props => props.theme.typography.lineHeight.normal};
+  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 
   span:not(:last-child)::after {
     content: '•';
     margin-left: ${props => props.theme.spacing.sm};
+    opacity: 0.5;
   }
 `;
 
@@ -146,12 +168,14 @@ export const AffectedMetricsRow = styled.div`
  */
 export const ActionButtonsGroup = styled.div`
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: ${props => props.theme.spacing.sm};
-  align-items: stretch;
+  align-items: center;
   flex-shrink: 0;
+  margin-left: auto;
 
   @media (max-width: ${props => props.theme.breakpoints?.mobile || '768px'}) {
+    flex-direction: column;
     width: 100%;
   }
 `;
