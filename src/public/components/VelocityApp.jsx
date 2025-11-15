@@ -31,6 +31,7 @@ import CompactHeaderWithIterations from './CompactHeaderWithIterations.jsx';
 import EmptyState from './EmptyState.jsx';
 import IterationSelectionModal from './IterationSelectionModal.jsx';
 import AnnotationModal from './AnnotationModal.jsx';
+import AnnotationsManagementModal from './AnnotationsManagementModal.jsx';
 import VelocityChart from './VelocityChart.jsx';
 import CycleTimeChart from './CycleTimeChart.jsx';
 import DeploymentFrequencyChart from './DeploymentFrequencyChart.jsx';
@@ -125,6 +126,7 @@ export default function VelocityApp() {
   const [selectedIterations, setSelectedIterations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAnnotationModalOpen, setIsAnnotationModalOpen] = useState(false);
+  const [isManageAnnotationsModalOpen, setIsManageAnnotationsModalOpen] = useState(false);
   const [editingAnnotation, setEditingAnnotation] = useState(null);
   const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
 
@@ -289,7 +291,41 @@ export default function VelocityApp() {
    */
   const handleEditAnnotation = (annotation) => {
     setEditingAnnotation(annotation);
-    setIsAnnotationModalOpen(true);
+    setIsManageAnnotationsModalOpen(false); // Close manage modal
+    setIsAnnotationModalOpen(true); // Open edit modal
+  };
+
+  /**
+   * Handle opening the manage annotations modal
+   */
+  const handleOpenManageAnnotations = () => {
+    setIsManageAnnotationsModalOpen(true);
+  };
+
+  /**
+   * Handle closing the manage annotations modal
+   */
+  const handleCloseManageAnnotations = () => {
+    setIsManageAnnotationsModalOpen(false);
+  };
+
+  /**
+   * Handle creating a new annotation from manage modal
+   */
+  const handleCreateAnnotation = () => {
+    setEditingAnnotation(null);
+    setIsManageAnnotationsModalOpen(false); // Close manage modal
+    setIsAnnotationModalOpen(true); // Open create modal
+  };
+
+  /**
+   * Handle deleting an annotation from manage modal
+   * @param {string} annotationId - ID of annotation to delete
+   */
+  const handleDeleteAnnotationFromManage = async (annotationId) => {
+    await handleDeleteAnnotation(annotationId);
+    // Refresh the annotations list in the manage modal
+    setAnnotationRefreshKey(prev => prev + 1);
   };
 
   return (
@@ -300,7 +336,7 @@ export default function VelocityApp() {
           onRemoveIteration={handleRemoveIteration}
           onOpenModal={handleOpenModal}
           onOpenAnnotationModal={() => setIsAnnotationModalOpen(true)}
-          onEditAnnotation={handleEditAnnotation}
+          onOpenManageAnnotations={handleOpenManageAnnotations}
         />
 
         <Content>
@@ -375,6 +411,14 @@ export default function VelocityApp() {
           onSave={handleSaveAnnotation}
           onDelete={handleDeleteAnnotation}
           annotation={editingAnnotation}
+        />
+
+        <AnnotationsManagementModal
+          isOpen={isManageAnnotationsModalOpen}
+          onClose={handleCloseManageAnnotations}
+          onEdit={handleEditAnnotation}
+          onDelete={handleDeleteAnnotationFromManage}
+          onCreate={handleCreateAnnotation}
         />
       </AppContainer>
     </ErrorBoundary>
