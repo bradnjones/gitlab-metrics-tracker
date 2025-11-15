@@ -10,10 +10,10 @@ import styled from 'styled-components';
  * @component
  */
 export const ScrollableList = styled.div`
-  max-height: 60vh;
+  max-height: 50vh;
   overflow-y: auto;
-  margin: ${props => props.theme.spacing.md} 0;
-  padding-right: ${props => props.theme.spacing.xs}; /* Space for scrollbar */
+  padding: ${props => props.theme.spacing.lg};
+  margin: 0;
 
   /* Firefox scrollbar */
   scrollbar-width: thin;
@@ -47,28 +47,15 @@ export const ScrollableList = styled.div`
 export const AnnotationListItem = styled.div`
   display: flex;
   gap: ${props => props.theme.spacing.sm};
-  padding: ${props => props.theme.spacing.md} ${props => props.theme.spacing.lg};
+  padding: ${props => props.theme.spacing.md};
   margin-bottom: ${props => props.theme.spacing.md};
 
-  /* Enhanced background with subtle gradient */
-  background: linear-gradient(to right,
-    ${props => props.theme.colors.bgPrimary} 0%,
-    ${props => props.theme.colors.bgSecondary} 100%
-  );
+  /* Clean white background */
+  background: ${props => props.theme.colors.bgPrimary};
 
-  /* Thicker, more prominent impact border */
+  /* Use annotation's custom color for left border */
   border: 1px solid ${props => props.theme.colors.border};
-  border-left: 6px solid ${props => {
-    switch (props.$impact) {
-      case 'positive':
-        return props.theme.colors.success;
-      case 'negative':
-        return props.theme.colors.danger;
-      case 'neutral':
-      default:
-        return props.theme.colors.warning;
-    }
-  }};
+  border-left: 4px solid ${props => props.$color || props.theme.colors.primary};
 
   border-radius: ${props => props.theme.borderRadius.md};
   box-shadow: ${props => props.theme.shadows.sm};
@@ -80,8 +67,7 @@ export const AnnotationListItem = styled.div`
     /* Lift effect with stronger shadow */
     transform: translateY(-2px);
     box-shadow: ${props => props.theme.shadows.md};
-    background: ${props => props.theme.colors.bgPrimary};
-    border-color: ${props => props.theme.colors.border};
+    border-left-width: 5px;
   }
 
   &:last-child {

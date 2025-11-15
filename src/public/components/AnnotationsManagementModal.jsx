@@ -210,7 +210,7 @@ export default function AnnotationsManagementModal({ isOpen, onClose, onEdit, on
   return (
     <ModalOverlay onClick={handleOverlayClick} data-testid="modal-overlay">
       <Modal
-        style={{ maxWidth: '800px' }}
+        style={{ maxWidth: '650px' }}
         onClick={(e) => e.stopPropagation()}
         data-testid="modal-content"
       >
@@ -242,7 +242,7 @@ export default function AnnotationsManagementModal({ isOpen, onClose, onEdit, on
         ) : (
           <ScrollableList>
             {annotations.map((annotation) => (
-              <AnnotationListItem key={annotation.id} $impact={annotation.impact}>
+              <AnnotationListItem key={annotation.id} $color={annotation.color}>
                 <AnnotationContent>
                   <AnnotationTitle>{annotation.title}</AnnotationTitle>
                   <AnnotationMeta>
