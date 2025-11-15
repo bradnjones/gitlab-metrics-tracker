@@ -314,7 +314,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Velocity Trend</ChartTitle>
                 <VelocityChart
-                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                 />
               </ChartCard>
@@ -322,7 +322,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Cycle Time</ChartTitle>
                 <CycleTimeChart
-                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                 />
               </ChartCard>
@@ -330,7 +330,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Deployment Frequency</ChartTitle>
                 <DeploymentFrequencyChart
-                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                 />
               </ChartCard>
@@ -346,7 +346,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>MTTR (Mean Time to Recovery)</ChartTitle>
                 <MTTRChart
-                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                 />
               </ChartCard>
@@ -354,7 +354,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Change Failure Rate</ChartTitle>
                 <ChangeFailureRateChart
-                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                 />
               </ChartCard>

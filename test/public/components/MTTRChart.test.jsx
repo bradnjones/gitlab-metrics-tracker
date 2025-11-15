@@ -47,7 +47,7 @@ describe('MTTRChart', () => {
    * Drives: Basic component structure and prop handling
    */
   it('renders empty state when no iterations are selected', () => {
-    render(<MTTRChart iterationIds={[]} />);
+    render(<MTTRChart selectedIterations={[]} />);
 
     expect(screen.getByText(/select iterations to view mttr metrics/i))
       .toBeInTheDocument();
@@ -58,7 +58,7 @@ describe('MTTRChart', () => {
    * Drives: useState for loading state and useEffect hook setup
    */
   it('displays loading state while fetching MTTR data', () => {
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123']} />);
+    render(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}]} />);
 
     expect(screen.getByText(/loading mttr data/i))
       .toBeInTheDocument();
@@ -95,7 +95,7 @@ describe('MTTRChart', () => {
       })
     });
 
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124']} />);
+    render(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}, {id: 'gid://gitlab/Iteration/124', title: 'Sprint 2'}]} />);
 
     // Wait for data to load and chart to render
     await waitFor(() => {
@@ -119,7 +119,7 @@ describe('MTTRChart', () => {
     // Mock failed API response (fetch throws error)
     global.fetch.mockRejectedValue(new Error('Failed to fetch MTTR data'));
 
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123']} />);
+    render(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}]} />);
 
     // Wait for error to be displayed
     await waitFor(() => {
@@ -164,7 +164,7 @@ describe('MTTRChart', () => {
       })
     });
 
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124']} />);
+    render(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}, {id: 'gid://gitlab/Iteration/124', title: 'Sprint 2'}]} />);
 
     // Wait for data to load and chart to render
     await waitFor(() => {
@@ -215,7 +215,7 @@ describe('MTTRChart', () => {
       })
     });
 
-    render(<MTTRChart iterationIds={['gid://gitlab/Iteration/123']} />);
+    render(<MTTRChart selectedIterations={[{id: 'gid://gitlab/Iteration/123', title: 'Sprint 1'}]} />);
 
     // Wait for chart to render
     await waitFor(() => {
