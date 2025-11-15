@@ -18,7 +18,7 @@ import ChartFilterDropdown from './ChartFilterDropdown';
 // Register Chart.js components
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, annotationPlugin);
 // localStorage key for per-chart filter exclusions
-const FILTER_STORAGE_KEY = '';
+const FILTER_STORAGE_KEY = 'chart-filters-change-failure-rate';
 
 
 /**
@@ -132,6 +132,12 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
 
   useEffect(() => {
     if (!selectedIterations || selectedIterations.length === 0) {
+      setChartData(null);
+      return;
+    }
+
+    // All iterations filtered out via filter dropdown
+    if (iterationIds.length === 0) {
       setChartData(null);
       return;
     }

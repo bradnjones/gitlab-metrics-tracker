@@ -37,6 +37,9 @@ ChartJS.register(
   annotationPlugin
 );
 
+// localStorage key for per-chart filter exclusions
+const FILTER_STORAGE_KEY = 'chart-filters-mttr';
+
 /**
  * Styled components
  */
@@ -261,6 +264,12 @@ const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) => {
 
   useEffect(() => {
     if (!selectedIterations || selectedIterations.length === 0) {
+      return;
+    }
+
+    // All iterations filtered out via filter dropdown
+    if (iterationIds.length === 0) {
+      setChartData(null);
       return;
     }
 

@@ -29,6 +29,9 @@ ChartJS.register(
   annotationPlugin
 );
 
+// localStorage key for per-chart filter exclusions
+const FILTER_STORAGE_KEY = 'chart-filters-cycle-time';
+
 const Container = styled.div`
   padding: 20px;
 
@@ -137,6 +140,12 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) =
   useEffect(() => {
     // Don't fetch if no iterations selected
     if (!selectedIterations || selectedIterations.length === 0) {
+      setChartData(null);
+      return;
+    }
+
+    // All iterations filtered out via filter dropdown
+    if (iterationIds.length === 0) {
       setChartData(null);
       return;
     }
