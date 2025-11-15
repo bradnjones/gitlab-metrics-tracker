@@ -150,11 +150,11 @@ const MenuItemText = styled.span`
 /**
  * HamburgerMenu Component
  *
- * Dropdown menu for header actions (Manage Annotations, + Annotation, Change Sprints)
+ * Dropdown menu for header actions (Manage Annotations, Add Annotation, Change Sprints)
  *
  * @param {Object} props
  * @param {Function} props.onManageAnnotations - Callback for "Manage Annotations" action
- * @param {Function} props.onAddAnnotation - Callback for "+ Annotation" action
+ * @param {Function} props.onAddAnnotation - Callback for "Add Annotation" action
  * @param {Function} props.onChangeSprints - Callback for "Change Sprints" action
  * @returns {JSX.Element}
  */
@@ -249,7 +249,7 @@ export default function HamburgerMenu({ onManageAnnotations, onAddAnnotation, on
             type="button"
           >
             <MenuItemIcon>➕</MenuItemIcon>
-            <MenuItemText>+ Annotation</MenuItemText>
+            <MenuItemText>Add Annotation</MenuItemText>
           </MenuItem>
 
           <MenuItem

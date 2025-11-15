@@ -128,7 +128,7 @@ describe('HamburgerMenu', () => {
 
     // Assert - Menu items have correct text
     expect(screen.getByText('Manage Annotations')).toBeInTheDocument();
-    expect(screen.getByText('+ Annotation')).toBeInTheDocument();
+    expect(screen.getByText('Add Annotation')).toBeInTheDocument();
     expect(screen.getByText('Change Sprints')).toBeInTheDocument();
 
     // Act - Click "Manage Annotations"
@@ -144,8 +144,8 @@ describe('HamburgerMenu', () => {
     // Re-open menu for next test
     await user.click(button);
 
-    // Act - Click "+ Annotation"
-    await user.click(screen.getByText('+ Annotation'));
+    // Act - Click "Add Annotation"
+    await user.click(screen.getByText('Add Annotation'));
 
     // Assert - Callback called and menu closed
     expect(mockOnAddAnnotation).toHaveBeenCalledTimes(1);

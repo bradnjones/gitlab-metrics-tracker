@@ -453,6 +453,7 @@ describe('AnnotationModal', () => {
       type: 'process',
       impact: 'positive',
       affectedMetrics: ['velocity', 'throughput'],
+      color: '#3b82f6',
     });
   });
 
@@ -499,6 +500,7 @@ describe('AnnotationModal', () => {
       type: 'team',
       impact: 'positive',
       affectedMetrics: ['velocity'],
+      color: '#3b82f6',
     });
   });
 
