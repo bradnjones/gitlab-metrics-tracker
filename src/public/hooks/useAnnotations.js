@@ -87,6 +87,11 @@ export function useAnnotations(metricKey, dateLabels = [], refreshKey = 0) {
 function transformToChartAnnotations(annotations, dateLabels) {
   const config = {};
 
+  // Early return if no date labels - can't position annotations
+  if (!dateLabels || dateLabels.length === 0) {
+    return config;
+  }
+
   annotations.forEach((annotation, index) => {
     // Parse annotation date
     const annotationDateObj = new Date(annotation.date + 'T12:00:00'); // Noon to avoid timezone issues
