@@ -244,6 +244,21 @@ const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) => {
     }
   }, [excludedIterationIds]);
 
+  // Clean up excluded iterations that are no longer in selectedIterations
+  useEffect(() => {
+    if (!selectedIterations || selectedIterations.length === 0) {
+      return;
+    }
+
+    const selectedIds = selectedIterations.map(iter => iter.id);
+    const validExcludedIds = excludedIterationIds.filter(id => selectedIds.includes(id));
+
+    // Only update if some excluded iterations were removed from selection
+    if (validExcludedIds.length !== excludedIterationIds.length) {
+      setExcludedIterationIds(validExcludedIds);
+    }
+  }, [selectedIterations]);
+
   // Filter iterations based on exclusions (memoized to prevent flickering)
   const visibleIterations = useMemo(
     () => selectedIterations.filter(iter => !excludedIterationIds.includes(iter.id)),
