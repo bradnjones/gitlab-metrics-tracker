@@ -338,7 +338,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Lead Time</ChartTitle>
                 <LeadTimeChart
-                  iterationIds={selectedIterations.map(iter => iter.id)}
+                  selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                 />
               </ChartCard>
