@@ -122,11 +122,10 @@ function formatRelativeTime(isoTimestamp) {
  *
  * @returns {JSX.Element} Cache status indicator
  */
-export default function CacheStatus() {
+function CacheStatus() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [cacheData, setCacheData] = useState(null);
-  const [timeTick, setTimeTick] = useState(Date.now());
 
   // Poll for cache status updates every 5 seconds
   useEffect(() => {
@@ -176,24 +175,12 @@ export default function CacheStatus() {
     return () => clearInterval(pollInterval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update time tick every minute for relative time display
-  useEffect(() => {
-    const timeInterval = setInterval(() => {
-      setTimeTick(Date.now());
-    }, 60000); // Update every 60 seconds
-
-    return () => clearInterval(timeInterval);
-  }, []);
-
   // Memoize formatted time to prevent flickering
-  // Only recalculates when timestamp or timeTick changes (once per minute)
+  // Only recalculates when the actual timestamp changes (when cache is refreshed)
   const formattedLastUpdated = useMemo(() => {
     if (!cacheData?.globalLastUpdated) return null;
-    // Use timeTick to trigger recalculation, but ignore its value
-    // This ensures the time updates every minute without causing flicker
-    void timeTick;
     return formatRelativeTime(cacheData.globalLastUpdated);
-  }, [cacheData?.globalLastUpdated, timeTick]);
+  }, [cacheData?.globalLastUpdated]);
 
   // Loading state
   if (loading) {
@@ -245,3 +232,6 @@ export default function CacheStatus() {
     </Container>
   );
 }
+
+// Wrap with memo to prevent re-renders when parent updates
+export default React.memo(CacheStatus);
