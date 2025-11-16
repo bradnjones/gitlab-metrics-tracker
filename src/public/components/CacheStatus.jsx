@@ -146,15 +146,15 @@ function CacheStatus() {
         const data = await response.json();
 
         // Only update state if data has actually changed
-        // This prevents unnecessary re-renders when timestamp is identical
+        // Focus on timestamp and count - ignore iterations array changes to prevent flicker
         setCacheData(prevData => {
           if (!prevData) return data;
 
-          // Compare relevant fields to detect actual changes
+          // Only update if timestamp or count changed
+          // Iterations array may have reference changes but same data - ignore those
           const hasChanged =
             prevData.globalLastUpdated !== data.globalLastUpdated ||
-            prevData.totalCachedIterations !== data.totalCachedIterations ||
-            JSON.stringify(prevData.iterations) !== JSON.stringify(data.iterations);
+            prevData.totalCachedIterations !== data.totalCachedIterations;
 
           return hasChanged ? data : prevData;
         });
