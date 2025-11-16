@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import IterationSelectionModal from '../../../src/public/components/IterationSelectionModal.jsx';
 
@@ -219,9 +219,15 @@ describe('IterationSelectionModal', () => {
       </ThemeProvider>
     );
 
-    // Wait for component to fully load
+    // Wait for component to fully load and useEffect to complete
     await waitFor(() => {
       expect(screen.getByText('Select Sprint Iterations')).toBeInTheDocument();
+    });
+
+    // Wait for all state updates from useEffect
+    await waitFor(() => {
+      const applyButton = screen.getByText('Apply');
+      expect(applyButton).toBeInTheDocument();
     });
 
     // Modal should render successfully with download state initialized
@@ -267,23 +273,25 @@ describe('IterationSelectionModal', () => {
       </ThemeProvider>
     );
 
-    // Wait for initial render
+    // Wait for initial render and useEffect to complete
     await waitFor(() => {
       expect(screen.getByText('Select Sprint Iterations')).toBeInTheDocument();
     });
 
     // Now select an iteration (simulating user checking an iteration)
     // This should trigger prefetch
-    rerender(
-      <ThemeProvider theme={theme}>
-        <IterationSelectionModal
-          isOpen={true}
-          onClose={() => {}}
-          onApply={() => {}}
-          selectedIterationIds={['gid://gitlab/Iteration/123']}
-        />
-      </ThemeProvider>
-    );
+    act(() => {
+      rerender(
+        <ThemeProvider theme={theme}>
+          <IterationSelectionModal
+            isOpen={true}
+            onClose={() => {}}
+            onApply={() => {}}
+            selectedIterationIds={['gid://gitlab/Iteration/123']}
+          />
+        </ThemeProvider>
+      );
+    });
 
     // Wait for prefetch to be called
     await waitFor(() => {
@@ -296,10 +304,21 @@ describe('IterationSelectionModal', () => {
     // We can verify by checking that fetch was called but hasn't resolved yet
     expect(global.fetch).toHaveBeenCalled();
 
-    // Clean up: resolve the fetch promise
+    // Clean up: resolve the fetch promise and wait for state updates
     resolveFetch({
       ok: true,
       json: () => Promise.resolve({ data: 'test' })
+    });
+
+    // Wait for all async state updates to complete
+    await waitFor(() => {
+      // Just wait for any pending state updates
+      expect(screen.getByText('Apply')).toBeInTheDocument();
+    });
+
+    // Final flush to ensure all state updates complete before test ends
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
     });
   });
 
@@ -334,22 +353,24 @@ describe('IterationSelectionModal', () => {
       </ThemeProvider>
     );
 
-    // Wait for initial render
+    // Wait for initial render and useEffect to complete
     await waitFor(() => {
       expect(screen.getByText('Select Sprint Iterations')).toBeInTheDocument();
     });
 
     // Select an iteration to trigger prefetch
-    rerender(
-      <ThemeProvider theme={theme}>
-        <IterationSelectionModal
-          isOpen={true}
-          onClose={() => {}}
-          onApply={() => {}}
-          selectedIterationIds={['gid://gitlab/Iteration/456']}
-        />
-      </ThemeProvider>
-    );
+    act(() => {
+      rerender(
+        <ThemeProvider theme={theme}>
+          <IterationSelectionModal
+            isOpen={true}
+            onClose={() => {}}
+            onApply={() => {}}
+            selectedIterationIds={['gid://gitlab/Iteration/456']}
+          />
+        </ThemeProvider>
+      );
+    });
 
     // Wait for prefetch to complete
     await waitFor(() => {
@@ -358,12 +379,20 @@ describe('IterationSelectionModal', () => {
       );
     }, { timeout: 3000 });
 
-    // Give time for async state update after fetch resolves
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Wait for all async state updates to complete after fetch resolves
+    await waitFor(() => {
+      const applyButton = screen.getByText('Apply');
+      expect(applyButton).toBeInTheDocument();
+    });
 
     // At this point, download should be complete
     // (We can't directly test state, but we know from implementation it should be 'complete')
     expect(global.fetch).toHaveBeenCalled();
+
+    // Final flush to ensure all state updates complete before test ends
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
   });
 
   /**
@@ -394,22 +423,24 @@ describe('IterationSelectionModal', () => {
       </ThemeProvider>
     );
 
-    // Wait for initial render
+    // Wait for initial render and useEffect to complete
     await waitFor(() => {
       expect(screen.getByText('Select Sprint Iterations')).toBeInTheDocument();
     });
 
     // Select an iteration to trigger prefetch
-    rerender(
-      <ThemeProvider theme={theme}>
-        <IterationSelectionModal
-          isOpen={true}
-          onClose={() => {}}
-          onApply={() => {}}
-          selectedIterationIds={['gid://gitlab/Iteration/789']}
-        />
-      </ThemeProvider>
-    );
+    act(() => {
+      rerender(
+        <ThemeProvider theme={theme}>
+          <IterationSelectionModal
+            isOpen={true}
+            onClose={() => {}}
+            onApply={() => {}}
+            selectedIterationIds={['gid://gitlab/Iteration/789']}
+          />
+        </ThemeProvider>
+      );
+    });
 
     // Wait for prefetch to be called
     await waitFor(() => {
@@ -418,12 +449,21 @@ describe('IterationSelectionModal', () => {
       );
     }, { timeout: 3000 });
 
-    // Give time for async error handling
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Wait for all async error handling and state updates to complete
+    // Give time for error state to be processed
+    await waitFor(() => {
+      // Modal should still be visible even with error
+      expect(screen.getByText('Select Sprint Iterations')).toBeInTheDocument();
+    });
 
     // At this point, download should have error status
     // (We can't directly test state, but we know from implementation it should be 'error')
     expect(global.fetch).toHaveBeenCalled();
+
+    // Final flush to ensure all state updates complete before test ends
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
   });
 
   /**
@@ -484,16 +524,18 @@ describe('IterationSelectionModal', () => {
     }, { timeout: 2000 });
 
     // Now select an additional iteration that needs to download
-    rerender(
-      <ThemeProvider theme={theme}>
-        <IterationSelectionModal
-          isOpen={true}
-          onClose={() => {}}
-          onApply={() => {}}
-          selectedIterationIds={['gid://gitlab/Iteration/1', 'gid://gitlab/Iteration/2']}
-        />
-      </ThemeProvider>
-    );
+    act(() => {
+      rerender(
+        <ThemeProvider theme={theme}>
+          <IterationSelectionModal
+            isOpen={true}
+            onClose={() => {}}
+            onApply={() => {}}
+            selectedIterationIds={['gid://gitlab/Iteration/1', 'gid://gitlab/Iteration/2']}
+          />
+        </ThemeProvider>
+      );
+    });
 
     // Wait for prefetch to start
     await waitFor(() => {
@@ -522,5 +564,10 @@ describe('IterationSelectionModal', () => {
       applyButton = screen.getByText('Apply');
       expect(applyButton).not.toBeDisabled();
     }, { timeout: 1000 });
+
+    // Final flush to ensure all state updates complete before test ends
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
   });
 });
