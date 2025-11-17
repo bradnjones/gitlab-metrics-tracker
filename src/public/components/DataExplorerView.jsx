@@ -45,14 +45,14 @@ const SectionTitle = styled.h2`
 `;
 
 /**
- * Styled table
+ * Styled table - compact for maximum data density
  *
  * @component
  */
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  font-size: ${props => props.theme.typography.fontSize.sm};
+  font-size: ${props => props.theme.typography.fontSize.xs};
   min-width: 600px;
 
   @media (min-width: ${props => props.theme.breakpoints.tablet}) {
@@ -76,9 +76,9 @@ const TableHeader = styled.thead`
  * @component
  */
 const TableHeaderCell = styled.th`
-  padding: ${props => props.theme.spacing.md};
+  padding: ${props => props.theme.spacing.xs} ${props => props.theme.spacing.sm};
   text-align: left;
-  font-size: ${props => props.theme.typography.fontSize.sm};
+  font-size: ${props => props.theme.typography.fontSize.xs};
   font-weight: ${props => props.theme.typography.fontWeight.semibold};
   color: ${props => props.theme.colors.textPrimary};
   text-transform: uppercase;
@@ -86,11 +86,11 @@ const TableHeaderCell = styled.th`
   white-space: nowrap;
 
   &:first-child {
-    padding-left: ${props => props.theme.spacing.lg};
+    padding-left: ${props => props.theme.spacing.md};
   }
 
   &:last-child {
-    padding-right: ${props => props.theme.spacing.lg};
+    padding-right: ${props => props.theme.spacing.md};
   }
 `;
 
@@ -127,20 +127,20 @@ const TableRow = styled.tr`
  * @component
  */
 const TableCell = styled.td`
-  padding: ${props => props.theme.spacing.md};
-  font-size: ${props => props.theme.typography.fontSize.sm};
+  padding: ${props => props.theme.spacing.xs} ${props => props.theme.spacing.sm};
+  font-size: ${props => props.theme.typography.fontSize.xs};
   font-weight: ${props => props.theme.typography.fontWeight.normal};
   color: ${props => props.theme.colors.textSecondary};
-  line-height: ${props => props.theme.typography.lineHeight.normal};
+  line-height: ${props => props.theme.typography.lineHeight.tight};
 
   &:first-child {
-    padding-left: ${props => props.theme.spacing.lg};
+    padding-left: ${props => props.theme.spacing.md};
     color: ${props => props.theme.colors.textPrimary};
     font-weight: ${props => props.theme.typography.fontWeight.medium};
   }
 
   &:last-child {
-    padding-right: ${props => props.theme.spacing.lg};
+    padding-right: ${props => props.theme.spacing.md};
   }
 
   max-width: 300px;
