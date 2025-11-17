@@ -1,7 +1,7 @@
 # Story Backlog - Vertical Slices
 
 **Approach:** Vertical slices delivering complete user value (GitLab → Core → API → UI)
-**Last Updated:** 2025-11-14
+**Last Updated:** 2025-11-17
 **Previous Approach:** Horizontal architectural layers (archived in `archived-horizontal-backlog.md`)
 
 ---
@@ -32,6 +32,125 @@ See below for full details.
 - ✅ V9.3: Cache Management UI (PR #76, merged)
 - ✅ V10: Enhanced Progress Feedback for Iteration Selection - Phase 1 (PR #80, merged)
 - ✅ V10: Enhanced Progress Feedback - Phase 2 (PRs #87, #90, #91, merged)
+
+---
+
+## 🐛 Known Bugs & Issues
+
+### BUG-001: Cache Aging Indicator Flickering (HIGH PRIORITY)
+
+**Status:** Open
+**Priority:** High
+**Component:** CacheStatus
+**Affects:** Main branch (v2.0)
+**Reported:** 2025-11-17
+**Related:** PR #103 (attempted fix, incomplete)
+
+**Problem:**
+The cache aging indicator's "Updated X ago" text flickers/changes rapidly every few seconds, creating a distracting visual effect.
+
+**Observed Behavior:**
+- **What flickers:** The relative time text (e.g., "Updated 5 minutes ago")
+- **Frequency:** Every few seconds (approximately every 5 seconds)
+- **When:** Continuously, even when user is not interacting
+- **Where:** Cache status section in CompactHeaderWithIterations component
+
+**Technical Details:**
+
+*Component Hierarchy:*
+```
+VelocityApp
+└── CompactHeaderWithIterations
+    └── CacheStatus (key={cacheRefreshKey})
+```
+
+*Current Implementation:*
+- File: `src/public/components/CacheStatus.jsx`
+- Polls `/api/cache/status` every 5 seconds
+- Wrapped with `React.memo` (line 237)
+- Uses smart state comparison to prevent unnecessary updates
+- Uses `useMemo` for formatted time calculation
+- Only updates state when `globalLastUpdated` or `totalCachedIterations` change
+
+*Previous Fix Attempt (PR #103, commit 4d5f57f):*
+1. ✅ Smart state comparison (only update if data changed)
+2. ✅ useMemo for formatted time calculation
+3. ✅ React.memo wrapper to prevent parent re-renders
+4. ❌ **Result:** Did NOT fully resolve the flickering issue
+
+**Investigation Findings - What Did NOT Work:**
+
+1. **Wrapping CompactHeaderWithIterations with React.memo**
+   - Added `React.memo(CompactHeaderWithIterations)` with custom comparison function
+   - Compared iteration IDs instead of array references
+   - Result: ❌ Still flickering
+
+2. **Memoizing VelocityApp callback functions**
+   - Used `useCallback` for all callbacks:
+     - `handleRemoveIteration`
+     - `handleOpenModal`
+     - `handleOpenAnnotationModal`
+     - `handleOpenManageAnnotations`
+   - Result: ❌ Still flickering
+
+3. **Custom comparison function for React.memo**
+   - Added `arePropsEqual` function comparing iteration IDs
+   - Compared callback function references
+   - Result: ❌ Still flickering
+
+4. **Removing new components** (debugging)
+   - Temporarily removed ViewNavigation component
+   - Result: ❌ Still flickering (confirms issue exists on main branch)
+
+**Root Cause Hypothesis:**
+
+The flickering occurs despite all memoization attempts. Possible causes:
+1. The `formatRelativeTime()` function may be called during render even with memoization
+2. The polling interval (5 seconds) may coincide with React's render cycle
+3. The `key` prop on CacheStatus (`key={cacheRefreshKey}`) may be causing remounts
+4. Layout thrashing or reflow issue triggering re-renders
+5. API response may have subtle differences bypassing comparison logic
+6. React DevTools/Strict Mode double-rendering in development
+
+**Files Involved:**
+- `src/public/components/CacheStatus.jsx` (primary)
+- `src/public/components/CompactHeaderWithIterations.jsx` (parent)
+- `src/public/components/VelocityApp.jsx` (grandparent)
+- `src/server/routes/api.js` (cache status endpoint)
+- `test/public/components/CacheStatus.test.jsx` (8 tests, 88% coverage)
+- `test/public/components/CompactHeaderWithIterations.regression.test.jsx` (5 tests added)
+
+**Testing Evidence:**
+- All tests pass (59 test suites, 630 tests)
+- Tests do NOT catch the flickering (visual/timing issue during actual polling)
+
+**Reproduction Steps:**
+1. Start application (`npm run dev`)
+2. Navigate to http://localhost:5173
+3. Select 2-3 sprint iterations
+4. Watch cache status indicator in header
+5. Observe "Updated X ago" text flickering every ~5 seconds
+
+**Acceptance Criteria for Fix:**
+1. ✅ "Updated X ago" text remains stable between cache refreshes
+2. ✅ Text only updates when cache is actually refreshed
+3. ✅ No visual flickering or rapid text changes
+4. ✅ All existing tests continue to pass
+5. ✅ Regression test added to prevent recurrence
+6. ✅ Coverage remains ≥85%
+
+**Additional Investigation Needed:**
+1. **Browser DevTools Profiling:** Use React DevTools Profiler to identify what triggers re-renders
+2. **API Response Analysis:** Log API responses to verify they're identical between polls
+3. **Time Calculation:** Verify `formatRelativeTime()` isn't called on every render
+4. **React Strict Mode:** Check if development mode's double-rendering contributes
+5. **Alternative Approaches:**
+   - Remove real-time updates (only update on manual refresh)
+   - Increase polling interval from 5s to 30s or 60s
+   - Display absolute time instead of relative time
+   - Use separate mechanism for time updates (RequestAnimationFrame, separate timer)
+
+**Estimated Effort:** 2-4 hours (requires deep debugging)
 
 ---
 

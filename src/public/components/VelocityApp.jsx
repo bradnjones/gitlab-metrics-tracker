@@ -24,10 +24,11 @@
  * @returns {JSX.Element} Rendered application
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import CompactHeaderWithIterations from './CompactHeaderWithIterations.jsx';
+import ViewNavigation from './ViewNavigation.jsx';
 import EmptyState from './EmptyState.jsx';
 import IterationSelectionModal from './IterationSelectionModal.jsx';
 import AnnotationModal from './AnnotationModal.jsx';
@@ -125,6 +126,7 @@ const STORAGE_KEY = 'gitlab-metrics-selected-iterations';
 
 export default function VelocityApp() {
   const [selectedIterations, setSelectedIterations] = useState([]);
+  const [currentView, setCurrentView] = useState('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAnnotationModalOpen, setIsAnnotationModalOpen] = useState(false);
   const [isManageAnnotationsModalOpen, setIsManageAnnotationsModalOpen] = useState(false);
@@ -188,19 +190,33 @@ export default function VelocityApp() {
    * Handle removing an iteration from the header chips
    * @param {string} iterationId - ID of iteration to remove
    */
-  const handleRemoveIteration = (iterationId) => {
+  const handleRemoveIteration = useCallback((iterationId) => {
     setSelectedIterations(prev => prev.filter(iter => iter.id !== iterationId));
-  };
+  }, []);
 
   /**
    * Handle opening the iteration selection modal
    * Clears graphs and selections to start fresh
    */
-  const handleOpenModal = () => {
+  const handleOpenModal = useCallback(() => {
     // Clear all selections when opening modal (graphs will clear automatically)
     setSelectedIterations([]);
     setIsModalOpen(true);
-  };
+  }, []);
+
+  /**
+   * Handle opening the annotation modal
+   */
+  const handleOpenAnnotationModal = useCallback(() => {
+    setIsAnnotationModalOpen(true);
+  }, []);
+
+  /**
+   * Handle opening the manage annotations modal
+   */
+  const handleOpenManageAnnotations = useCallback(() => {
+    setIsManageAnnotationsModalOpen(true);
+  }, []);
 
   /**
    * Handle closing the iteration selection modal
@@ -296,12 +312,6 @@ export default function VelocityApp() {
     setIsAnnotationModalOpen(true); // Open edit modal
   };
 
-  /**
-   * Handle opening the manage annotations modal
-   */
-  const handleOpenManageAnnotations = () => {
-    setIsManageAnnotationsModalOpen(true);
-  };
 
   /**
    * Handle closing the manage annotations modal
@@ -336,8 +346,14 @@ export default function VelocityApp() {
           selectedIterations={selectedIterations}
           onRemoveIteration={handleRemoveIteration}
           onOpenModal={handleOpenModal}
-          onOpenAnnotationModal={() => setIsAnnotationModalOpen(true)}
+          onOpenAnnotationModal={handleOpenAnnotationModal}
           onOpenManageAnnotations={handleOpenManageAnnotations}
+        />
+
+        <ViewNavigation
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          hasSelectedIterations={selectedIterations.length > 0}
         />
 
         <Content>
@@ -348,8 +364,10 @@ export default function VelocityApp() {
             />
           ) : (
             <>
-              <MetricsSummary selectedIterations={selectedIterations} />
-              <ChartsGrid>
+              {currentView === 'dashboard' && (
+                <>
+                  <MetricsSummary selectedIterations={selectedIterations} />
+                  <ChartsGrid>
               <ChartCard>
                 <ChartTitle>Velocity Trend</ChartTitle>
                 <VelocityChart
@@ -398,6 +416,29 @@ export default function VelocityApp() {
                 />
               </ChartCard>
             </ChartsGrid>
+                </>
+              )}
+
+              {currentView === 'annotations' && (
+                <EmptyState
+                  title="Annotations View"
+                  message="Annotation timeline view coming soon. For now, use the hamburger menu to manage annotations."
+                />
+              )}
+
+              {currentView === 'insights' && (
+                <EmptyState
+                  title="Insights View"
+                  message="Insights and correlation analysis view coming soon."
+                />
+              )}
+
+              {currentView === 'dataExplorer' && (
+                <EmptyState
+                  title="Data Explorer"
+                  message="Raw data tables view coming soon."
+                />
+              )}
             </>
           )}
         </Content>
