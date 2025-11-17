@@ -13,6 +13,7 @@ import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
 import { useAnnotations } from '../hooks/useAnnotations.js';
 import ChartFilterDropdown from './ChartFilterDropdown';
+import ChartEnlargementModal from './ChartEnlargementModal';
 
 // Register Chart.js components
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, annotationPlugin);
@@ -65,7 +66,18 @@ const ChartContainer = styled.div`
   height: 400px;
   padding: 20px;
   background: white;
+  cursor: pointer;
   border-radius: 8px;
+  transition: box-shadow 200ms ease-in-out;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  &:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
 `;
 
 /**
@@ -82,6 +94,7 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) =>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [excludedIterationIds, setExcludedIterationIds] = useState([]);
+  const [isEnlarged, setIsEnlarged] = useState(false);
 
   // Load excluded iterations from localStorage on mount
   useEffect(() => {
@@ -395,14 +408,41 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) =>
         />
       </FilterContainer>
       {chartData && (
-        <ChartContainer>
-          <Line
-            data={chartData}
-            options={getChartOptions(controlLimits, leadTimeAnnotations)}
-            aria-label="Line chart showing lead time trends with average, P50, and P90 metrics across selected iterations, including statistical control limits"
-            role="img"
+        <>
+          <ChartContainer
+            onClick={() => setIsEnlarged(true)}
+            role="button"
+            tabIndex={0}
+            aria-label="Click to enlarge lead time chart"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsEnlarged(true);
+              }
+            }}
+          >
+            <Line
+              data={chartData}
+              options={getChartOptions(controlLimits, leadTimeAnnotations)}
+              aria-label="Line chart showing lead time trends with average, P50, and P90 metrics across selected iterations, including statistical control limits"
+              role="img"
+            />
+          </ChartContainer>
+
+          <ChartEnlargementModal
+            isOpen={isEnlarged}
+            onClose={() => setIsEnlarged(false)}
+            chartTitle="Lead Time Metrics"
+            chartElement={
+              <Line
+                data={chartData}
+                options={getChartOptions(controlLimits, leadTimeAnnotations)}
+                aria-label="Line chart showing lead time trends with average, P50, and P90 metrics across selected iterations, including statistical control limits"
+                role="img"
+              />
+            }
           />
-        </ChartContainer>
+        </>
       )}
     </Container>
   );
