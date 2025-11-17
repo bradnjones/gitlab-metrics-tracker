@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 
 /* ===== STYLED COMPONENTS ===== */
@@ -173,6 +174,74 @@ const EmptyStateMessage = styled.p`
   margin: 0;
 `;
 
+/**
+ * Loading spinner container
+ *
+ * @component
+ */
+const LoadingContainer = styled.div`
+  padding: ${props => props.theme.spacing.xl};
+  text-align: center;
+  color: ${props => props.theme.colors.textSecondary};
+`;
+
+/**
+ * Coming soon message
+ *
+ * @component
+ */
+const ComingSoonMessage = styled.div`
+  padding: ${props => props.theme.spacing.xl};
+  text-align: center;
+  color: ${props => props.theme.colors.textSecondary};
+  font-size: ${props => props.theme.typography.fontSize.base};
+  font-style: italic;
+`;
+
+/* ===== HELPER FUNCTIONS ===== */
+
+/**
+ * Calculate cycle time in days from created to closed dates
+ *
+ * @param {string} createdAt - ISO date string when issue was created
+ * @param {string|null} closedAt - ISO date string when issue was closed (null if open)
+ * @returns {number|null} Cycle time in days (rounded to 1 decimal) or null if not closed
+ */
+const calculateCycleTime = (createdAt, closedAt) => {
+  if (!closedAt) return null;
+
+  const created = new Date(createdAt);
+  const closed = new Date(closedAt);
+  const diffMs = closed - created;
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  return Math.round(diffDays * 10) / 10; // Round to 1 decimal
+};
+
+/**
+ * Transform GitLab issue to Story table format
+ *
+ * @param {Object} issue - GitLab issue object from rawData
+ * @param {string} iterationTitle - Title of the iteration
+ * @returns {Object} Transformed story object for table display
+ */
+const transformIssueToStory = (issue, iterationTitle) => {
+  const cycleTime = issue.closedAt
+    ? calculateCycleTime(issue.createdAt, issue.closedAt)
+    : null;
+
+  return {
+    id: issue.id,
+    title: issue.title,
+    points: issue.weight || 1,
+    status: issue.state === 'closed' ? 'Closed' : 'Open',
+    cycleTime: cycleTime !== null ? cycleTime : null,
+    assignees: issue.assignees && issue.assignees.length > 0
+      ? issue.assignees.map(a => a.username).join(', ')
+      : 'Unassigned'
+  };
+};
+
 /* ===== COMPONENT ===== */
 
 /**
@@ -181,27 +250,73 @@ const EmptyStateMessage = styled.p`
  * Displays raw data tables for Stories, Incidents, Merge Requests, and Deployments
  * from selected sprint iterations.
  *
+ * Phase 1: Fetches Stories data from /api/metrics/velocity (only endpoint with raw data)
+ * Phase 2: Will fetch Incidents, MRs, Deployments when backend exposes raw data
+ *
  * @param {Object} props
- * @param {Array} props.selectedIterations - Selected sprint iterations
- * @param {Array} props.storiesData - Stories/issues data
- * @param {Array} props.incidentsData - Production incidents data
- * @param {Array} props.mergeRequestsData - Merge requests data
- * @param {Array} props.deploymentsData - Deployment data
+ * @param {Array} props.selectedIterations - Selected sprint iterations [{id, title, ...}]
  * @returns {JSX.Element}
  */
-export default function DataExplorerView({
-  selectedIterations,
-  storiesData,
-  incidentsData,
-  mergeRequestsData,
-  deploymentsData
-}) {
+export default function DataExplorerView({ selectedIterations }) {
+  const [storiesData, setStoriesData] = useState([]);
+  const [loadingStories, setLoadingStories] = useState(false);
+
+  /**
+   * Fetch stories data from velocity endpoint when iterations change
+   */
+  useEffect(() => {
+    // Clear old data immediately
+    setStoriesData([]);
+
+    // Don't fetch if no iterations selected
+    if (!selectedIterations || selectedIterations.length === 0) {
+      return;
+    }
+
+    const fetchStories = async () => {
+      try {
+        setLoadingStories(true);
+
+        const iterationIds = selectedIterations.map(iter => iter.id);
+        const iterationsParam = iterationIds.join(',');
+
+        const response = await fetch(`/api/metrics/velocity?iterations=${iterationsParam}`);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // Extract and transform stories from raw data
+        const stories = [];
+        data.metrics.forEach(metric => {
+          if (metric.rawData && metric.rawData.issues) {
+            metric.rawData.issues.forEach(issue => {
+              stories.push(transformIssueToStory(issue, metric.iterationTitle));
+            });
+          }
+        });
+
+        setStoriesData(stories);
+      } catch (error) {
+        console.error('Failed to fetch stories:', error);
+        // Keep empty array on error
+      } finally {
+        setLoadingStories(false);
+      }
+    };
+
+    fetchStories();
+  }, [selectedIterations]);
   return (
     <ExplorerContainer>
       {/* Stories Section */}
       <TableSection>
-        <SectionTitle>Stories</SectionTitle>
-        {storiesData && storiesData.length > 0 ? (
+        <SectionTitle>Stories ({storiesData.length})</SectionTitle>
+        {loadingStories ? (
+          <LoadingContainer>Loading stories...</LoadingContainer>
+        ) : storiesData && storiesData.length > 0 ? (
           <Table aria-label="Stories data table">
             <TableHeader>
               <tr>
@@ -218,8 +333,10 @@ export default function DataExplorerView({
                   <TableCell>{story.title}</TableCell>
                   <TableCell>{story.points}</TableCell>
                   <TableCell>{story.status}</TableCell>
-                  <TableCell>{story.cycleTime} days</TableCell>
-                  <TableCell>{story.assignees.join(', ')}</TableCell>
+                  <TableCell>
+                    {story.cycleTime !== null ? `${story.cycleTime} days` : 'In Progress'}
+                  </TableCell>
+                  <TableCell>{story.assignees}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -234,92 +351,25 @@ export default function DataExplorerView({
       {/* Incidents Section */}
       <TableSection>
         <SectionTitle>Incidents</SectionTitle>
-        {incidentsData && incidentsData.length > 0 ? (
-          <Table aria-label="Incidents data table">
-            <TableHeader>
-              <tr>
-                <TableHeaderCell>Title</TableHeaderCell>
-                <TableHeaderCell>Severity</TableHeaderCell>
-                <TableHeaderCell>Duration</TableHeaderCell>
-                <TableHeaderCell>Resolved Date</TableHeaderCell>
-              </tr>
-            </TableHeader>
-            <TableBody>
-              {incidentsData.map((incident) => (
-                <TableRow key={incident.id}>
-                  <TableCell>{incident.title}</TableCell>
-                  <TableCell>{incident.severity}</TableCell>
-                  <TableCell>{incident.duration} hours</TableCell>
-                  <TableCell>{incident.resolvedDate}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <EmptyState>
-            <EmptyStateMessage>No incidents recorded</EmptyStateMessage>
-          </EmptyState>
-        )}
+        <ComingSoonMessage>
+          Coming soon - Backend needs to expose incident raw data in API response
+        </ComingSoonMessage>
       </TableSection>
 
       {/* Merge Requests Section */}
       <TableSection>
         <SectionTitle>Merge Requests</SectionTitle>
-        {mergeRequestsData && mergeRequestsData.length > 0 ? (
-          <Table aria-label="Merge requests data table">
-            <TableHeader>
-              <tr>
-                <TableHeaderCell>Title</TableHeaderCell>
-                <TableHeaderCell>Author</TableHeaderCell>
-                <TableHeaderCell>Merged Date</TableHeaderCell>
-                <TableHeaderCell>Lead Time</TableHeaderCell>
-              </tr>
-            </TableHeader>
-            <TableBody>
-              {mergeRequestsData.map((mr) => (
-                <TableRow key={mr.id}>
-                  <TableCell>{mr.title}</TableCell>
-                  <TableCell>{mr.author}</TableCell>
-                  <TableCell>{mr.mergedDate}</TableCell>
-                  <TableCell>N/A</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <EmptyState>
-            <EmptyStateMessage>No merge requests found</EmptyStateMessage>
-          </EmptyState>
-        )}
+        <ComingSoonMessage>
+          Coming soon - Backend needs to expose merge request raw data in API response
+        </ComingSoonMessage>
       </TableSection>
 
       {/* Deployments Section */}
       <TableSection>
         <SectionTitle>Deployments</SectionTitle>
-        {deploymentsData && deploymentsData.length > 0 ? (
-          <Table aria-label="Deployments data table">
-            <TableHeader>
-              <tr>
-                <TableHeaderCell>Environment</TableHeaderCell>
-                <TableHeaderCell>Deployed Date</TableHeaderCell>
-                <TableHeaderCell>Status</TableHeaderCell>
-              </tr>
-            </TableHeader>
-            <TableBody>
-              {deploymentsData.map((deployment) => (
-                <TableRow key={deployment.id}>
-                  <TableCell>{deployment.environment}</TableCell>
-                  <TableCell>{deployment.deployedDate}</TableCell>
-                  <TableCell>{deployment.status}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <EmptyState>
-            <EmptyStateMessage>No deployments found</EmptyStateMessage>
-          </EmptyState>
-        )}
+        <ComingSoonMessage>
+          Coming soon - Backend needs to expose deployment/pipeline raw data in API response
+        </ComingSoonMessage>
       </TableSection>
     </ExplorerContainer>
   );

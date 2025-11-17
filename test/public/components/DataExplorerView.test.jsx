@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import DataExplorerView from '../../../src/public/components/DataExplorerView.jsx';
 
@@ -18,7 +18,7 @@ const theme = {
     bgTertiary: '#f3f4f6',
     border: '#e5e7eb',
   },
-  borderRadius: { sm: '4px', md: '6px', lg: '8px' },
+  borderRadius: { sm: '4px', md: '6px', lg: '8px', full: '9999px' },
   spacing: { xs: '4px', sm: '8px', md: '16px', lg: '24px', xl: '32px' },
   typography: {
     fontSize: { xs: '12px', sm: '14px', base: '16px', lg: '18px', xl: '20px' },
@@ -45,56 +45,100 @@ const renderWithTheme = (component) => {
   return render(<ThemeProvider theme={theme}>{component}</ThemeProvider>);
 };
 
+/**
+ * Mock API response for velocity endpoint
+ */
+const mockVelocityResponse = {
+  metrics: [
+    {
+      iterationId: 'gid://gitlab/Iteration/123',
+      iterationTitle: 'Sprint 42',
+      startDate: '2025-01-01',
+      dueDate: '2025-01-14',
+      totalPoints: 50,
+      completedPoints: 42,
+      rawData: {
+        issues: [
+          {
+            id: 'gid://gitlab/Issue/1',
+            title: 'Implement user authentication',
+            state: 'closed',
+            weight: 5,
+            createdAt: '2025-01-01T08:00:00Z',
+            closedAt: '2025-01-05T16:30:00Z',
+            assignees: [
+              { username: 'john.doe' },
+              { username: 'jane.smith' }
+            ]
+          },
+          {
+            id: 'gid://gitlab/Issue/2',
+            title: 'Add data export feature',
+            state: 'opened',
+            weight: 3,
+            createdAt: '2025-01-06T09:00:00Z',
+            closedAt: null,
+            assignees: [
+              { username: 'alice.cooper' }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  count: 1
+};
+
 describe('DataExplorerView', () => {
-  // Test 1: Drives the core structure - component must render 4 sections with titles
-  test('renders all four table sections with correct headers', () => {
+  beforeEach(() => {
+    // Clear all fetch mocks before each test
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // Test 1: Drives the core structure - component must render 4 sections
+  test('renders all four sections (Stories table + Coming Soon for others)', () => {
     renderWithTheme(
-      <DataExplorerView
-        selectedIterations={[]}
-        storiesData={[]}
-        incidentsData={[]}
-        mergeRequestsData={[]}
-        deploymentsData={[]}
-      />
+      <DataExplorerView selectedIterations={[]} />
     );
 
     // Should render 4 section headers
-    expect(screen.getByText('Stories')).toBeInTheDocument();
+    expect(screen.getByText(/Stories/)).toBeInTheDocument();
     expect(screen.getByText('Incidents')).toBeInTheDocument();
     expect(screen.getByText('Merge Requests')).toBeInTheDocument();
     expect(screen.getByText('Deployments')).toBeInTheDocument();
+
+    // Should show "Coming Soon" for Incidents, MRs, Deployments
+    expect(screen.getByText(/Coming soon - Backend needs to expose incident raw data/)).toBeInTheDocument();
+    expect(screen.getByText(/Coming soon - Backend needs to expose merge request raw data/)).toBeInTheDocument();
+    expect(screen.getByText(/Coming soon - Backend needs to expose deployment\/pipeline raw data/)).toBeInTheDocument();
   });
 
-  // Test 2: Drives data rendering logic for Stories table
-  test('displays stories data in table with all required columns', () => {
-    const mockStoriesData = [
-      {
-        id: 'story-1',
-        title: 'Implement user authentication',
-        points: 5,
-        status: 'closed',
-        cycleTime: 3.5,
-        assignees: ['John Doe', 'Jane Smith']
-      },
-      {
-        id: 'story-2',
-        title: 'Add data export feature',
-        points: 3,
-        status: 'open',
-        cycleTime: 1.2,
-        assignees: ['Alice Cooper']
-      }
+  // Test 2: Drives data fetching and transformation logic for Stories table
+  test('fetches and displays stories data when iterations are selected', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockVelocityResponse
+    });
+
+    const selectedIterations = [
+      { id: 'gid://gitlab/Iteration/123', title: 'Sprint 42' }
     ];
 
     renderWithTheme(
-      <DataExplorerView
-        selectedIterations={[]}
-        storiesData={mockStoriesData}
-        incidentsData={[]}
-        mergeRequestsData={[]}
-        deploymentsData={[]}
-      />
+      <DataExplorerView selectedIterations={selectedIterations} />
     );
+
+    // Should show loading state initially
+    expect(screen.getByText('Loading stories...')).toBeInTheDocument();
+
+    // Wait for data to load
+    await waitFor(() => {
+      expect(screen.queryByText('Loading stories...')).not.toBeInTheDocument();
+    });
 
     // Should render table headers
     expect(screen.getByText('Title')).toBeInTheDocument();
@@ -106,74 +150,93 @@ describe('DataExplorerView', () => {
     // Should render story data
     expect(screen.getByText('Implement user authentication')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
-    expect(screen.getByText('closed')).toBeInTheDocument();
-    expect(screen.getByText('3.5 days')).toBeInTheDocument();
-    expect(screen.getByText('John Doe, Jane Smith')).toBeInTheDocument();
+    expect(screen.getByText('Closed')).toBeInTheDocument();
+    expect(screen.getByText('4.4 days')).toBeInTheDocument(); // Calculated cycle time
+    expect(screen.getByText('john.doe, jane.smith')).toBeInTheDocument();
 
+    // Should render second story
     expect(screen.getByText('Add data export feature')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('open')).toBeInTheDocument();
-    expect(screen.getByText('1.2 days')).toBeInTheDocument();
-    expect(screen.getByText('Alice Cooper')).toBeInTheDocument();
+    expect(screen.getByText('Open')).toBeInTheDocument();
+    expect(screen.getByText('In Progress')).toBeInTheDocument(); // Open issue
+    expect(screen.getByText('alice.cooper')).toBeInTheDocument();
+
+    // Should show count in section title
+    expect(screen.getByText('Stories (2)')).toBeInTheDocument();
+
+    // Verify fetch was called correctly
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/metrics/velocity?iterations=gid://gitlab/Iteration/123'
+    );
   });
 
-  // Test 3: Drives empty state handling across all sections
-  test('shows empty state for each section when no data provided', () => {
+  // Test 3: Drives empty state handling when no iterations selected
+  test('shows empty state for Stories when no iterations selected', () => {
     renderWithTheme(
-      <DataExplorerView
-        selectedIterations={[]}
-        storiesData={[]}
-        incidentsData={[]}
-        mergeRequestsData={[]}
-        deploymentsData={[]}
-      />
+      <DataExplorerView selectedIterations={[]} />
     );
 
-    // Should show empty state messages for all sections
+    // Should show empty state message for Stories
     expect(screen.getByText('No stories found')).toBeInTheDocument();
-    expect(screen.getByText('No incidents recorded')).toBeInTheDocument();
-    expect(screen.getByText('No merge requests found')).toBeInTheDocument();
-    expect(screen.getByText('No deployments found')).toBeInTheDocument();
 
     // Should NOT show table headers when no data
     expect(screen.queryByText('Title')).not.toBeInTheDocument();
     expect(screen.queryByText('Points')).not.toBeInTheDocument();
-    expect(screen.queryByText('Severity')).not.toBeInTheDocument();
-    expect(screen.queryByText('Author')).not.toBeInTheDocument();
+
+    // Should show "Coming Soon" for other sections
+    expect(screen.getByText(/Coming soon - Backend needs to expose incident raw data/)).toBeInTheDocument();
+    expect(screen.getByText(/Coming soon - Backend needs to expose merge request raw data/)).toBeInTheDocument();
+    expect(screen.getByText(/Coming soon - Backend needs to expose deployment\/pipeline raw data/)).toBeInTheDocument();
   });
 
-  // Test 4: Drives accessibility implementation (ARIA labels)
-  test('renders accessibility attributes (ARIA labels) on all tables', () => {
-    const mockStoriesData = [
-      { id: 'story-1', title: 'Story 1', points: 5, status: 'closed', cycleTime: 3.5, assignees: ['John'] }
-    ];
-    const mockIncidentsData = [
-      { id: 'incident-1', title: 'Incident 1', severity: 'high', duration: 2.5, resolvedDate: '2025-01-15' }
-    ];
-    const mockMRData = [
-      { id: 'mr-1', title: 'MR 1', author: 'Alice', mergedDate: '2025-01-14' }
-    ];
-    const mockDeploymentsData = [
-      { id: 'deploy-1', environment: 'production', deployedDate: '2025-01-16', status: 'success' }
+  // Test 4: Drives accessibility implementation (ARIA labels on Stories table)
+  test('renders accessibility attributes (ARIA label) on Stories table', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockVelocityResponse
+    });
+
+    const selectedIterations = [
+      { id: 'gid://gitlab/Iteration/123', title: 'Sprint 42' }
     ];
 
     const { container } = renderWithTheme(
-      <DataExplorerView
-        selectedIterations={[]}
-        storiesData={mockStoriesData}
-        incidentsData={mockIncidentsData}
-        mergeRequestsData={mockMRData}
-        deploymentsData={mockDeploymentsData}
-      />
+      <DataExplorerView selectedIterations={selectedIterations} />
     );
 
-    // Should have ARIA labels on all tables
+    // Wait for data to load
+    await waitFor(() => {
+      expect(screen.queryByText('Loading stories...')).not.toBeInTheDocument();
+    });
+
+    // Should have ARIA label on Stories table
     const tables = container.querySelectorAll('table');
-    expect(tables).toHaveLength(4);
+    expect(tables).toHaveLength(1); // Only Stories table exists (others are "Coming Soon")
 
     expect(tables[0]).toHaveAttribute('aria-label', 'Stories data table');
-    expect(tables[1]).toHaveAttribute('aria-label', 'Incidents data table');
-    expect(tables[2]).toHaveAttribute('aria-label', 'Merge requests data table');
-    expect(tables[3]).toHaveAttribute('aria-label', 'Deployments data table');
+  });
+
+  // Test 5: Handles API errors gracefully
+  test('handles fetch errors gracefully without crashing', async () => {
+    global.fetch.mockRejectedValueOnce(new Error('Network error'));
+
+    const selectedIterations = [
+      { id: 'gid://gitlab/Iteration/123', title: 'Sprint 42' }
+    ];
+
+    renderWithTheme(
+      <DataExplorerView selectedIterations={selectedIterations} />
+    );
+
+    // Should show loading state initially
+    expect(screen.getByText('Loading stories...')).toBeInTheDocument();
+
+    // Wait for error handling
+    await waitFor(() => {
+      expect(screen.queryByText('Loading stories...')).not.toBeInTheDocument();
+    });
+
+    // Should show empty state (graceful degradation)
+    expect(screen.getByText('No stories found')).toBeInTheDocument();
   });
 });

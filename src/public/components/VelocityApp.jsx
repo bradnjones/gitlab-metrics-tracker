@@ -437,10 +437,6 @@ export default function VelocityApp() {
               {currentView === 'dataExplorer' && (
                 <DataExplorerView
                   selectedIterations={selectedIterations}
-                  storiesData={[]}
-                  incidentsData={[]}
-                  mergeRequestsData={[]}
-                  deploymentsData={[]}
                 />
               )}
             </>
