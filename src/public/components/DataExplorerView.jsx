@@ -71,7 +71,7 @@ const TableHeader = styled.thead`
 `;
 
 /**
- * Table header cell
+ * Table header cell - clickable for sorting
  *
  * @component
  */
@@ -84,6 +84,13 @@ const TableHeaderCell = styled.th`
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color ${props => props.theme.transitions.fast};
+
+  &:hover {
+    background-color: ${props => props.theme.colors.bgSecondary};
+  }
 
   &:first-child {
     padding-left: ${props => props.theme.spacing.md};
@@ -287,6 +294,57 @@ const transformIssueToStory = (issue, iterationTitle) => {
 export default function DataExplorerView({ selectedIterations }) {
   const [storiesData, setStoriesData] = useState([]);
   const [loadingStories, setLoadingStories] = useState(false);
+  const [sortColumn, setSortColumn] = useState('title'); // Default sort by title
+  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+
+  /**
+   * Handle column header click to sort data
+   *
+   * @param {string} column - Column name to sort by
+   */
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  /**
+   * Sort stories data based on current sort column and direction
+   *
+   * @param {Array} data - Stories data to sort
+   * @returns {Array} Sorted stories data
+   */
+  const sortedData = (data) => {
+    if (!data || data.length === 0) return data;
+
+    return [...data].sort((a, b) => {
+      let aVal = a[sortColumn];
+      let bVal = b[sortColumn];
+
+      // Handle null/undefined values
+      if (aVal === null || aVal === undefined || aVal === '-') aVal = '';
+      if (bVal === null || bVal === undefined || bVal === '-') bVal = '';
+
+      // String comparison (case-insensitive)
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+
+      // Compare values
+      let comparison = 0;
+      if (aVal < bVal) comparison = -1;
+      if (aVal > bVal) comparison = 1;
+
+      // Apply sort direction
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  };
 
   /**
    * Fetch stories data from velocity endpoint when iterations change
@@ -347,17 +405,31 @@ export default function DataExplorerView({ selectedIterations }) {
           <Table aria-label="Stories data table">
             <TableHeader>
               <tr>
-                <TableHeaderCell>Title</TableHeaderCell>
-                <TableHeaderCell>Points</TableHeaderCell>
-                <TableHeaderCell>Status</TableHeaderCell>
-                <TableHeaderCell>Started Work</TableHeaderCell>
-                <TableHeaderCell>Closed</TableHeaderCell>
-                <TableHeaderCell>Cycle Time</TableHeaderCell>
-                <TableHeaderCell>Assignees</TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('title')}>
+                  Title {sortColumn === 'title' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('points')}>
+                  Points {sortColumn === 'points' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('status')}>
+                  Status {sortColumn === 'status' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('startedAt')}>
+                  Started Work {sortColumn === 'startedAt' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('closedAt')}>
+                  Closed {sortColumn === 'closedAt' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('cycleTime')}>
+                  Cycle Time {sortColumn === 'cycleTime' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('assignees')}>
+                  Assignees {sortColumn === 'assignees' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
               </tr>
             </TableHeader>
             <TableBody>
-              {storiesData.map((story) => (
+              {sortedData(storiesData).map((story) => (
                 <TableRow key={story.id}>
                   <TableCell>{story.title}</TableCell>
                   <TableCell>{story.points}</TableCell>
