@@ -40,6 +40,7 @@ import DeploymentFrequencyChart from './DeploymentFrequencyChart.jsx';
 import LeadTimeChart from './LeadTimeChart.jsx';
 import MTTRChart from './MTTRChart.jsx';
 import ChangeFailureRateChart from './ChangeFailureRateChart.jsx';
+import DataExplorerView from './DataExplorerView.jsx';
 
 /**
  * Main app container
@@ -434,9 +435,12 @@ export default function VelocityApp() {
               )}
 
               {currentView === 'dataExplorer' && (
-                <EmptyState
-                  title="Data Explorer"
-                  message="Raw data tables view coming soon."
+                <DataExplorerView
+                  selectedIterations={selectedIterations}
+                  storiesData={[]}
+                  incidentsData={[]}
+                  mergeRequestsData={[]}
+                  deploymentsData={[]}
                 />
               )}
             </>
