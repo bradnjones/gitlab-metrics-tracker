@@ -9,6 +9,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 import metricsRoutes from './routes/metrics.js';
 import iterationsRoutes from './routes/iterations.js';
 import cacheRoutes from './routes/cache.js';
@@ -81,6 +82,24 @@ export function createApp() {
 }
 
 /**
+ * Get local network IP address
+ * @returns {string|null} Local IP address or null if not found
+ */
+function getLocalIPAddress() {
+  const nets = os.networkInterfaces();
+
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // Skip internal (loopback) and non-IPv4 addresses
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Start the server
  *
  * @param {number} [port=3000] - Port to listen on
@@ -89,10 +108,17 @@ export function createApp() {
 export function startServer(port = 3000) {
   const app = createApp();
 
-  const server = app.listen(port, () => {
-    console.log(`✓ Server running on http://localhost:${port}`);
-    console.log(`✓ Health check: http://localhost:${port}/health`);
-    console.log(`✓ API endpoint: POST http://localhost:${port}/api/metrics/calculate`);
+  // Listen on all network interfaces (0.0.0.0) to allow access from other devices
+  const server = app.listen(port, '0.0.0.0', () => {
+    const localIP = getLocalIPAddress();
+
+    console.log(`\n✓ Server running on:`);
+    console.log(`  - Local:   http://localhost:${port}`);
+    if (localIP) {
+      console.log(`  - Network: http://${localIP}:${port}`);
+      console.log(`\n  Use the Network URL to access from other devices on your local network`);
+    }
+    console.log(`\n✓ Health check: http://localhost:${port}/health`);
   });
 
   return server;
