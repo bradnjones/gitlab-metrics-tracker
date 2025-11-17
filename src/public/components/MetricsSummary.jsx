@@ -84,14 +84,6 @@ export default function MetricsSummary({ selectedIterations }) {
         ]);
 
         // Extract metrics arrays from API responses
-        console.log('[MetricsSummary] Raw API responses:', {
-          velocity: velocity,
-          cycleTime: cycleTime,
-          deployFreq: deployFreq,
-          leadTime: leadTime,
-          mttr: mttr
-        });
-
         setVelocityData(velocity.metrics || []);
         setCycleTimeData(cycleTime.metrics || []);
         setDeployFreqData(deployFreq.metrics || []);
@@ -154,40 +146,6 @@ export default function MetricsSummary({ selectedIterations }) {
   const lastDeployFreq = getLastValue(completedDeployFreq, 'deploymentFrequency');
   const lastLeadTime = getLastValue(completedLeadTime, 'leadTimeAvg');
   const lastMttr = getLastValue(completedMttr, 'mttrAvg');
-
-  console.log('[MetricsSummary] Data arrays:', {
-    velocityData,
-    cycleTimeData,
-    deployFreqData,
-    leadTimeData,
-    mttrData
-  });
-
-  console.log('[MetricsSummary] COMPLETED velocity array:', completedVelocity);
-  const lastCompletedItem = completedVelocity[completedVelocity.length - 1];
-  console.log('[MetricsSummary] Last COMPLETED velocity item:', lastCompletedItem);
-  console.log('[MetricsSummary] Last completed item values:', {
-    dueDate: lastCompletedItem?.dueDate,
-    completedPoints: lastCompletedItem?.completedPoints,
-    completedStories: lastCompletedItem?.completedStories
-  });
-
-  console.log('[MetricsSummary] Last items in arrays:', {
-    lastVelocityItem: velocityData[velocityData.length - 1],
-    lastCycleTimeItem: cycleTimeData[cycleTimeData.length - 1],
-    lastDeployFreqItem: deployFreqData[deployFreqData.length - 1],
-    lastLeadTimeItem: leadTimeData[leadTimeData.length - 1],
-    lastMttrItem: mttrData[mttrData.length - 1]
-  });
-
-  console.log('[MetricsSummary] Extracted values:', {
-    lastVelocityPoints,
-    lastVelocityStories,
-    lastCycleTime,
-    lastDeployFreq,
-    lastLeadTime,
-    lastMttr
-  });
 
   // Format velocity as "X pts / Y stories"
   const velocityValue = (lastVelocityPoints !== null && lastVelocityStories !== null)
