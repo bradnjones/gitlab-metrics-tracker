@@ -226,6 +226,22 @@ const calculateCycleTime = (createdAt, closedAt) => {
 };
 
 /**
+ * Format date for display (date only, no time)
+ *
+ * @param {string|null} isoDate - ISO date string
+ * @returns {string} Formatted date (MM/DD/YYYY) or '-'
+ */
+const formatDate = (isoDate) => {
+  if (!isoDate) return '-';
+  const date = new Date(isoDate);
+  return date.toLocaleDateString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+/**
  * Transform GitLab issue to Story table format
  *
  * @param {Object} issue - GitLab issue object from rawData
@@ -250,6 +266,8 @@ const transformIssueToStory = (issue, iterationTitle) => {
     title: issue.title,
     points: issue.weight || 1,
     status: issue.state === 'closed' ? 'Closed' : 'Open',
+    startedAt: formatDate(issue.inProgressAt),
+    closedAt: formatDate(issue.closedAt),
     cycleTime: cycleTime !== null ? cycleTime : null,
     assignees: assigneeNames
   };
@@ -393,6 +411,12 @@ export default function DataExplorerView({ selectedIterations }) {
                 <TableHeaderCell onClick={() => handleSort('status')}>
                   Status {sortColumn === 'status' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('startedAt')}>
+                  Started {sortColumn === 'startedAt' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('closedAt')}>
+                  Closed {sortColumn === 'closedAt' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
                 <TableHeaderCell onClick={() => handleSort('cycleTime')}>
                   Cycle Time {sortColumn === 'cycleTime' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </TableHeaderCell>
@@ -407,6 +431,8 @@ export default function DataExplorerView({ selectedIterations }) {
                   <TableCell>{story.title}</TableCell>
                   <TableCell>{story.points}</TableCell>
                   <TableCell>{story.status}</TableCell>
+                  <TableCell>{story.startedAt}</TableCell>
+                  <TableCell>{story.closedAt}</TableCell>
                   <TableCell>
                     {story.cycleTime !== null ? `${story.cycleTime} days` : 'In Progress'}
                   </TableCell>
