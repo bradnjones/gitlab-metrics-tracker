@@ -38,6 +38,24 @@ jest.mock('../../../src/public/components/LeadTimeChart.jsx', () => {
   };
 });
 
+jest.mock('../../../src/public/components/MTTRChart.jsx', () => {
+  return function MockMTTRChart() {
+    return <div data-testid="mttr-chart">MTTR Chart</div>;
+  };
+});
+
+jest.mock('../../../src/public/components/ChangeFailureRateChart.jsx', () => {
+  return function MockChangeFailureRateChart() {
+    return <div data-testid="change-failure-rate-chart">Change Failure Rate Chart</div>;
+  };
+});
+
+jest.mock('../../../src/public/components/MetricsSummary.jsx', () => {
+  return function MockMetricsSummary() {
+    return <div data-testid="metrics-summary">Metrics Summary</div>;
+  };
+});
+
 // Mock useIterations hook
 jest.mock('../../../src/public/hooks/useIterations.js', () => ({
   useIterations: () => ({

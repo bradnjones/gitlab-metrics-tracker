@@ -32,6 +32,7 @@ import EmptyState from './EmptyState.jsx';
 import IterationSelectionModal from './IterationSelectionModal.jsx';
 import AnnotationModal from './AnnotationModal.jsx';
 import AnnotationsManagementModal from './AnnotationsManagementModal.jsx';
+import MetricsSummary from './MetricsSummary.jsx';
 import VelocityChart from './VelocityChart.jsx';
 import CycleTimeChart from './CycleTimeChart.jsx';
 import DeploymentFrequencyChart from './DeploymentFrequencyChart.jsx';
@@ -346,7 +347,9 @@ export default function VelocityApp() {
               message="Select sprint iterations to view velocity metrics and team performance data."
             />
           ) : (
-            <ChartsGrid>
+            <>
+              <MetricsSummary selectedIterations={selectedIterations} />
+              <ChartsGrid>
               <ChartCard>
                 <ChartTitle>Velocity Trend</ChartTitle>
                 <VelocityChart
@@ -395,6 +398,7 @@ export default function VelocityApp() {
                 />
               </ChartCard>
             </ChartsGrid>
+            </>
           )}
         </Content>
 

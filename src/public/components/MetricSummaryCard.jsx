@@ -20,16 +20,18 @@
 import styled from 'styled-components';
 
 /**
- * Styled card container with gradient background
+ * Styled card container with subtle muted background
+ * Updated to use soft blue-gray tones that complement the dashboard
  *
  * @component
  */
 const Card = styled.div`
-  background: linear-gradient(135deg, ${props => props.theme.colors.primary} 0%, ${props => props.theme.colors.primaryDark} 100%);
+  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+  border: 1px solid #cbd5e1;
   border-radius: ${props => props.theme.borderRadius.xl};
   padding: 1.5rem;
-  box-shadow: ${props => props.theme.shadows.lg};
-  color: white;
+  box-shadow: ${props => props.theme.shadows.sm};
+  color: ${props => props.theme.colors.textPrimary};
 
   @media (max-width: ${props => props.theme.breakpoints.mobile}) {
     padding: 1rem;
@@ -44,7 +46,7 @@ const Card = styled.div`
 const Label = styled.div`
   font-size: ${props => props.theme.typography.fontSize.sm};
   font-weight: ${props => props.theme.typography.fontWeight.medium};
-  opacity: 0.9;
+  color: ${props => props.theme.colors.textSecondary};
   margin-bottom: 0.5rem;
 `;
 
@@ -57,6 +59,7 @@ const Value = styled.div`
   font-size: ${props => props.theme.typography.fontSize['3xl']};
   font-weight: ${props => props.theme.typography.fontWeight.bold};
   line-height: 1;
+  color: ${props => props.theme.colors.textPrimary};
 `;
 
 /**
