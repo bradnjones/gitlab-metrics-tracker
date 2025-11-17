@@ -351,7 +351,7 @@ const HeaderChangeButton = styled.button`
  * @param {Function} props.onOpenManageAnnotations - Callback when "Manage Annotations" clicked
  * @returns {JSX.Element}
  */
-export default function CompactHeaderWithIterations({
+function CompactHeaderWithIterations({
   selectedIterations = [],
   onRemoveIteration,
   onOpenModal,
@@ -491,3 +491,40 @@ export default function CompactHeaderWithIterations({
     </CompactHeader>
   );
 }
+
+/**
+ * Custom comparison function for React.memo
+ * Only re-render if selectedIterations IDs actually change
+ * This prevents re-renders when array reference changes but content is same
+ *
+ * @param {Object} prevProps - Previous props
+ * @param {Object} nextProps - Next props
+ * @returns {boolean} true if props are equal (skip re-render), false if different (re-render)
+ */
+function arePropsEqual(prevProps, nextProps) {
+  // Compare selectedIterations by their IDs, not array reference
+  const prevIds = prevProps.selectedIterations.map(iter => iter.id).sort().join(',');
+  const nextIds = nextProps.selectedIterations.map(iter => iter.id).sort().join(',');
+
+  if (prevIds !== nextIds) {
+    return false; // IDs changed, need to re-render
+  }
+
+  // For callbacks, we assume they're memoized in parent
+  // If parent uses useCallback properly, these should be stable
+  // Comparing function references
+  if (
+    prevProps.onRemoveIteration !== nextProps.onRemoveIteration ||
+    prevProps.onOpenModal !== nextProps.onOpenModal ||
+    prevProps.onOpenAnnotationModal !== nextProps.onOpenAnnotationModal ||
+    prevProps.onOpenManageAnnotations !== nextProps.onOpenManageAnnotations
+  ) {
+    return false; // Callbacks changed, need to re-render
+  }
+
+  // Props are equal, skip re-render
+  return true;
+}
+
+// Wrap with memo to prevent unnecessary re-renders when parent updates
+export default React.memo(CompactHeaderWithIterations, arePropsEqual);
