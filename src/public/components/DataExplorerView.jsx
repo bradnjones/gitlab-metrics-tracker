@@ -230,15 +230,19 @@ const transformIssueToStory = (issue, iterationTitle) => {
     ? calculateCycleTime(issue.createdAt, issue.closedAt)
     : null;
 
+  // Extract assignees from GraphQL nodes structure
+  const assignees = issue.assignees?.nodes || [];
+  const assigneeNames = assignees.length > 0
+    ? assignees.map(a => a.username).join(', ')
+    : 'Unassigned';
+
   return {
     id: issue.id,
     title: issue.title,
     points: issue.weight || 1,
     status: issue.state === 'closed' ? 'Closed' : 'Open',
     cycleTime: cycleTime !== null ? cycleTime : null,
-    assignees: issue.assignees && issue.assignees.length > 0
-      ? issue.assignees.map(a => a.username).join(', ')
-      : 'Unassigned'
+    assignees: assigneeNames
   };
 };
 
