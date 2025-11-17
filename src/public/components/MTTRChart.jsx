@@ -23,6 +23,7 @@ import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
 import { useAnnotations } from '../hooks/useAnnotations.js';
 import ChartFilterDropdown from './ChartFilterDropdown';
+import ChartEnlargementModal from './ChartEnlargementModal';
 
 
 // Register Chart.js components for Line charts with annotations
@@ -85,7 +86,18 @@ const ChartContainer = styled.div`
   height: 400px;
   padding: 20px;
   background: white;
+  cursor: pointer;
   border-radius: 8px;
+  transition: box-shadow 200ms ease-in-out;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  &:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
 `;
 
 /**
@@ -215,6 +227,7 @@ const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) => {
   const [controlLimits, setControlLimits] = useState(null);
   const [error, setError] = useState(null);
   const [excludedIterationIds, setExcludedIterationIds] = useState([]);
+  const [isEnlarged, setIsEnlarged] = useState(false);
 
   // Load excluded iterations from localStorage on mount
   useEffect(() => {
@@ -388,14 +401,41 @@ const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) => {
         />
       </FilterContainer>
       {chartData && (
-        <ChartContainer>
-          <Line
-            data={chartData}
-            options={getChartOptions(controlLimits, mttrAnnotations)}
-            aria-label="Line chart showing MTTR trends across selected iterations"
-            role="img"
+        <>
+          <ChartContainer
+            onClick={() => setIsEnlarged(true)}
+            role="button"
+            tabIndex={0}
+            aria-label="Click to enlarge MTTR chart"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsEnlarged(true);
+              }
+            }}
+          >
+            <Line
+              data={chartData}
+              options={getChartOptions(controlLimits, mttrAnnotations)}
+              aria-label="Line chart showing MTTR trends across selected iterations"
+              role="img"
+            />
+          </ChartContainer>
+
+          <ChartEnlargementModal
+            isOpen={isEnlarged}
+            onClose={() => setIsEnlarged(false)}
+            chartTitle="MTTR Metrics"
+            chartElement={
+              <Line
+                data={chartData}
+                options={getChartOptions(controlLimits, mttrAnnotations)}
+                aria-label="Line chart showing MTTR trends across selected iterations"
+                role="img"
+              />
+            }
           />
-        </ChartContainer>
+        </>
       )}
     </Container>
   );
