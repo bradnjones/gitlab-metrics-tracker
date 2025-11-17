@@ -219,6 +219,25 @@ const calculateCycleTime = (createdAt, closedAt) => {
 };
 
 /**
+ * Format date/time for display
+ *
+ * @param {string|null} isoDate - ISO date string
+ * @returns {string} Formatted date/time or fallback text
+ */
+const formatDateTime = (isoDate) => {
+  if (!isoDate) return '-';
+  const date = new Date(isoDate);
+  return date.toLocaleString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
+/**
  * Transform GitLab issue to Story table format
  *
  * @param {Object} issue - GitLab issue object from rawData
@@ -226,8 +245,10 @@ const calculateCycleTime = (createdAt, closedAt) => {
  * @returns {Object} Transformed story object for table display
  */
 const transformIssueToStory = (issue, iterationTitle) => {
+  // Calculate cycle time from inProgressAt to closedAt (or createdAt if no inProgressAt)
+  const startDate = issue.inProgressAt || issue.createdAt;
   const cycleTime = issue.closedAt
-    ? calculateCycleTime(issue.createdAt, issue.closedAt)
+    ? calculateCycleTime(startDate, issue.closedAt)
     : null;
 
   // Extract assignees from GraphQL nodes structure
@@ -241,6 +262,8 @@ const transformIssueToStory = (issue, iterationTitle) => {
     title: issue.title,
     points: issue.weight || 1,
     status: issue.state === 'closed' ? 'Closed' : 'Open',
+    startedAt: formatDateTime(issue.inProgressAt),
+    closedAt: formatDateTime(issue.closedAt),
     cycleTime: cycleTime !== null ? cycleTime : null,
     assignees: assigneeNames
   };
@@ -327,6 +350,8 @@ export default function DataExplorerView({ selectedIterations }) {
                 <TableHeaderCell>Title</TableHeaderCell>
                 <TableHeaderCell>Points</TableHeaderCell>
                 <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Started Work</TableHeaderCell>
+                <TableHeaderCell>Closed</TableHeaderCell>
                 <TableHeaderCell>Cycle Time</TableHeaderCell>
                 <TableHeaderCell>Assignees</TableHeaderCell>
               </tr>
@@ -337,6 +362,8 @@ export default function DataExplorerView({ selectedIterations }) {
                   <TableCell>{story.title}</TableCell>
                   <TableCell>{story.points}</TableCell>
                   <TableCell>{story.status}</TableCell>
+                  <TableCell>{story.startedAt}</TableCell>
+                  <TableCell>{story.closedAt}</TableCell>
                   <TableCell>
                     {story.cycleTime !== null ? `${story.cycleTime} days` : 'In Progress'}
                   </TableCell>
