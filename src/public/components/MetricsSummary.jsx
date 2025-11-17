@@ -123,13 +123,20 @@ export default function MetricsSummary({ selectedIterations }) {
     return null; // Silently fail - charts will still render
   }
 
-  // Extract last values from metrics arrays
-  const lastVelocityPoints = getLastValue(velocityData, 'completedPoints');
-  const lastVelocityStories = getLastValue(velocityData, 'completedStories');
-  const lastCycleTime = getLastValue(cycleTimeData, 'cycleTimeAvg');
-  const lastDeployFreq = getLastValue(deployFreqData, 'deploymentFrequency');
-  const lastLeadTime = getLastValue(leadTimeData, 'leadTimeAvg');
-  const lastMttr = getLastValue(mttrData, 'mttrAvg');
+  // Sort arrays by dueDate to ensure we get the most recent sprint
+  const sortedVelocity = [...velocityData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  const sortedCycleTime = [...cycleTimeData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  const sortedDeployFreq = [...deployFreqData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  const sortedLeadTime = [...leadTimeData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  const sortedMttr = [...mttrData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  // Extract last values from sorted metrics arrays (most recent sprint)
+  const lastVelocityPoints = getLastValue(sortedVelocity, 'completedPoints');
+  const lastVelocityStories = getLastValue(sortedVelocity, 'completedStories');
+  const lastCycleTime = getLastValue(sortedCycleTime, 'cycleTimeAvg');
+  const lastDeployFreq = getLastValue(sortedDeployFreq, 'deploymentFrequency');
+  const lastLeadTime = getLastValue(sortedLeadTime, 'leadTimeAvg');
+  const lastMttr = getLastValue(sortedMttr, 'mttrAvg');
 
   console.log('[MetricsSummary] Data arrays:', {
     velocityData,
@@ -139,9 +146,14 @@ export default function MetricsSummary({ selectedIterations }) {
     mttrData
   });
 
-  const lastVelocityItem = velocityData[velocityData.length - 1];
-  console.log('[MetricsSummary] Last velocity item:', lastVelocityItem);
-  console.log('[MetricsSummary] Velocity item keys:', lastVelocityItem ? Object.keys(lastVelocityItem) : 'none');
+  console.log('[MetricsSummary] SORTED velocity array:', sortedVelocity);
+  const lastSortedItem = sortedVelocity[sortedVelocity.length - 1];
+  console.log('[MetricsSummary] Last SORTED velocity item:', lastSortedItem);
+  console.log('[MetricsSummary] Last sorted item values:', {
+    dueDate: lastSortedItem?.dueDate,
+    completedPoints: lastSortedItem?.completedPoints,
+    completedStories: lastSortedItem?.completedStories
+  });
 
   console.log('[MetricsSummary] Last items in arrays:', {
     lastVelocityItem: velocityData[velocityData.length - 1],
