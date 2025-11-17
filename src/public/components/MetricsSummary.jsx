@@ -123,20 +123,37 @@ export default function MetricsSummary({ selectedIterations }) {
     return null; // Silently fail - charts will still render
   }
 
-  // Sort arrays by dueDate to ensure we get the most recent sprint
-  const sortedVelocity = [...velocityData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-  const sortedCycleTime = [...cycleTimeData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-  const sortedDeployFreq = [...deployFreqData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-  const sortedLeadTime = [...leadTimeData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-  const sortedMttr = [...mttrData].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  // Filter to only completed sprints (dueDate in the past) and sort by dueDate
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
 
-  // Extract last values from sorted metrics arrays (most recent sprint)
-  const lastVelocityPoints = getLastValue(sortedVelocity, 'completedPoints');
-  const lastVelocityStories = getLastValue(sortedVelocity, 'completedStories');
-  const lastCycleTime = getLastValue(sortedCycleTime, 'cycleTimeAvg');
-  const lastDeployFreq = getLastValue(sortedDeployFreq, 'deploymentFrequency');
-  const lastLeadTime = getLastValue(sortedLeadTime, 'leadTimeAvg');
-  const lastMttr = getLastValue(sortedMttr, 'mttrAvg');
+  const completedVelocity = velocityData
+    .filter(item => new Date(item.dueDate) < today)
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  const completedCycleTime = cycleTimeData
+    .filter(item => new Date(item.dueDate) < today)
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  const completedDeployFreq = deployFreqData
+    .filter(item => new Date(item.dueDate) < today)
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  const completedLeadTime = leadTimeData
+    .filter(item => new Date(item.dueDate) < today)
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  const completedMttr = mttrData
+    .filter(item => new Date(item.dueDate) < today)
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  // Extract last values from completed sprints (most recently completed sprint)
+  const lastVelocityPoints = getLastValue(completedVelocity, 'completedPoints');
+  const lastVelocityStories = getLastValue(completedVelocity, 'completedStories');
+  const lastCycleTime = getLastValue(completedCycleTime, 'cycleTimeAvg');
+  const lastDeployFreq = getLastValue(completedDeployFreq, 'deploymentFrequency');
+  const lastLeadTime = getLastValue(completedLeadTime, 'leadTimeAvg');
+  const lastMttr = getLastValue(completedMttr, 'mttrAvg');
 
   console.log('[MetricsSummary] Data arrays:', {
     velocityData,
@@ -146,13 +163,13 @@ export default function MetricsSummary({ selectedIterations }) {
     mttrData
   });
 
-  console.log('[MetricsSummary] SORTED velocity array:', sortedVelocity);
-  const lastSortedItem = sortedVelocity[sortedVelocity.length - 1];
-  console.log('[MetricsSummary] Last SORTED velocity item:', lastSortedItem);
-  console.log('[MetricsSummary] Last sorted item values:', {
-    dueDate: lastSortedItem?.dueDate,
-    completedPoints: lastSortedItem?.completedPoints,
-    completedStories: lastSortedItem?.completedStories
+  console.log('[MetricsSummary] COMPLETED velocity array:', completedVelocity);
+  const lastCompletedItem = completedVelocity[completedVelocity.length - 1];
+  console.log('[MetricsSummary] Last COMPLETED velocity item:', lastCompletedItem);
+  console.log('[MetricsSummary] Last completed item values:', {
+    dueDate: lastCompletedItem?.dueDate,
+    completedPoints: lastCompletedItem?.completedPoints,
+    completedStories: lastCompletedItem?.completedStories
   });
 
   console.log('[MetricsSummary] Last items in arrays:', {
