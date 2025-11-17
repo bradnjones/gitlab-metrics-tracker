@@ -58,7 +58,8 @@ router.get('/velocity', async (req, res) => {
       totalPoints: metrics.velocityPoints + (metrics.rawData?.issues.filter(i => i.state !== 'closed').reduce((sum, i) => sum + (i.weight || 1), 0) || 0),
       completedPoints: metrics.velocityPoints,
       totalStories: metrics.issueCount,
-      completedStories: metrics.velocityStories
+      completedStories: metrics.velocityStories,
+      rawData: metrics.rawData  // Include raw data for Data Explorer
     }));
 
     // Return results
