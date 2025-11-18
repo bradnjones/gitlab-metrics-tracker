@@ -262,4 +262,70 @@ describe('CacheStatus Component', () => {
       expect(screen.getByText(/updated/i)).toBeInTheDocument();
     });
   });
+
+  // Test 9: REGRESSION - Time display remains stable during polling when cache hasn't changed
+  it('should not update time display on every poll if cache timestamp unchanged', async () => {
+    jest.useFakeTimers();
+
+    // Mock current time: 2025-11-13T20:00:00.000Z
+    const mockNow = new Date('2025-11-13T20:00:00.000Z');
+    jest.setSystemTime(mockNow);
+
+    // Cache was updated 5 minutes ago (19:55)
+    const cacheTimestamp = '2025-11-13T19:55:00.000Z';
+    const mockResponse = {
+      cacheTTL: 6,
+      totalCachedIterations: 1,
+      globalLastUpdated: cacheTimestamp,
+      iterations: [
+        {
+          iterationId: 'gid://gitlab/Iteration/123',
+          lastFetched: cacheTimestamp,
+          ageHours: 0.08,
+          status: 'fresh',
+          fileSize: 45678,
+        },
+      ],
+    };
+
+    // Mock fetch to return same data on every poll
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    });
+
+    render(<CacheStatus />);
+
+    // Wait for initial render with "5 minutes ago"
+    await waitFor(() => {
+      expect(screen.getByText(/5 minutes ago/i)).toBeInTheDocument();
+    });
+
+    const initialText = screen.getByText(/5 minutes ago/i).textContent;
+
+    // Advance time by 5 seconds (first poll interval)
+    jest.advanceTimersByTime(5000);
+
+    // Wait for poll to complete
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    // Text should STILL say "5 minutes ago" because:
+    // 1. Only 5 seconds passed (not enough to change from 5 to 6 minutes)
+    // 2. Component should use separate timer for display updates
+    const afterPollText = screen.getByText(/5 minutes ago/i).textContent;
+    expect(afterPollText).toBe(initialText);
+
+    // Advance time by 55 more seconds (total 60 seconds = 1 minute)
+    jest.advanceTimersByTime(55000);
+
+    // Now it should say "6 minutes ago" (because a full minute passed)
+    // This update should happen via separate timer, NOT via polling
+    await waitFor(() => {
+      expect(screen.getByText(/6 minutes ago/i)).toBeInTheDocument();
+    });
+
+    jest.useRealTimers();
+  });
 });
