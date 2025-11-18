@@ -157,6 +157,26 @@ const TableCell = styled.td`
 `;
 
 /**
+ * Link styled for table cells
+ *
+ * @component
+ */
+const TableLink = styled.a`
+  color: ${props => props.theme.colors.primary};
+  text-decoration: none;
+  font-weight: ${props => props.theme.typography.fontWeight.medium};
+
+  &:hover {
+    text-decoration: underline;
+    color: ${props => props.theme.colors.primaryDark};
+  }
+
+  &:visited {
+    color: ${props => props.theme.colors.primary};
+  }
+`;
+
+/**
  * Empty state container
  *
  * @component
@@ -264,6 +284,7 @@ const transformIssueToStory = (issue, iterationTitle) => {
   return {
     id: issue.id,
     title: issue.title,
+    webUrl: issue.webUrl,
     points: issue.weight || 1,
     status: issue.state === 'closed' ? 'Closed' : 'Open',
     startedAt: formatDate(issue.inProgressAt),
@@ -314,7 +335,9 @@ const transformIncident = (incident) => {
   return {
     id: incident.id,
     title: incident.title,
+    webUrl: incident.webUrl,
     severity,
+    startTime: formatDate(incident.createdAt),
     duration: duration !== null ? duration : null,
     resolvedAt: formatDate(incident.closedAt)
   };
@@ -363,6 +386,7 @@ const transformMergeRequest = (mergeRequest) => {
   return {
     id: mergeRequest.id,
     title: mergeRequest.title,
+    webUrl: mergeRequest.webUrl,
     author,
     mergedAt: formatDate(mergeRequest.mergedAt),
     leadTime: leadTime !== null ? leadTime : null
@@ -639,7 +663,15 @@ export default function DataExplorerView({ selectedIterations }) {
             <TableBody>
               {sortedData(storiesData).map((story) => (
                 <TableRow key={story.id}>
-                  <TableCell>{story.title}</TableCell>
+                  <TableCell>
+                    {story.webUrl ? (
+                      <TableLink href={story.webUrl} target="_blank" rel="noopener noreferrer">
+                        {story.title}
+                      </TableLink>
+                    ) : (
+                      story.title
+                    )}
+                  </TableCell>
                   <TableCell>{story.points}</TableCell>
                   <TableCell>{story.status}</TableCell>
                   <TableCell>{story.startedAt}</TableCell>
@@ -674,6 +706,9 @@ export default function DataExplorerView({ selectedIterations }) {
                 <TableHeaderCell onClick={() => handleSort('severity')}>
                   Severity {sortColumn === 'severity' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </TableHeaderCell>
+                <TableHeaderCell onClick={() => handleSort('startTime')}>
+                  Start Time {sortColumn === 'startTime' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </TableHeaderCell>
                 <TableHeaderCell onClick={() => handleSort('duration')}>
                   Duration {sortColumn === 'duration' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </TableHeaderCell>
@@ -685,8 +720,17 @@ export default function DataExplorerView({ selectedIterations }) {
             <TableBody>
               {sortedData(incidentsData).map((incident) => (
                 <TableRow key={incident.id}>
-                  <TableCell>{incident.title}</TableCell>
+                  <TableCell>
+                    {incident.webUrl ? (
+                      <TableLink href={incident.webUrl} target="_blank" rel="noopener noreferrer">
+                        {incident.title}
+                      </TableLink>
+                    ) : (
+                      incident.title
+                    )}
+                  </TableCell>
                   <TableCell>{incident.severity}</TableCell>
+                  <TableCell>{incident.startTime}</TableCell>
                   <TableCell>
                     {incident.duration !== null ? `${incident.duration.toFixed(1)} hrs` : 'Open'}
                   </TableCell>
@@ -728,7 +772,15 @@ export default function DataExplorerView({ selectedIterations }) {
             <TableBody>
               {sortedData(mergeRequestsData).map((mr) => (
                 <TableRow key={mr.id}>
-                  <TableCell>{mr.title}</TableCell>
+                  <TableCell>
+                    {mr.webUrl ? (
+                      <TableLink href={mr.webUrl} target="_blank" rel="noopener noreferrer">
+                        {mr.title}
+                      </TableLink>
+                    ) : (
+                      mr.title
+                    )}
+                  </TableCell>
                   <TableCell>{mr.author}</TableCell>
                   <TableCell>{mr.mergedAt}</TableCell>
                   <TableCell>
