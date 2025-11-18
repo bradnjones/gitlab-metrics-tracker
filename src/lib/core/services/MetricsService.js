@@ -151,6 +151,9 @@ export class MetricsService {
       incidentCount: (iterationData.incidents || []).length,
       rawData: {
         issues: iterationData.issues,
+        mergeRequests: iterationData.mergeRequests || [],
+        incidents: iterationData.incidents || [],
+        pipelines: iterationData.pipelines || [],
         iteration: iterationData.iteration
       }
     });
@@ -240,6 +243,9 @@ export class MetricsService {
         incidentCount: (iterationData.incidents || []).length,
         rawData: {
           issues: iterationData.issues,
+          mergeRequests: iterationData.mergeRequests || [],
+          incidents: iterationData.incidents || [],
+          pipelines: iterationData.pipelines || [],
           iteration: iterationData.iteration
         }
       });

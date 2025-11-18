@@ -329,6 +329,10 @@ export class GitLabClient {
               mergedAt
               targetBranch
               sourceBranch
+              author {
+                username
+                name
+              }
               project {
                 fullPath
                 name
