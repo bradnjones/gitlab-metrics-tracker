@@ -504,16 +504,19 @@ export default function DataExplorerView({ selectedIterations }) {
         const data = await response.json();
 
         // Extract and transform stories from raw data
-        const stories = [];
+        // Use a Map to deduplicate stories by ID (same story can appear in multiple iterations)
+        const storiesMap = new Map();
         data.metrics.forEach(metric => {
           if (metric.rawData && metric.rawData.issues) {
             metric.rawData.issues.forEach(issue => {
-              stories.push(transformIssueToStory(issue, metric.iterationTitle));
+              if (!storiesMap.has(issue.id)) {
+                storiesMap.set(issue.id, transformIssueToStory(issue, metric.iterationTitle));
+              }
             });
           }
         });
 
-        setStoriesData(stories);
+        setStoriesData(Array.from(storiesMap.values()));
       } catch (error) {
         console.error('Failed to fetch stories:', error);
         // Keep empty array on error
@@ -553,16 +556,19 @@ export default function DataExplorerView({ selectedIterations }) {
         const data = await response.json();
 
         // Extract and transform incidents from raw data
-        const incidents = [];
+        // Use a Map to deduplicate incidents by ID (same incident can appear in multiple iterations)
+        const incidentsMap = new Map();
         data.metrics.forEach(metric => {
           if (metric.rawData && metric.rawData.incidents) {
             metric.rawData.incidents.forEach(incident => {
-              incidents.push(transformIncident(incident));
+              if (!incidentsMap.has(incident.id)) {
+                incidentsMap.set(incident.id, transformIncident(incident));
+              }
             });
           }
         });
 
-        setIncidentsData(incidents);
+        setIncidentsData(Array.from(incidentsMap.values()));
       } catch (error) {
         console.error('Failed to fetch incidents:', error);
         // Keep empty array on error
@@ -602,19 +608,20 @@ export default function DataExplorerView({ selectedIterations }) {
         const data = await response.json();
 
         // Extract and transform merge requests from raw data
-        const mergeRequests = [];
+        // Use a Map to deduplicate MRs by ID (same MR can appear in multiple iterations)
+        const mergeRequestsMap = new Map();
         data.metrics.forEach(metric => {
           if (metric.rawData && metric.rawData.mergeRequests) {
             metric.rawData.mergeRequests.forEach(mr => {
               // Only include merged MRs (ignore open/closed without merge)
-              if (mr.state === 'merged') {
-                mergeRequests.push(transformMergeRequest(mr));
+              if (mr.state === 'merged' && !mergeRequestsMap.has(mr.id)) {
+                mergeRequestsMap.set(mr.id, transformMergeRequest(mr));
               }
             });
           }
         });
 
-        setMergeRequestsData(mergeRequests);
+        setMergeRequestsData(Array.from(mergeRequestsMap.values()));
       } catch (error) {
         console.error('Failed to fetch merge requests:', error);
         // Keep empty array on error

@@ -173,10 +173,10 @@ export class GitLabClient {
    */
   async fetchIterationDetails(iterationId) {
     const query = `
-      query getIterationDetails($fullPath: ID!, $iterationId: [ID!], $after: String, $notesAfter: String) {
+      query getIterationDetails($fullPath: ID!, $iterationId: [ID!], $after: String, $notesAfter: String, $not: NegatedIssueFilterInput) {
         group(fullPath: $fullPath) {
           id
-          issues(iterationId: $iterationId, includeSubgroups: true, first: 100, after: $after) {
+          issues(iterationId: $iterationId, includeSubgroups: true, first: 100, after: $after, not: $not) {
             pageInfo {
               hasNextPage
               endCursor
@@ -235,6 +235,7 @@ export class GitLabClient {
           fullPath: this.projectPath,
           iterationId: [iterationId], // Pass as array
           after,
+          not: { types: ['INCIDENT'] }, // BUG FIX: Exclude incidents from regular issues
         });
 
         if (!data.group) {
@@ -561,6 +562,7 @@ export class GitLabClient {
           id
           issues(
             types: [INCIDENT]
+            includeSubgroups: true
             createdAfter: $createdAfter
             createdBefore: $createdBefore
             first: 100
@@ -595,10 +597,19 @@ export class GitLabClient {
     let after = null;
 
     try {
-      const createdAfter = new Date(startDate).toISOString();
-      const createdBefore = new Date(endDate).toISOString();
+      // BUG FIX: Fetch broader date range (60 days before iteration start)
+      // to catch incidents created before iteration but active during it
+      const iterationStart = new Date(startDate);
+      const iterationEnd = new Date(endDate);
+      const fetchStart = new Date(iterationStart);
+      fetchStart.setDate(fetchStart.getDate() - 60); // 60 days before iteration
 
-      console.log(`Querying incidents from group (${startDate} to ${endDate})...`);
+      const createdAfter = fetchStart.toISOString();
+      const createdBefore = iterationEnd.toISOString();
+
+      console.log(`Querying incidents from group (${fetchStart.toISOString().split('T')[0]} to ${endDate})...`);
+      console.log(`  Iteration range: ${startDate} to ${endDate}`);
+      console.log(`  Fetch range: ${fetchStart.toISOString().split('T')[0]} to ${endDate} (60-day lookback)`);
 
       while (hasNextPage) {
         const data = await this.client.request(query, {
@@ -626,16 +637,38 @@ export class GitLabClient {
         }
       }
 
-      console.log(`✓ Found ${allIncidents.length} incidents in date range`);
+      console.log(`✓ Fetched ${allIncidents.length} incidents from broader date range`);
+
+      // BUG FIX: Filter locally to only include incidents with activity during iteration
+      // An incident is relevant if it was created, closed, or updated during the iteration
+      const relevantIncidents = allIncidents.filter((incident) => {
+        const created = new Date(incident.createdAt);
+        const updated = incident.updatedAt ? new Date(incident.updatedAt) : null;
+        const closed = incident.closedAt ? new Date(incident.closedAt) : null;
+
+        // Include if created during iteration
+        const createdDuringIteration = created >= iterationStart && created <= iterationEnd;
+
+        // Include if closed during iteration
+        const closedDuringIteration = closed && closed >= iterationStart && closed <= iterationEnd;
+
+        // Include if updated during iteration
+        const updatedDuringIteration = updated && updated >= iterationStart && updated <= iterationEnd;
+
+        return createdDuringIteration || closedDuringIteration || updatedDuringIteration;
+      });
+
+      console.log(`✓ Filtered to ${relevantIncidents.length} incidents with activity during iteration`);
 
       // Return raw data without calculations (business logic belongs in Core layer)
-      return allIncidents.map((incident) => ({
+      return relevantIncidents.map((incident) => ({
         id: incident.id,
         iid: incident.iid,
         title: incident.title,
         state: incident.state,
         createdAt: incident.createdAt,
         closedAt: incident.closedAt,
+        updatedAt: incident.updatedAt,
         labels: incident.labels,
         webUrl: incident.webUrl,
       }));
