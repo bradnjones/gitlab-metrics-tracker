@@ -491,7 +491,8 @@ describe('GitLabClient', () => {
         {
           fullPath: 'group/project',
           iterationId: ['gid://gitlab/Iteration/123'],
-          after: null
+          after: null,
+          not: { types: ['INCIDENT'] }
         }
       );
     });
@@ -537,13 +538,13 @@ describe('GitLabClient', () => {
       // First call with no cursor
       expect(mockRequest).toHaveBeenNthCalledWith(1,
         expect.stringContaining('query getIterationDetails'),
-        { fullPath: 'group/project', iterationId: ['gid://gitlab/Iteration/123'], after: null }
+        { fullPath: 'group/project', iterationId: ['gid://gitlab/Iteration/123'], after: null, not: { types: ['INCIDENT'] } }
       );
 
       // Second call with cursor
       expect(mockRequest).toHaveBeenNthCalledWith(2,
         expect.stringContaining('query getIterationDetails'),
-        { fullPath: 'group/project', iterationId: ['gid://gitlab/Iteration/123'], after: 'cursor1' }
+        { fullPath: 'group/project', iterationId: ['gid://gitlab/Iteration/123'], after: 'cursor1', not: { types: ['INCIDENT'] } }
       );
 
       // Delay called once (between pages)
@@ -1452,15 +1453,21 @@ describe('GitLabClient', () => {
       expect(result[1].closedAt).toBeNull();
 
       expect(mockRequest).toHaveBeenCalledTimes(1);
-      expect(mockRequest).toHaveBeenCalledWith(
-        expect.stringContaining('query getIncidents'),
-        {
-          fullPath: 'group/project',
-          after: null,
-          createdAfter: new Date('2025-01-01').toISOString(),
-          createdBefore: new Date('2025-01-10').toISOString()
-        }
-      );
+
+      // Verify the GraphQL query was called
+      const callArgs = mockRequest.mock.calls[0][1];
+      expect(callArgs.fullPath).toBe('group/project');
+      expect(callArgs.after).toBeNull();
+
+      // NEW BEHAVIOR: createdAfter should be ~60 days before iteration start
+      const createdAfterDate = new Date(callArgs.createdAfter);
+      const iterationStartDate = new Date('2025-01-01');
+      const daysDiff = Math.floor((iterationStartDate - createdAfterDate) / (1000 * 60 * 60 * 24));
+      expect(daysDiff).toBeGreaterThanOrEqual(55);
+      expect(daysDiff).toBeLessThanOrEqual(65);
+
+      // createdBefore should still be iteration end date
+      expect(callArgs.createdBefore).toBe(new Date('2025-01-10').toISOString());
     });
 
     it('should handle pagination for incidents', async () => {
@@ -1569,6 +1576,182 @@ describe('GitLabClient', () => {
       await expect(client.fetchIncidents('2025-01-01', '2025-01-10')).rejects.toThrow(
         'Failed to fetch incidents: Connection timeout'
       );
+    });
+
+    describe('Bug Fix: Include incidents created before iteration', () => {
+      it('should include incidents created before iteration but closed during it', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/1',
+                  iid: '1',
+                  title: 'Broken Digital Sharing Enrollment',
+                  state: 'closed',
+                  createdAt: '2024-12-20T00:00:00Z', // Created BEFORE iteration
+                  closedAt: '2025-01-05T00:00:00Z', // Closed DURING iteration
+                  updatedAt: '2025-01-05T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/1',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockIncidentData);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Broken Digital Sharing Enrollment');
+        expect(result[0].createdAt).toBe('2024-12-20T00:00:00Z');
+        expect(result[0].closedAt).toBe('2025-01-05T00:00:00Z');
+      });
+
+      it('should include incidents created before iteration but updated during it', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/2',
+                  iid: '2',
+                  title: 'Ongoing incident',
+                  state: 'opened',
+                  createdAt: '2024-12-15T00:00:00Z', // Created BEFORE iteration
+                  closedAt: null,
+                  updatedAt: '2025-01-08T00:00:00Z', // Updated DURING iteration
+                  webUrl: 'https://gitlab.com/group/project/-/issues/2',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockIncidentData);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Ongoing incident');
+        expect(result[0].updatedAt).toBe('2025-01-08T00:00:00Z');
+      });
+
+      it('should include incidents created during iteration (existing behavior)', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/3',
+                  iid: '3',
+                  title: 'New incident',
+                  state: 'closed',
+                  createdAt: '2025-01-03T00:00:00Z', // Created DURING iteration
+                  closedAt: '2025-01-05T00:00:00Z',
+                  updatedAt: '2025-01-05T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/3',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockIncidentData);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('New incident');
+      });
+
+      it('should exclude incidents with no activity during iteration', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/4',
+                  iid: '4',
+                  title: 'Old closed incident',
+                  state: 'closed',
+                  createdAt: '2024-12-01T00:00:00Z', // Created BEFORE
+                  closedAt: '2024-12-15T00:00:00Z', // Closed BEFORE
+                  updatedAt: '2024-12-15T00:00:00Z', // Updated BEFORE
+                  webUrl: 'https://gitlab.com/group/project/-/issues/4',
+                  labels: { nodes: [] }
+                },
+                {
+                  id: 'gid://gitlab/Issue/5',
+                  iid: '5',
+                  title: 'Future incident',
+                  state: 'closed',
+                  createdAt: '2025-01-15T00:00:00Z', // Created AFTER
+                  closedAt: '2025-01-20T00:00:00Z', // Closed AFTER
+                  updatedAt: '2025-01-20T00:00:00Z', // Updated AFTER
+                  webUrl: 'https://gitlab.com/group/project/-/issues/5',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockIncidentData);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Both should be excluded (no activity during iteration)
+        expect(result).toHaveLength(0);
+      });
+
+      it('should fetch incidents with broader date range (60 days before iteration)', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        mockRequest.mockResolvedValueOnce(mockIncidentData);
+
+        await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Verify the GraphQL query uses a broader date range
+        // The createdAfter should be ~60 days before iteration start
+        const callArgs = mockRequest.mock.calls[0][1];
+        const createdAfterDate = new Date(callArgs.createdAfter);
+        const iterationStartDate = new Date('2025-01-01');
+
+        // Calculate days difference
+        const daysDiff = Math.floor((iterationStartDate - createdAfterDate) / (1000 * 60 * 60 * 24));
+
+        // Should be approximately 60 days (allow 55-65 for some flexibility)
+        expect(daysDiff).toBeGreaterThanOrEqual(55);
+        expect(daysDiff).toBeLessThanOrEqual(65);
+
+        // createdBefore should still be iteration end date
+        expect(callArgs.createdBefore).toBe(new Date('2025-01-10').toISOString());
+      });
     });
   });
 });

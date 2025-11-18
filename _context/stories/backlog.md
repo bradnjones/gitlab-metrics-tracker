@@ -1,21 +1,23 @@
 # Story Backlog - Vertical Slices
 
 **Approach:** Vertical slices delivering complete user value (GitLab → Core → API → UI)
-**Last Updated:** 2025-11-17
+**Last Updated:** 2025-11-18
 **Previous Approach:** Horizontal architectural layers (archived in `archived-horizontal-backlog.md`)
 
 ---
 
 ## 🎯 NEXT STORY TO START
 
-**Story V6: Annotation System - Event Tracking**
+**Story V6.1: Annotations Timeline View**
 
 See below for full details.
 
-**CONTEXT:** Core annotation entity and repository exist. Need to build API endpoints and UI for creating/managing annotations, plus Chart.js integration to display annotation markers on all charts.
+**CONTEXT:** Annotation CRUD system is complete (modals, API, chart markers). The "Annotations" tab exists in navigation but shows an empty state. Need to implement the timeline visualization to show all annotations chronologically with visual correlation to metrics.
 
 **✅ MVP COMPLETE! (V1 + V2 + V3)**
 **✅ PERFORMANCE OPTIMIZATION COMPLETE! (V8 + V9.1 + V9.2 + V9.3 + V10)**
+**✅ DATA EXPLORER COMPLETE!**
+**✅ ANNOTATIONS CRUD COMPLETE! (Timeline view remaining)**
 
 **Completed Stories:**
 - ✅ V1: Velocity Tracking (Issue #11, merged)
@@ -24,6 +26,11 @@ See below for full details.
 - ✅ V3: Metrics Dashboard - Polish MVP (merged)
 - ✅ V4: Deployment Metrics - DORA Metrics (Issue #54, PRs #55, #56, #57, #59 merged)
 - ✅ V5: Incident Metrics - MTTR (PR #63, merged)
+- ✅ V6 (Partial): Annotation System - CRUD + Chart Markers (PRs #100, #101, merged)
+- ✅ V11: View Navigation System (PRs #108, #109, merged)
+- ✅ V12: Data Explorer - 4 Tables (PRs #108, #110, #111, #112, #113, #114, merged)
+- ✅ V13: Chart Enlargement Feature (PRs #104, #105, merged)
+- ✅ V14: Metrics Summary Header (PRs #106, #107, merged)
 - ✅ Removed redundant ThroughputCalculator (PR #31, merged)
 - ✅ Performance Optimization (Issue #51, PRs #52, #53 merged)
 - ✅ V8: Remove Legacy Caching Implementation (PR #65, merged)
@@ -32,19 +39,21 @@ See below for full details.
 - ✅ V9.3: Cache Management UI (PR #76, merged)
 - ✅ V10: Enhanced Progress Feedback for Iteration Selection - Phase 1 (PR #80, merged)
 - ✅ V10: Enhanced Progress Feedback - Phase 2 (PRs #87, #90, #91, merged)
+- ✅ BUG-001: Cache Aging Indicator Flickering (PR #116, merged)
 
 ---
 
 ## 🐛 Known Bugs & Issues
 
-### BUG-001: Cache Aging Indicator Flickering (HIGH PRIORITY)
+### BUG-001: Cache Aging Indicator Flickering ~~(HIGH PRIORITY)~~ ✅ RESOLVED
 
-**Status:** Open
-**Priority:** High
+**Status:** ✅ Resolved (PR #116, merged 2025-11-18)
+**Priority:** ~~High~~ FIXED
 **Component:** CacheStatus
-**Affects:** Main branch (v2.0)
+**Affects:** ~~Main branch (v2.0)~~ Fixed in main
 **Reported:** 2025-11-17
-**Related:** PR #103 (attempted fix, incomplete)
+**Resolved:** 2025-11-18
+**Related:** PR #116 (successful fix)
 
 **Problem:**
 The cache aging indicator's "Updated X ago" text flickers/changes rapidly every few seconds, creating a distracting visual effect.
@@ -1607,24 +1616,28 @@ export const ProgressText = styled.div`
 
 ---
 
-### Story V6: Annotation System - Event Tracking
+### Story V6: Annotation System - Event Tracking ✅ COMPLETE (Partial - CRUD only)
+
+**Status:** ✅ **90% Complete** (PRs #100, #101 merged) - Timeline view remains (see V6.1)
 
 **User Story:** As a team lead, I want to annotate sprints with events (process changes, incidents, team changes) so that I can correlate events with metric changes.
 
 **Priority:** MEDIUM (Post-MVP)
 **Complexity:** LARGE (New feature domain)
-**Estimate:** 6-7 hours
+**Estimate:** 6-7 hours *(Actual: ~5 hours for CRUD portion)*
 **Prerequisites:** V3 complete (can run in parallel with V4, V5)
 
 #### Acceptance Criteria
 1. ✅ **Core Entities**: Annotation entity already exists ✅
-2. ✅ **CRUD Operations**: Create, read, update, delete annotations
-3. ✅ **API Endpoints**: GET, POST, PUT, DELETE /api/annotations
-4. ✅ **React UI**:
-   - Modal for creating/editing annotations (matches prototype)
-   - Annotation markers on all charts (vertical lines at sprint boundaries)
-   - Keyboard shortcut (Ctrl+N to open modal)
-5. ✅ **Manual Validation**: Create annotation, see markers appear on all charts
+2. ✅ **CRUD Operations**: Create, read, update, delete annotations ✅ **COMPLETE**
+3. ✅ **API Endpoints**: GET, POST, PUT, DELETE /api/annotations ✅ **COMPLETE**
+4. ✅ **React UI**: ✅ **COMPLETE**
+   - ✅ Modal for creating/editing annotations (matches prototype)
+   - ✅ AnnotationsManagementModal (view/edit/delete all annotations)
+   - ✅ Annotation markers on all charts (vertical lines at sprint boundaries)
+   - ✅ Keyboard shortcut (Ctrl+N to open modal)
+   - ❌ **Timeline view in Annotations tab** (deferred to V6.1)
+5. ✅ **Manual Validation**: Create annotation, see markers appear on all charts ✅ **COMPLETE**
 
 #### Technical Scope
 
@@ -1647,6 +1660,136 @@ export const ProgressText = styled.div`
 - AnnotationMarker component (vertical line overlay on Chart.js)
 - Chart.js plugin for rendering annotations
 - Keyboard shortcut handler (Ctrl+N)
+
+---
+
+### Story V6.1: Annotations Timeline View
+
+**User Story:** As a team lead, I want to see all my annotations in a timeline view so that I can quickly scan historical events and their context alongside metrics.
+
+**Priority:** HIGH (Complete V6)
+**Complexity:** SMALL-MEDIUM (UI visualization)
+**Estimate:** 2-3 hours
+**Prerequisites:** V6 complete (CRUD + chart markers exist)
+
+#### Context
+
+The "Annotations" tab currently shows an empty state with message: *"Annotation timeline view coming soon. For now, use the hamburger menu to manage annotations."*
+
+All the infrastructure is in place:
+- ✅ Annotations API working (GET /api/annotations)
+- ✅ Annotation CRUD modals complete
+- ✅ Annotations display on charts as markers
+
+Just need to build the timeline visualization view.
+
+#### Acceptance Criteria
+
+1. **Timeline Visualization**:
+   - [ ] Replace empty state in Annotations tab with timeline view
+   - [ ] Display all annotations chronologically (sorted by date)
+   - [ ] Group by date or iteration
+   - [ ] Show event type, description, impact level
+   - [ ] Visual indicators (icons/colors) for event types
+
+2. **Interaction**:
+   - [ ] Click annotation to view details
+   - [ ] Click annotation to edit (opens AnnotationModal)
+   - [ ] "Add Annotation" button (opens AnnotationModal for new)
+   - [ ] Delete annotation with confirmation
+
+3. **Visual Design**:
+   - [ ] Timeline should match prototype style
+   - [ ] Color-coded by impact (positive/negative/neutral)
+   - [ ] Event type icons
+   - [ ] Responsive layout
+
+4. **Empty State**:
+   - [ ] If no annotations, show helpful empty state: "No annotations yet. Click + to add one."
+   - [ ] CTA button to create first annotation
+
+5. **Testing**:
+   - [ ] Component tests for AnnotationsTimelineView (4-6 tests)
+   - [ ] All tests pass, coverage ≥85%
+
+6. **Manual Validation**:
+   - [ ] Create 3-5 annotations with different types
+   - [ ] Navigate to Annotations tab
+   - [ ] See timeline view with all annotations
+   - [ ] Click annotation, see details/edit
+   - [ ] Delete annotation, see it removed
+   - [ ] Visual design matches dashboard aesthetic
+
+#### Technical Scope
+
+**New Component:**
+- `AnnotationsTimelineView.jsx` - Timeline visualization component
+
+**Styled Components:**
+- TimelineContainer
+- TimelineItem
+- EventTypeIcon
+- ImpactBadge
+- AnnotationDetails
+
+**Integration:**
+- Update `VelocityApp.jsx` line 423-428 to render `<AnnotationsTimelineView>` instead of `<EmptyState>`
+
+**Data Fetching:**
+- Fetch annotations from existing API: GET /api/annotations
+- Filter by selected iterations (optional)
+
+#### Implementation Steps (TDD)
+
+**Phase 1: Component Structure**
+1. [ ] Write tests for AnnotationsTimelineView (RED)
+2. [ ] Create component with basic structure (GREEN)
+3. [ ] Add styled components (REFACTOR)
+
+**Phase 2: Data Fetching**
+4. [ ] Write tests for data fetching (RED)
+5. [ ] Implement API call and state management (GREEN)
+6. [ ] Add loading and error states (GREEN)
+
+**Phase 3: Timeline Rendering**
+7. [ ] Write tests for timeline rendering (RED)
+8. [ ] Implement timeline items with grouping (GREEN)
+9. [ ] Add event type icons and impact colors (GREEN)
+
+**Phase 4: Interaction**
+10. [ ] Write tests for click handlers (RED)
+11. [ ] Implement edit/delete interactions (GREEN)
+12. [ ] Wire up to existing modals (GREEN)
+
+**Phase 5: Polish & Validation**
+13. [ ] Run all tests (≥85% coverage)
+14. [ ] Manual testing
+15. [ ] Visual polish
+
+#### Design Reference
+
+Check prototype for timeline patterns:
+- Event icons and colors
+- Date grouping
+- Card layout for annotation items
+
+#### Agents to Use
+
+- 🤖 Product Owner Agent - Validate timeline UX against user needs
+- 🤖 UX/UI Design Agent - Extract timeline design from prototype
+- 🤖 Test Coverage Agent - Plan TDD strategy
+- 🤖 Code Review Agent - Final review
+
+#### Definition of Done
+
+- [ ] AnnotationsTimelineView component implemented
+- [ ] All acceptance criteria met
+- [ ] Tests written first (TDD)
+- [ ] All tests passing (≥85% coverage)
+- [ ] Manual testing completed
+- [ ] Visual design matches dashboard
+- [ ] Annotations tab shows timeline (not empty state)
+- [ ] Committed and pushed
 
 ---
 

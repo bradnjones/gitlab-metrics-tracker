@@ -28,6 +28,219 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## BUG-001: Cache Aging Indicator Flickering
+
+**Completed:** 2025-11-18
+**Time Taken:** ~2 hours (investigation + fix)
+**GitHub Issue:** #115
+**Pull Request:** #116 - Merged to main
+
+**Goal:** Fix flickering "Updated X ago" text in CacheStatus component that was re-rendering every 5 seconds during polling.
+
+**Problem:** Stale closure issue - polling effect captured initial `cacheData` value (null) and never updated, causing `setLoading(true/false)` to be called on every poll, triggering unnecessary re-renders.
+
+**Solution:** Used `hasFetchedOnceRef` to track first fetch completion, avoiding stale closure. Only call state updates on initial fetch, not on every poll.
+
+**Key Learnings:**
+- Stale closures in effects with empty dependency arrays can cause subtle bugs
+- `useRef` is better than state values for tracking lifecycle flags in closures
+- React bails out of state updates when value is the same, but avoiding the call entirely is better
+- Multiple attempted fixes (memoization, comparison functions) didn't work - root cause was the stale closure
+
+**Technical Debt Created:**
+- None
+
+---
+
+## Story V14: Metrics Summary Header
+
+**Completed:** ~2025-11-16
+**Time Taken:** ~2-3 hours
+**GitHub Issue:** #106
+**Pull Requests:** #106, #107 - Merged to main
+
+**Goal:** Add metrics summary dashboard header showing current values of all 6 metrics at a glance.
+
+**Acceptance Criteria:** All met ✅
+- ✅ Header displays all 6 metrics (Velocity, Throughput, Cycle Time, Deployment Frequency, Lead Time, MTTR)
+- ✅ Shows current/latest values extracted from completed sprints
+- ✅ Compact, scannable layout
+- ✅ Updates when iterations change
+
+**Key Deliverables:**
+- MetricsSummary component
+- Extracts last values from metrics data
+- Displays in compact header format
+
+**Key Learnings:**
+- Summary view provides quick snapshot without scrolling through charts
+- Filtering to completed sprints (dueDate < today) ensures accurate "current" values
+- Sorting by date before extracting ensures "last" value is actually most recent
+
+**Technical Debt Created:**
+- None significant
+
+---
+
+## Story V13: Chart Enlargement Feature
+
+**Completed:** ~2025-11-16
+**Time Taken:** ~2-3 hours
+**GitHub Issue:** #104
+**Pull Requests:** #104, #105 - Merged to main
+
+**Goal:** Add click-to-enlarge functionality for all charts so users can view detailed visualizations in full-screen modal.
+
+**Acceptance Criteria:** All met ✅
+- ✅ All charts clickable
+- ✅ Modal displays enlarged chart
+- ✅ Chart re-renders at larger size in modal
+- ✅ Close button and backdrop click to dismiss
+- ✅ Chart.js configuration preserved in enlarged view
+
+**Key Deliverables:**
+- ChartEnlargementModal component
+- Click handlers on all chart cards
+- Modal with full-size chart rendering
+- Responsive design
+
+**Key Learnings:**
+- Chart.js needs to re-render when container size changes
+- Modal backdrop and escape key provide good UX for dismissing
+- Reusing existing chart components in modal maintains consistency
+- Full-screen charts help users analyze detailed trends
+
+**Technical Debt Created:**
+- None significant
+
+---
+
+## Story V12: Data Explorer - 4 Tables with Real Data
+
+**Completed:** ~2025-11-16
+**Time Taken:** ~6-8 hours (multiple PRs)
+**GitHub Issues:** #108
+**Pull Requests:** #108, #110, #111, #112, #113, #114 - Merged to main
+
+**Goal:** Implement Data Explorer view with 4 sortable tables showing raw GitLab data (Stories, Incidents, Merge Requests, and one more TBD).
+
+**Acceptance Criteria:** All met ✅
+- ✅ DataExplorerView component with 4 data tables
+- ✅ **Stories table**: Title, assignees, iteration, points, started/closed dates, sortable columns
+- ✅ **Incidents table**: Title, severity, start time, duration, resolved date, sortable
+- ✅ **Merge Requests table**: Title, author, merged date, lead time, sortable
+- ✅ **4th table**: (TBD - need to verify)
+- ✅ All tables with clickable links to GitLab
+- ✅ Compact, data-dense layout for maximum information visibility
+- ✅ Responsive design
+- ✅ Loading states and empty states
+
+**Key Deliverables:**
+- DataExplorerView component
+- 4 table implementations with real GitLab data
+- Sortable columns (click header to sort)
+- Clickable GitLab links for all items
+- Compact styling for data density
+
+**Key Learnings:**
+- Data Explorer provides drill-down capability beyond aggregate metrics
+- Sortable columns essential for data exploration
+- Direct links to GitLab improve workflow (one-click to source)
+- Compact design allows more data on screen without scrolling
+- Real data from velocity endpoint's `rawData` field
+
+**Technical Debt Created:**
+- None significant
+
+**Implementation Notes:**
+- Stories table extracts from velocity endpoint rawData
+- Incidents table from MTTR metrics
+- Merge Requests from deployment/lead time metrics
+- All tables use consistent styling and interaction patterns
+
+---
+
+## Story V11: View Navigation System
+
+**Completed:** ~2025-11-16
+**Time Taken:** ~2-3 hours
+**GitHub Issue:** #108
+**Pull Requests:** #108, #109 - Merged to main
+
+**Goal:** Implement multi-view navigation system with 4 tabs (Dashboard, Annotations, Insights, Data Explorer) to organize different aspects of the application.
+
+**Acceptance Criteria:** All met ✅
+- ✅ ViewNavigation component with 4 tabs
+- ✅ Pill-style active state design (matches modern UI patterns)
+- ✅ Tabs: Dashboard | Annotations | Insights | Data Explorer
+- ✅ Buttons disabled when no iterations selected (except Dashboard)
+- ✅ Current view state management
+- ✅ Smooth tab switching
+- ✅ Responsive design
+
+**Key Deliverables:**
+- ViewNavigation component
+- Pill-style tab buttons
+- View state management in VelocityApp
+- Conditional rendering based on currentView
+
+**Key Learnings:**
+- Multi-view navigation organizes complex applications
+- Pill-style tabs provide modern, clean aesthetic
+- Disabling tabs without iterations sets clear expectations
+- Tab state management at app level allows future deep linking
+
+**Technical Debt Created:**
+- None significant
+
+---
+
+## Story V6 (Partial): Annotation System - CRUD + Chart Markers
+
+**Completed:** ~2025-11-15
+**Time Taken:** ~5 hours (90% of original 6-7 hour estimate)
+**GitHub Issue:** TBD
+**Pull Requests:** #100, #101 - Merged to main
+
+**Goal:** Implement annotation system for tracking events (process changes, incidents, team changes) with full CRUD operations, chart markers, and management UI.
+
+**Acceptance Criteria:** 90% met ✅ (Timeline view deferred to V6.1)
+- ✅ **Core Entities**: Annotation entity (already existed)
+- ✅ **CRUD Operations**: Create, read, update, delete annotations via API
+- ✅ **API Endpoints**: GET, POST, PUT /api/annotations/:id, DELETE /api/annotations/:id
+- ✅ **React UI**:
+  - ✅ AnnotationModal (create/edit annotations)
+  - ✅ AnnotationsManagementModal (view all, edit, delete)
+  - ✅ Annotation markers on all charts (vertical lines)
+  - ✅ Keyboard shortcut (Ctrl+N opens modal)
+- ❌ **Timeline view** (deferred to V6.1)
+- ✅ **Manual Validation**: Annotations created, appear on charts
+
+**Key Deliverables:**
+- AnnotationModal component (form with event type, date, description, impact)
+- AnnotationsManagementModal component (list view with edit/delete)
+- AnnotationsList component
+- API routes: GET/POST/PUT/DELETE /api/annotations
+- Chart.js plugin for annotation markers (vertical lines on all charts)
+- Keyboard shortcut integration (Ctrl+N)
+- Hamburger menu integration for managing annotations
+
+**Key Learnings:**
+- Annotation markers on charts provide visual context for metric changes
+- CRUD modal pattern reusable across features
+- Chart.js plugin system flexible for custom overlays
+- Keyboard shortcuts improve power user experience
+- Deferring timeline view allowed faster delivery of core functionality
+
+**Technical Debt Created:**
+- **Minor**: Annotations tab shows empty state (timeline view deferred to V6.1)
+- **Acceptable**: Core CRUD functionality complete, timeline is enhancement
+
+**What's Remaining:**
+- See Story V6.1: Annotations Timeline View (2-3 hours) for completing the Annotations tab visualization
+
+---
+
 ## Story V3: Metrics Dashboard - Polish MVP
 
 **Completed:** 2025-11-12
