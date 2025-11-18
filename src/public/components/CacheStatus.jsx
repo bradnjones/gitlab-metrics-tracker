@@ -135,15 +135,18 @@ function CacheStatus() {
   // Store previous values in ref to avoid triggering setState unnecessarily
   const prevDataRef = useRef(null);
 
+  // Track whether we've completed the initial fetch (avoids stale closure issue)
+  const hasFetchedOnceRef = useRef(false);
+
   // Poll for cache status updates every 5 seconds
   useEffect(() => {
     async function fetchCacheStatus() {
       try {
-        // Only show loading on initial fetch
-        if (!cacheData) {
+        // Only show loading on initial fetch (avoid stale closure by using ref)
+        if (!hasFetchedOnceRef.current) {
           setLoading(true);
+          setError(null); // Clear any previous errors on first fetch
         }
-        setError(null);
 
         const response = await fetch('/api/cache/status');
 
@@ -152,6 +155,12 @@ function CacheStatus() {
         }
 
         const data = await response.json();
+
+        // Mark that we've completed the first fetch
+        if (!hasFetchedOnceRef.current) {
+          hasFetchedOnceRef.current = true;
+          setLoading(false);
+        }
 
         // Check if data has changed BEFORE calling setState
         if (!prevDataRef.current) {
@@ -184,8 +193,10 @@ function CacheStatus() {
         }
       } catch (err) {
         setError(err.message);
-      } finally {
-        setLoading(false);
+        // Only set loading to false if we haven't fetched successfully yet
+        if (!hasFetchedOnceRef.current) {
+          setLoading(false);
+        }
       }
     }
 
