@@ -227,7 +227,8 @@ router.get('/deployment-frequency', async (req, res) => {
       iterationTitle: metrics.iterationTitle,
       startDate: metrics.startDate,
       dueDate: metrics.endDate,
-      deploymentFrequency: metrics.deploymentFrequency
+      deploymentFrequency: metrics.deploymentFrequency,
+      rawData: metrics.rawData  // Include raw data for Data Explorer
     }));
 
     // Return results
@@ -301,7 +302,8 @@ router.get('/lead-time', async (req, res) => {
       dueDate: metrics.endDate,
       leadTimeAvg: metrics.leadTimeAvg,
       leadTimeP50: metrics.leadTimeP50,
-      leadTimeP90: metrics.leadTimeP90
+      leadTimeP90: metrics.leadTimeP90,
+      rawData: metrics.rawData  // Include raw data for Data Explorer
     }));
 
     // Return results
@@ -374,7 +376,8 @@ router.get('/mttr', async (req, res) => {
       startDate: metrics.startDate,
       dueDate: metrics.endDate,
       mttrAvg: metrics.mttrAvg,
-      incidentCount: metrics.incidentCount
+      incidentCount: metrics.incidentCount,
+      rawData: metrics.rawData  // Include raw data for Data Explorer
     }));
 
     // Return results
