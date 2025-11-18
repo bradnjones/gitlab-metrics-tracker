@@ -901,6 +901,100 @@ export class GitLabClient {
   }
 
   /**
+   * Extracts project path from incident webUrl.
+   * Example: https://gitlab.com/group/project/-/issues/123 → group/project
+   *
+   * @param {string} webUrl - Incident web URL
+   * @returns {string|null} Project path or null if extraction fails
+   */
+  extractProjectPath(webUrl) {
+    try {
+      const url = new URL(webUrl);
+      const pathParts = url.pathname.split('/-/')[0]; // Get everything before /-/
+      const projectPath = pathParts.substring(1); // Remove leading /
+
+      // Validate that we got a meaningful path
+      if (!projectPath || projectPath.length === 0) {
+        return null;
+      }
+
+      return projectPath;
+    } catch (error) {
+      console.error(`Error extracting project path from URL: ${webUrl}`);
+      return null;
+    }
+  }
+
+  /**
+   * Fetches timeline events for a specific incident.
+   * Timeline events contain actual incident timing with tags like "Start time", "End time".
+   *
+   * @param {Object} incident - Incident object with id and webUrl
+   * @param {string} incident.id - GitLab incident ID (e.g., 'gid://gitlab/Issue/123')
+   * @param {string} incident.webUrl - Incident web URL (used to extract project path)
+   * @returns {Promise<Array>} Array of timeline event objects
+   * @throws {Error} If the request fails
+   */
+  async fetchIncidentTimelineEvents(incident) {
+    // Extract project path from incident's webUrl
+    const projectPath = this.extractProjectPath(incident.webUrl);
+
+    if (!projectPath) {
+      console.error(`  ⚠️  Could not extract project path from: ${incident.webUrl}`);
+      return [];
+    }
+
+    const query = `
+      query getIncidentTimelineEvents($fullPath: ID!, $incidentId: IssueID!) {
+        project(fullPath: $fullPath) {
+          incidentManagementTimelineEvents(incidentId: $incidentId) {
+            nodes {
+              id
+              occurredAt
+              createdAt
+              note
+              noteHtml
+              editable
+              action
+              timelineEventTags {
+                nodes {
+                  name
+                }
+              }
+              author {
+                username
+                name
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const data = await this.client.request(query, {
+        fullPath: projectPath,
+        incidentId: incident.id,
+      });
+
+      if (!data.project || !data.project.incidentManagementTimelineEvents) {
+        return [];
+      }
+
+      return data.project.incidentManagementTimelineEvents.nodes;
+    } catch (error) {
+      console.error(`  ⚠️  Error fetching timeline events: ${error.message}`);
+      if (error.response?.errors) {
+        error.response.errors.forEach(err => {
+          console.error(`     → ${err.message}`);
+        });
+      }
+      // Return empty array instead of throwing - timeline events might not be available
+      return [];
+    }
+  }
+
+  /**
    * Helper method to delay execution (for rate limiting).
    *
    * @param {number} ms - Milliseconds to delay

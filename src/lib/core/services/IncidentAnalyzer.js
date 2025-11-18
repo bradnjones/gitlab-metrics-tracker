@@ -10,21 +10,62 @@
  */
 export class IncidentAnalyzer {
   /**
-   * Calculate downtime for a single incident
+   * Finds a timeline event by tag name (case insensitive, partial match).
+   *
+   * @param {Array<Object>} timelineEvents - Array of timeline event objects
+   * @param {string} tagName - Tag name to search for (case insensitive, partial match)
+   * @returns {Object|undefined} First matching timeline event or undefined
+   */
+  static findTimelineEventByTag(timelineEvents, tagName) {
+    return timelineEvents.find(event =>
+      event.timelineEventTags?.nodes?.some(tag =>
+        tag.name.toLowerCase().includes(tagName.toLowerCase())
+      )
+    );
+  }
+
+  /**
+   * Gets the actual start time of an incident using cascading fallback.
+   * Priority: Timeline event "Start time" tag → incident.createdAt
+   *
+   * @param {Object} incident - Incident object
+   * @param {string} incident.createdAt - When incident was created in GitLab
+   * @param {Array<Object>} [timelineEvents=[]] - Timeline events for this incident
+   * @returns {string} ISO timestamp of actual incident start
+   */
+  static getActualStartTime(incident, timelineEvents = []) {
+    const startEvent = this.findTimelineEventByTag(timelineEvents, 'start time');
+    return startEvent?.occurredAt || incident.createdAt;
+  }
+
+  /**
+   * Calculate downtime for a single incident using timeline events with cascading fallback.
    *
    * @param {Object} incident - Raw incident data
-   * @param {string} incident.createdAt - ISO timestamp when incident created
-   * @param {string|null} incident.closedAt - ISO timestamp when incident closed (null if open)
+   * @param {string} incident.createdAt - ISO timestamp when incident created in GitLab
+   * @param {string|null} incident.closedAt - ISO timestamp when incident closed in GitLab (null if open)
+   * @param {Array<Object>} [timelineEvents=[]] - Timeline events for this incident
    * @returns {number} Downtime in hours (0 if incident still open)
    */
-  static calculateDowntime(incident) {
-    if (!incident.closedAt || !incident.createdAt) {
+  static calculateDowntime(incident, timelineEvents = []) {
+    // Find timeline events by tag (cascading fallback)
+    const startEvent = this.findTimelineEventByTag(timelineEvents, 'start time');
+    const endEvent = this.findTimelineEventByTag(timelineEvents, 'end time');
+    const mitigatedEvent = this.findTimelineEventByTag(timelineEvents, 'impact mitigated');
+
+    // Start time: "Start time" tag → createdAt
+    const startTime = startEvent?.occurredAt || incident.createdAt;
+
+    // End time: "End time" tag → "Impact mitigated" tag → closedAt
+    const endTime = endEvent?.occurredAt || mitigatedEvent?.occurredAt || incident.closedAt;
+
+    if (!endTime || !startTime) {
       return 0;
     }
 
-    const created = new Date(incident.createdAt);
-    const closed = new Date(incident.closedAt);
-    const downtimeMs = closed - created;
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const downtimeMs = end - start;
 
     return downtimeMs / (1000 * 60 * 60); // Convert ms to hours
   }

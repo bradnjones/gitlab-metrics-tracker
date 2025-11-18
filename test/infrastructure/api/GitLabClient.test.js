@@ -1754,4 +1754,261 @@ describe('GitLabClient', () => {
       });
     });
   });
+
+  describe('fetchIncidentTimelineEvents', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+    });
+
+    it('should fetch timeline events for an incident', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockResponse = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: [
+              {
+                id: 'gid://gitlab/IncidentManagement::TimelineEvent/1',
+                occurredAt: '2025-01-15T10:00:00Z',
+                createdAt: '2025-01-15T10:05:00Z',
+                note: 'Incident started',
+                timelineEventTags: {
+                  nodes: [{ name: 'Start time' }]
+                },
+                author: {
+                  username: 'testuser',
+                  name: 'Test User'
+                }
+              },
+              {
+                id: 'gid://gitlab/IncidentManagement::TimelineEvent/2',
+                occurredAt: '2025-01-15T12:00:00Z',
+                createdAt: '2025-01-15T12:05:00Z',
+                note: 'Incident resolved',
+                timelineEventTags: {
+                  nodes: [{ name: 'End time' }]
+                },
+                author: {
+                  username: 'testuser',
+                  name: 'Test User'
+                }
+              }
+            ]
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toHaveLength(2);
+      expect(events[0].occurredAt).toBe('2025-01-15T10:00:00Z');
+      expect(events[0].timelineEventTags.nodes[0].name).toBe('Start time');
+      expect(events[1].timelineEventTags.nodes[0].name).toBe('End time');
+
+      // Verify the GraphQL query was called with correct parameters
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('incidentManagementTimelineEvents'),
+        {
+          fullPath: 'group/project',
+          incidentId: 'gid://gitlab/Issue/123'
+        }
+      );
+    });
+
+    it('should return empty array when no timeline events exist', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockResponse = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: []
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toEqual([]);
+    });
+
+    it('should return empty array when project not found', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockResponse = {
+        project: null
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toEqual([]);
+    });
+
+    it('should handle GraphQL errors gracefully', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockError = new Error('GraphQL Error');
+      mockError.response = {
+        errors: [{ message: 'Timeline events not available' }]
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      // Should return empty array instead of throwing
+      expect(events).toEqual([]);
+    });
+
+    it('should extract project path from incident webUrl', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/456',
+        webUrl: 'https://gitlab.com/my-group/my-project/-/issues/456'
+      };
+
+      const mockResponse = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: []
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      await client.fetchIncidentTimelineEvents(mockIncident);
+
+      // Verify the project path was correctly extracted
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          fullPath: 'my-group/my-project'
+        })
+      );
+    });
+
+    it('should return empty array if project path extraction fails', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'invalid-url'
+      };
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toEqual([]);
+      // Should not make GraphQL request if URL is invalid
+      expect(mockRequest).not.toHaveBeenCalled();
+    });
+
+    it('should handle timeline events without tags', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockResponse = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: [
+              {
+                id: 'gid://gitlab/IncidentManagement::TimelineEvent/1',
+                occurredAt: '2025-01-15T10:00:00Z',
+                createdAt: '2025-01-15T10:05:00Z',
+                note: 'System generated event',
+                timelineEventTags: {
+                  nodes: []
+                },
+                author: {
+                  username: 'system',
+                  name: 'System'
+                }
+              }
+            ]
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toHaveLength(1);
+      expect(events[0].timelineEventTags.nodes).toHaveLength(0);
+    });
+  });
+
+  describe('extractProjectPath', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+    });
+
+    it('should extract project path from standard GitLab URL', () => {
+      const url = 'https://gitlab.com/group/project/-/issues/123';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBe('group/project');
+    });
+
+    it('should extract project path from nested group structure', () => {
+      const url = 'https://gitlab.com/parent/child/project/-/issues/456';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBe('parent/child/project');
+    });
+
+    it('should extract project path from merge request URL', () => {
+      const url = 'https://gitlab.com/group/project/-/merge_requests/10';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBe('group/project');
+    });
+
+    it('should handle custom GitLab instance URLs', () => {
+      const url = 'https://gitlab.company.com/engineering/backend/-/issues/1';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBe('engineering/backend');
+    });
+
+    it('should return null for invalid URLs', () => {
+      const invalidUrl = 'not-a-valid-url';
+      const projectPath = client.extractProjectPath(invalidUrl);
+
+      expect(projectPath).toBeNull();
+    });
+
+    it('should return null for URLs without project path', () => {
+      const url = 'https://gitlab.com/';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBeNull();
+    });
+  });
 });
