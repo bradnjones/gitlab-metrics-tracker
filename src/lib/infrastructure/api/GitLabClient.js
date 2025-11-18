@@ -1,4 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
+import { IncidentAnalyzer } from '../../core/services/IncidentAnalyzer.js';
 
 /**
  * GitLab GraphQL API client for fetching sprint metrics data.
@@ -798,20 +799,44 @@ export class GitLabClient {
 
       console.log(`✓ Fetched ${allIncidents.length} incidents from broader date range`);
 
-      // BUG FIX: Filter locally to only include incidents with activity during iteration
-      // An incident is relevant if it was created, closed, or updated during the iteration
-      const relevantIncidents = allIncidents.filter((incident) => {
+      // TIMELINE-BASED FILTERING: Fetch timeline events for each incident to get actual start times
+      // This provides more accurate filtering for CFR and MTTR calculations
+      console.log('Fetching timeline events for incidents...');
+      const incidentsWithTimelines = await Promise.all(
+        allIncidents.map(async (incident) => {
+          const timelineEvents = await this.fetchIncidentTimelineEvents(incident);
+          return { incident, timelineEvents };
+        })
+      );
+
+      console.log(`✓ Fetched timeline events for ${incidentsWithTimelines.length} incidents`);
+
+      // Filter to only include incidents with activity during iteration
+      // Uses actual incident start time (from timeline events) instead of issue createdAt
+      const relevantIncidents = incidentsWithTimelines.filter(({ incident, timelineEvents }) => {
+        // Get actual start time using IncidentAnalyzer (cascading fallback: timeline → createdAt)
+        const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
+        const startTimeDate = new Date(actualStartTime);
+
+        // Check if ACTUAL START TIME is during iteration
+        const startedDuringIteration = startTimeDate >= iterationStart && startTimeDate <= iterationEnd;
+
+        // If we have timeline events with "Start time" tag, use ONLY that for filtering
+        // This ensures incidents are attributed to the correct iteration based on when they actually occurred
+        const hasTimelineStartTime = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time');
+        if (hasTimelineStartTime) {
+          // When we have explicit timeline start time, trust it completely
+          return startedDuringIteration;
+        }
+
+        // BACKWARD COMPATIBILITY: If no timeline events exist, fall back to old behavior
+        // Check created/closed/updated dates (existing behavior for legacy incidents)
         const created = new Date(incident.createdAt);
         const updated = incident.updatedAt ? new Date(incident.updatedAt) : null;
         const closed = incident.closedAt ? new Date(incident.closedAt) : null;
 
-        // Include if created during iteration
         const createdDuringIteration = created >= iterationStart && created <= iterationEnd;
-
-        // Include if closed during iteration
         const closedDuringIteration = closed && closed >= iterationStart && closed <= iterationEnd;
-
-        // Include if updated during iteration
         const updatedDuringIteration = updated && updated >= iterationStart && updated <= iterationEnd;
 
         return createdDuringIteration || closedDuringIteration || updatedDuringIteration;
@@ -820,7 +845,7 @@ export class GitLabClient {
       console.log(`✓ Filtered to ${relevantIncidents.length} incidents with activity during iteration`);
 
       // Return raw data without calculations (business logic belongs in Core layer)
-      return relevantIncidents.map((incident) => ({
+      return relevantIncidents.map(({ incident }) => ({
         id: incident.id,
         iid: incident.iid,
         title: incident.title,
