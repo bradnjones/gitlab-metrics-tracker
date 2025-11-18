@@ -7,7 +7,7 @@
  * @module components/CacheStatus
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
 /**
@@ -126,6 +126,14 @@ function CacheStatus() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [cacheData, setCacheData] = useState(null);
+  const [displayTime, setDisplayTime] = useState(null);
+
+  // Use ref to store timestamp without triggering re-renders
+  const timestampRef = useRef(null);
+  const [cacheTimestamp, setCacheTimestamp] = useState(null);
+
+  // Store previous values in ref to avoid triggering setState unnecessarily
+  const prevDataRef = useRef(null);
 
   // Poll for cache status updates every 5 seconds
   useEffect(() => {
@@ -145,19 +153,35 @@ function CacheStatus() {
 
         const data = await response.json();
 
-        // Only update state if data has actually changed
-        // Focus on timestamp and count - ignore iterations array changes to prevent flicker
-        setCacheData(prevData => {
-          if (!prevData) return data;
-
+        // Check if data has changed BEFORE calling setState
+        if (!prevDataRef.current) {
+          // First time - update all state
+          prevDataRef.current = data;
+          setCacheData(data);
+          if (data.globalLastUpdated) {
+            timestampRef.current = data.globalLastUpdated;
+            setCacheTimestamp(data.globalLastUpdated);
+          }
+        } else {
           // Only update if timestamp or count changed
           // Iterations array may have reference changes but same data - ignore those
           const hasChanged =
-            prevData.globalLastUpdated !== data.globalLastUpdated ||
-            prevData.totalCachedIterations !== data.totalCachedIterations;
+            prevDataRef.current.globalLastUpdated !== data.globalLastUpdated ||
+            prevDataRef.current.totalCachedIterations !== data.totalCachedIterations;
 
-          return hasChanged ? data : prevData;
-        });
+          if (hasChanged) {
+            // Data actually changed - update state
+            prevDataRef.current = data;
+            setCacheData(data);
+
+            // If timestamp changed, update display
+            if (data.globalLastUpdated !== timestampRef.current) {
+              timestampRef.current = data.globalLastUpdated;
+              setCacheTimestamp(data.globalLastUpdated);
+            }
+          }
+          // If nothing changed, do absolutely nothing - no setState calls
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -175,12 +199,31 @@ function CacheStatus() {
     return () => clearInterval(pollInterval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Memoize formatted time to prevent flickering
-  // Only recalculates when the actual timestamp changes (when cache is refreshed)
-  const formattedLastUpdated = useMemo(() => {
-    if (!cacheData?.globalLastUpdated) return null;
-    return formatRelativeTime(cacheData.globalLastUpdated);
-  }, [cacheData?.globalLastUpdated]);
+  // Update display time when cache timestamp changes (cache refresh)
+  useEffect(() => {
+    if (cacheTimestamp) {
+      setDisplayTime(formatRelativeTime(cacheTimestamp));
+    }
+  }, [cacheTimestamp]);
+
+  // Separate timer for updating the time display every 60 seconds (completely independent)
+  // Updates the relative time display without triggering cache data refetch
+  useEffect(() => {
+    function updateDisplayTime() {
+      if (timestampRef.current) {
+        setDisplayTime(formatRelativeTime(timestampRef.current));
+      }
+    }
+
+    // Update display time every 60 seconds
+    const displayInterval = setInterval(updateDisplayTime, 60000);
+
+    // Cleanup on unmount
+    return () => clearInterval(displayInterval);
+  }, []); // Empty deps - this timer runs completely independently
+
+  // Use the display time state which updates independently on a 60-second timer
+  const formattedLastUpdated = displayTime;
 
   // Loading state
   if (loading) {
