@@ -443,7 +443,67 @@ describe('IncidentAnalyzer', () => {
       expect(downtime).toBe(2);
     });
 
-    it('should fallback to impact mitigated when no end time tag exists', () => {
+    it('should use stop time tag when available (GitLab also uses "Stop time")', () => {
+      const incident = {
+        createdAt: '2025-01-15T12:00:00Z',
+        closedAt: '2025-01-15T15:00:00Z'
+      };
+
+      const timelineEvents = [
+        {
+          occurredAt: '2025-01-15T10:00:00Z',
+          timelineEventTags: {
+            nodes: [{ name: 'Start time' }]
+          }
+        },
+        {
+          occurredAt: '2025-01-15T14:00:00Z',
+          timelineEventTags: {
+            nodes: [{ name: 'Stop time' }] // GitLab uses "Stop time" instead of "End time"
+          }
+        }
+      ];
+
+      const downtime = IncidentAnalyzer.calculateDowntime(incident, timelineEvents);
+
+      // Should use start time (10:00) to stop time (14:00) = 4 hours
+      expect(downtime).toBe(4);
+    });
+
+    it('should prefer end time over stop time when both exist', () => {
+      const incident = {
+        createdAt: '2025-01-15T12:00:00Z',
+        closedAt: '2025-01-15T15:00:00Z'
+      };
+
+      const timelineEvents = [
+        {
+          occurredAt: '2025-01-15T10:00:00Z',
+          timelineEventTags: {
+            nodes: [{ name: 'Start time' }]
+          }
+        },
+        {
+          occurredAt: '2025-01-15T13:00:00Z',
+          timelineEventTags: {
+            nodes: [{ name: 'End time' }] // Should use this
+          }
+        },
+        {
+          occurredAt: '2025-01-15T14:00:00Z',
+          timelineEventTags: {
+            nodes: [{ name: 'Stop time' }] // Should be ignored (end time takes precedence)
+          }
+        }
+      ];
+
+      const downtime = IncidentAnalyzer.calculateDowntime(incident, timelineEvents);
+
+      // Should use start time (10:00) to END time (13:00) = 3 hours (not stop time)
+      expect(downtime).toBe(3);
+    });
+
+    it('should fallback to impact mitigated when no end time or stop time tag exists', () => {
       const incident = {
         createdAt: '2025-01-15T12:00:00Z',
         closedAt: '2025-01-15T15:00:00Z'
@@ -470,7 +530,7 @@ describe('IncidentAnalyzer', () => {
       expect(downtime).toBe(3.5);
     });
 
-    it('should fallback to closedAt when no end time or impact mitigated exists', () => {
+    it('should fallback to closedAt when no end time, stop time, or impact mitigated exists', () => {
       const incident = {
         createdAt: '2025-01-15T12:00:00Z',
         closedAt: '2025-01-15T15:00:00Z'

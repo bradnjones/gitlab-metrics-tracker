@@ -850,19 +850,22 @@ export class GitLabClient {
         // Determine which timeline events are being used
         const startEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time');
         const endEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'end time');
+        const stopEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'stop time'); // GitLab also uses "stop time"
         const mitigatedEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'impact mitigated');
 
         // Get actual times used in calculations
         const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
 
         // Determine end time using same cascading logic as calculateDowntime
-        const actualEndTime = endEvent?.occurredAt || mitigatedEvent?.occurredAt || incident.closedAt;
+        const actualEndTime = endEvent?.occurredAt || stopEvent?.occurredAt || mitigatedEvent?.occurredAt || incident.closedAt;
 
         // Determine sources for Data Explorer display
         const startTimeSource = startEvent ? 'timeline' : 'created';
         let endTimeSource = null;
         if (endEvent) {
           endTimeSource = 'timeline_end';
+        } else if (stopEvent) {
+          endTimeSource = 'timeline_stop';
         } else if (mitigatedEvent) {
           endTimeSource = 'timeline_mitigated';
         } else if (incident.closedAt) {

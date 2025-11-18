@@ -51,13 +51,14 @@ export class IncidentAnalyzer {
     // Find timeline events by tag (cascading fallback)
     const startEvent = this.findTimelineEventByTag(timelineEvents, 'start time');
     const endEvent = this.findTimelineEventByTag(timelineEvents, 'end time');
+    const stopEvent = this.findTimelineEventByTag(timelineEvents, 'stop time'); // GitLab also uses "stop time"
     const mitigatedEvent = this.findTimelineEventByTag(timelineEvents, 'impact mitigated');
 
     // Start time: "Start time" tag → createdAt
     const startTime = startEvent?.occurredAt || incident.createdAt;
 
-    // End time: "End time" tag → "Impact mitigated" tag → closedAt
-    const endTime = endEvent?.occurredAt || mitigatedEvent?.occurredAt || incident.closedAt;
+    // End time: "End time" tag → "Stop time" tag → "Impact mitigated" tag → closedAt
+    const endTime = endEvent?.occurredAt || stopEvent?.occurredAt || mitigatedEvent?.occurredAt || incident.closedAt;
 
     if (!endTime || !startTime) {
       return 0;

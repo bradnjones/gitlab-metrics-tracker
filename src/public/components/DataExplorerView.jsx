@@ -957,7 +957,11 @@ export default function DataExplorerView({ selectedIterations }) {
               <SummaryStat>
                 <SummaryLabel>w/ Timeline End</SummaryLabel>
                 <SummaryValue style={{ color: '#10b981' }}>
-                  {incidentsData.filter(i => i.endTimeSource === 'timeline_end' || i.endTimeSource === 'timeline_mitigated').length}
+                  {incidentsData.filter(i =>
+                    i.endTimeSource === 'timeline_end' ||
+                    i.endTimeSource === 'timeline_stop' ||
+                    i.endTimeSource === 'timeline_mitigated'
+                  ).length}
                 </SummaryValue>
               </SummaryStat>
               <SummaryStat>
@@ -1029,11 +1033,15 @@ export default function DataExplorerView({ selectedIterations }) {
                         <div>
                           {incident.resolvedAt}
                           {incident.endTimeSource === 'timeline_end' ? (
-                            <InfoBadge title="Using actual incident end time from timeline events">
+                            <InfoBadge title="Using actual incident end time from timeline 'End time' tag">
                               ⏱️ Timeline End
                             </InfoBadge>
+                          ) : incident.endTimeSource === 'timeline_stop' ? (
+                            <InfoBadge title="Using actual incident stop time from timeline 'Stop time' tag">
+                              ⏱️ Timeline Stop
+                            </InfoBadge>
                           ) : incident.endTimeSource === 'timeline_mitigated' ? (
-                            <InfoBadge title="Using 'Impact mitigated' timeline event (no 'End time' tag)">
+                            <InfoBadge title="Using 'Impact mitigated' timeline event (no 'End time' or 'Stop time' tag)">
                               ⏱️ Mitigated
                             </InfoBadge>
                           ) : incident.endTimeSource === 'closed' ? (
@@ -1044,6 +1052,7 @@ export default function DataExplorerView({ selectedIterations }) {
                         </div>
                         <RawTimestamp title={
                           incident.endTimeSource === 'timeline_end' ? 'Timeline "End time" event' :
+                          incident.endTimeSource === 'timeline_stop' ? 'Timeline "Stop time" event' :
                           incident.endTimeSource === 'timeline_mitigated' ? 'Timeline "Impact mitigated" event' :
                           'Fallback to closedAt'
                         }>
