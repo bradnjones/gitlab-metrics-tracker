@@ -225,6 +225,118 @@ const ComingSoonMessage = styled.div`
   font-style: italic;
 `;
 
+/**
+ * Summary card for displaying statistics
+ *
+ * @component
+ */
+const SummaryCard = styled.div`
+  background: ${props => props.theme.colors.bgSecondary};
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: ${props => props.theme.borderRadius.md};
+  padding: ${props => props.theme.spacing.md};
+  margin-bottom: ${props => props.theme.spacing.md};
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${props => props.theme.spacing.lg};
+`;
+
+/**
+ * Summary statistic item
+ *
+ * @component
+ */
+const SummaryStat = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${props => props.theme.spacing.xs};
+`;
+
+/**
+ * Summary stat label
+ *
+ * @component
+ */
+const SummaryLabel = styled.div`
+  font-size: ${props => props.theme.typography.fontSize.xs};
+  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  color: ${props => props.theme.colors.textSecondary};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+/**
+ * Summary stat value
+ *
+ * @component
+ */
+const SummaryValue = styled.div`
+  font-size: ${props => props.theme.typography.fontSize.xl};
+  font-weight: ${props => props.theme.typography.fontWeight.semibold};
+  color: ${props => props.theme.colors.textPrimary};
+`;
+
+/**
+ * Warning indicator for missing data
+ *
+ * @component
+ */
+const WarningIndicator = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${props => props.theme.spacing.xs};
+  color: ${props => props.theme.colors.warning};
+  font-weight: ${props => props.theme.typography.fontWeight.medium};
+`;
+
+/**
+ * Warning icon
+ *
+ * @component
+ */
+const WarningIcon = styled.span`
+  font-size: ${props => props.theme.typography.fontSize.sm};
+`;
+
+/**
+ * Info badge for additional metadata
+ *
+ * @component
+ */
+const InfoBadge = styled.span`
+  display: inline-block;
+  padding: 2px 6px;
+  background: ${props => props.theme.colors.bgTertiary};
+  color: ${props => props.theme.colors.textSecondary};
+  font-size: ${props => props.theme.typography.fontSize.xxs || '10px'};
+  border-radius: ${props => props.theme.borderRadius.sm};
+  margin-left: ${props => props.theme.spacing.xs};
+  font-weight: ${props => props.theme.typography.fontWeight.medium};
+`;
+
+/**
+ * Container for date with raw timestamp
+ *
+ * @component
+ */
+const DateWithTimestamp = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+/**
+ * Raw timestamp display (small, subtle)
+ *
+ * @component
+ */
+const RawTimestamp = styled.div`
+  font-size: ${props => props.theme.typography.fontSize.xxs || '10px'};
+  color: ${props => props.theme.colors.textSecondary};
+  font-family: monospace;
+  opacity: 0.7;
+`;
+
 /* ===== HELPER FUNCTIONS ===== */
 
 /**
@@ -281,6 +393,12 @@ const transformIssueToStory = (issue, iterationTitle) => {
     ? assignees.map(a => a.username).join(', ')
     : 'Unassigned';
 
+  // Check if there are more notes beyond the first batch (20 notes)
+  const hasMoreNotes = issue.notes?.pageInfo?.hasNextPage || false;
+
+  // Count how many notes were fetched
+  const noteCount = issue.notes?.nodes?.length || 0;
+
   return {
     id: issue.id,
     title: issue.title,
@@ -288,9 +406,15 @@ const transformIssueToStory = (issue, iterationTitle) => {
     points: issue.weight || 1,
     status: issue.state === 'closed' ? 'Closed' : 'Open',
     startedAt: formatDate(issue.inProgressAt),
+    startedAtRaw: issue.inProgressAt, // Raw ISO timestamp for verification
+    startedAtSource: issue.inProgressAtSource || 'status_change', // 'created' or 'status_change'
     closedAt: formatDate(issue.closedAt),
     cycleTime: cycleTime !== null ? cycleTime : null,
-    assignees: assigneeNames
+    assignees: assigneeNames,
+    // Metadata for investigation
+    missingInProgress: !issue.inProgressAt,
+    hasMoreNotes: hasMoreNotes,
+    noteCount: noteCount
   };
 };
 
@@ -641,7 +765,44 @@ export default function DataExplorerView({ selectedIterations }) {
         {loadingStories ? (
           <LoadingContainer>Loading stories...</LoadingContainer>
         ) : storiesData && storiesData.length > 0 ? (
-          <Table aria-label="Stories data table">
+          <>
+            {/* InProgress Date Statistics Summary */}
+            <SummaryCard>
+              <SummaryStat>
+                <SummaryLabel>Total Stories</SummaryLabel>
+                <SummaryValue>{storiesData.length}</SummaryValue>
+              </SummaryStat>
+              <SummaryStat>
+                <SummaryLabel>Closed Stories</SummaryLabel>
+                <SummaryValue>
+                  {storiesData.filter(s => s.status === 'Closed').length}
+                </SummaryValue>
+              </SummaryStat>
+              <SummaryStat>
+                <SummaryLabel>w/ Status Change</SummaryLabel>
+                <SummaryValue>
+                  {storiesData.filter(s => s.status === 'Closed' && s.startedAtSource === 'status_change').length}
+                </SummaryValue>
+              </SummaryStat>
+              <SummaryStat>
+                <SummaryLabel>w/ CreatedAt Fallback</SummaryLabel>
+                <SummaryValue style={{ color: '#f59e0b' }}>
+                  {storiesData.filter(s => s.status === 'Closed' && s.startedAtSource === 'created').length}
+                  {storiesData.filter(s => s.status === 'Closed').length > 0 && (
+                    <span style={{ fontSize: '0.7em', marginLeft: '0.5em' }}>
+                      ({((storiesData.filter(s => s.status === 'Closed' && s.startedAtSource === 'created').length / storiesData.filter(s => s.status === 'Closed').length) * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </SummaryValue>
+              </SummaryStat>
+              <SummaryStat>
+                <SummaryLabel>Closed w/ More Notes (BUG)</SummaryLabel>
+                <SummaryValue style={{ color: storiesData.filter(s => s.status === 'Closed' && s.missingInProgress && s.hasMoreNotes).length > 0 ? '#ef4444' : '#10b981' }}>
+                  {storiesData.filter(s => s.status === 'Closed' && s.missingInProgress && s.hasMoreNotes).length}
+                </SummaryValue>
+              </SummaryStat>
+            </SummaryCard>
+            <Table aria-label="Stories data table">
             <TableHeader>
               <tr>
                 <TableHeaderCell onClick={() => handleSort('title')}>
@@ -681,7 +842,56 @@ export default function DataExplorerView({ selectedIterations }) {
                   </TableCell>
                   <TableCell>{story.points}</TableCell>
                   <TableCell>{story.status}</TableCell>
-                  <TableCell>{story.startedAt}</TableCell>
+                  <TableCell>
+                    {story.missingInProgress && story.status === 'Closed' ? (
+                      // Only show warning for CLOSED stories missing InProgress
+                      <WarningIndicator
+                        title={
+                          story.hasMoreNotes
+                            ? `CLOSED story missing InProgress in first ${story.noteCount} notes - more notes need to be fetched (BUG!)`
+                            : `Checked all ${story.noteCount} notes - no InProgress status change found. Story likely never moved to "In Progress".`
+                        }
+                      >
+                        <WarningIcon>⚠️</WarningIcon>
+                        {story.startedAt}
+                        {story.hasMoreNotes ? (
+                          <InfoBadge title={`Only ${story.noteCount} notes checked, more available - should not happen for closed stories!`}>
+                            BUG: {story.noteCount}+
+                          </InfoBadge>
+                        ) : (
+                          <InfoBadge title={`All ${story.noteCount} notes checked - genuinely no InProgress status`}>
+                            All {story.noteCount} notes
+                          </InfoBadge>
+                        )}
+                      </WarningIndicator>
+                    ) : story.missingInProgress && story.status === 'Open' ? (
+                      // Open story without InProgress - this is normal, show N/A
+                      <span title="Open stories don't need InProgress date (not used in cycle time)">
+                        N/A (Open)
+                      </span>
+                    ) : (
+                      // Has InProgress date - show formatted date and raw timestamp
+                      <DateWithTimestamp>
+                        <div>
+                          {story.startedAt}
+                          {story.startedAtSource === 'created' && (
+                            <InfoBadge title="Using createdAt as fallback - no InProgress status change found in notes">
+                              📅 Created
+                            </InfoBadge>
+                          )}
+                          {story.hasMoreNotes && (
+                            <InfoBadge title={`${story.noteCount} notes fetched, more available`}>
+                              {story.noteCount}+
+                            </InfoBadge>
+                          )}
+                        </div>
+                        <RawTimestamp title={story.startedAtSource === 'created' ? 'Using createdAt (fallback)' : 'InProgress timestamp from status change'}>
+                          {story.startedAtRaw}
+                          {story.startedAtSource === 'created' && ' (created)'}
+                        </RawTimestamp>
+                      </DateWithTimestamp>
+                    )}
+                  </TableCell>
                   <TableCell>{story.closedAt}</TableCell>
                   <TableCell>
                     {story.cycleTime !== null ? `${story.cycleTime} days` : 'In Progress'}
@@ -691,6 +901,7 @@ export default function DataExplorerView({ selectedIterations }) {
               ))}
             </TableBody>
           </Table>
+          </>
         ) : (
           <EmptyState>
             <EmptyStateMessage>No stories found</EmptyStateMessage>

@@ -28,6 +28,88 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## ENHANCEMENT-001: InProgress Date Detection and Navigation Simplification
+
+**Completed:** 2025-01-18
+**Time Taken:** ~3 hours (investigation + implementation + UI enhancement)
+**GitHub Issue:** TBD
+**Pull Request:** TBD
+
+**Goal:** Improve accuracy of cycle time calculations by ensuring all closed stories have InProgress dates, and simplify main navigation.
+
+**Problems Solved:**
+
+1. **Closed stories missing InProgress dates excluded from cycle time**
+   - Root cause: Only first 20 notes checked for InProgress status change
+   - Impact: Stories with many notes (>20) missing InProgress → excluded from cycle time metrics
+   - Solution: Implemented full note pagination for closed stories missing InProgress in first batch
+
+2. **No visibility into which stories affected**
+   - Root cause: No UI indication of InProgress date source or missing data
+   - Impact: Impossible to diagnose cycle time accuracy issues
+   - Solution: Added Data Explorer enhancements with summary stats and visual indicators
+
+3. **Stories without any InProgress status change excluded from metrics**
+   - Root cause: Some stories never moved to "In Progress" status
+   - Impact: Valid closed stories excluded from cycle time calculations
+   - Solution: Fallback to `createdAt` when no InProgress status found after exhausting all notes
+
+4. **Cluttered main navigation**
+   - Root cause: Annotations and Insights in both main nav and hamburger menu
+   - Impact: Redundant navigation, less focus on primary views
+   - Solution: Removed Annotations and Insights from main nav (kept in hamburger menu)
+
+**Implementation Details:**
+
+**GitLabClient.js:**
+- Added `fetchAdditionalNotesForIssue()` - paginates through all notes for a single issue
+- Enhanced enrichment logic - only fetches additional notes for CLOSED stories
+- Implements fallback to `createdAt` when no InProgress found
+- Tracks data source: `'status_change'` vs `'created'`
+- Detailed logging showing pagination progress and fallback usage
+
+**DataExplorerView.jsx:**
+- New summary statistics showing InProgress date sources
+- Visual indicators: ⚠️ for bugs, 📅 for createdAt fallback
+- Raw ISO timestamp display for verification
+- Distinguishes between open stories (N/A) and closed stories (must have date)
+- Summary stats: Total, Closed, w/ Status Change, w/ CreatedAt Fallback, Bugs
+
+**ViewNavigation.jsx:**
+- Removed "Annotations" and "Insights" buttons from main navigation
+- Simplified to: Dashboard and Data Explorer only
+- Updated JSDoc and PropTypes to match
+
+**Verified Results:**
+- ✅ ALL closed stories now have InProgress dates (via status change or createdAt fallback)
+- ✅ Full note pagination only for closed stories needing it (performance optimized)
+- ✅ Clear visual indicators showing data source (status change vs created)
+- ✅ Summary statistics show exactly how many stories use each method
+- ✅ Cleaner main navigation with Annotations still accessible via hamburger menu
+- ✅ No closed stories excluded from cycle time calculations
+
+**Key Learnings:**
+- Targeted pagination (only for closed stories) balances accuracy and performance
+- Fallback to createdAt ensures no closed stories are excluded from metrics
+- Visual feedback critical for understanding data quality and sources
+- Performance optimization: open stories don't need InProgress (not used in cycle time)
+
+**Technical Debt Created:**
+- None - clean implementation with fallback strategy
+
+**Files Changed:**
+- `src/lib/infrastructure/api/GitLabClient.js` (note pagination + fallback)
+- `src/public/components/DataExplorerView.jsx` (UI enhancements + stats)
+- `src/public/components/ViewNavigation.jsx` (simplified navigation)
+
+**Testing:**
+- Manual testing with real GitLab data
+- Verified pagination logs show "all notes exhausted"
+- Confirmed createdAt fallback activates correctly
+- Validated UI indicators display proper source
+
+---
+
 ## BUG-002: Incident Fetching and Classification
 
 **Completed:** 2025-11-18

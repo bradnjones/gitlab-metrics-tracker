@@ -164,6 +164,81 @@ export class GitLabClient {
   }
 
   /**
+   * Fetches all notes for a specific issue using pagination.
+   * Used when the first batch of notes doesn't contain an InProgress status change.
+   *
+   * @param {string} issueId - GitLab issue ID (e.g., 'gid://gitlab/Issue/123')
+   * @param {string} startCursor - Cursor to start fetching from (endCursor from previous batch)
+   * @returns {Promise<Array>} Array of all remaining note objects
+   * @throws {Error} If the request fails
+   */
+  async fetchAdditionalNotesForIssue(issueId, startCursor) {
+    const query = `
+      query getIssueNotes($issueId: IssueID!, $after: String) {
+        issue(id: $issueId) {
+          id
+          notes(first: 100, after: $after) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              body
+              system
+              systemNoteMetadata {
+                action
+              }
+              createdAt
+            }
+          }
+        }
+      }
+    `;
+
+    let allNotes = [];
+    let hasNextPage = true;
+    let after = startCursor;
+    let pagesFetched = 0;
+
+    try {
+      while (hasNextPage) {
+        const data = await this.client.request(query, {
+          issueId,
+          after,
+        });
+
+        if (!data.issue) {
+          throw new Error(`Issue not found: ${issueId}`);
+        }
+
+        const { nodes, pageInfo } = data.issue.notes;
+        allNotes = allNotes.concat(nodes);
+        pagesFetched++;
+        hasNextPage = pageInfo.hasNextPage;
+        after = pageInfo.endCursor;
+
+        // Log pagination progress
+        console.log(`      → Fetched page ${pagesFetched}: ${nodes.length} notes (hasNextPage: ${hasNextPage})`);
+
+        // Small delay to avoid rate limiting
+        if (hasNextPage) {
+          await this.delay(100);
+        }
+      }
+
+      console.log(`      → Total: ${pagesFetched} pages, ${allNotes.length} notes (all notes exhausted)`);
+      return allNotes;
+    } catch (error) {
+      // Check if it's a GraphQL error
+      if (error.response?.errors) {
+        throw new Error(`Failed to fetch additional notes: ${error.response.errors[0].message}`);
+      }
+      throw new Error(`Failed to fetch additional notes: ${error.message}`);
+    }
+  }
+
+  /**
    * Fetches detailed information for a specific iteration, including all issues.
    * Issues are fetched from the group level with subgroup inclusion.
    *
@@ -256,13 +331,97 @@ export class GitLabClient {
       console.log(`✓ Fetched ${allIssues.length} issues for iteration ${iterationId}`);
 
       // Enrich issues with inProgressAt timestamp from status change notes
-      const enrichedIssues = allIssues.map((issue) => {
-        const inProgressAt = this.extractInProgressTimestamp(issue.notes?.nodes || []);
-        return {
-          ...issue,
-          inProgressAt,
-        };
-      });
+      // Only fetch additional notes for CLOSED stories (open stories don't need InProgress for cycle time)
+      let issuesRequiringAdditionalFetch = 0;
+      const enrichedIssues = await Promise.all(
+        allIssues.map(async (issue) => {
+          const initialNotes = issue.notes?.nodes || [];
+          let inProgressAt = this.extractInProgressTimestamp(initialNotes);
+
+          // Only fetch additional notes for CLOSED stories missing InProgress
+          // Open stories don't need InProgress date (not used in cycle time calculations)
+          const isClosed = issue.state === 'closed';
+          if (!inProgressAt && issue.notes?.pageInfo?.hasNextPage && isClosed) {
+            issuesRequiringAdditionalFetch++;
+            console.log(`  ⚠ CLOSED Issue #${issue.iid} missing InProgress in first 20 notes, fetching all notes...`);
+
+            try {
+              const additionalNotes = await this.fetchAdditionalNotesForIssue(
+                issue.id,
+                issue.notes.pageInfo.endCursor
+              );
+
+              // Combine initial notes with additional notes
+              const allNotes = [...initialNotes, ...additionalNotes];
+
+              // Try to extract InProgress date from all notes
+              inProgressAt = this.extractInProgressTimestamp(allNotes);
+
+              if (inProgressAt) {
+                console.log(`    ✅ FOUND InProgress date after fetching ALL notes: ${inProgressAt}`);
+              } else {
+                console.log(`    ❌ EXHAUSTED all ${allNotes.length} notes - NO InProgress status change found`);
+                console.log(`    → Falling back to createdAt: ${issue.createdAt}`);
+                // Fallback: Use createdAt if no InProgress status change found
+                inProgressAt = issue.createdAt;
+              }
+
+              // Update issue with all notes for consistency
+              return {
+                ...issue,
+                notes: {
+                  ...issue.notes,
+                  nodes: allNotes,
+                  pageInfo: {
+                    hasNextPage: false,
+                    endCursor: null,
+                  },
+                },
+                inProgressAt,
+                inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : 'status_change', // Track source
+              };
+            } catch (error) {
+              console.warn(`    ✗ Failed to fetch additional notes for issue #${issue.iid}: ${error.message}`);
+              // Fall back to using createdAt for closed stories
+              if (isClosed && !inProgressAt) {
+                console.log(`    → Error recovery: Falling back to createdAt: ${issue.createdAt}`);
+                inProgressAt = issue.createdAt;
+              }
+              return {
+                ...issue,
+                inProgressAt,
+                inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : 'status_change',
+              };
+            }
+          }
+
+          // For closed stories without InProgress in first batch and no more notes to fetch
+          if (isClosed && !inProgressAt && !issue.notes?.pageInfo?.hasNextPage) {
+            console.log(`  → Issue #${issue.iid}: No InProgress in ${initialNotes.length} notes, falling back to createdAt`);
+            inProgressAt = issue.createdAt;
+          }
+
+          // InProgress found in first batch, no more notes to fetch, or story is OPEN (doesn't need InProgress)
+          if (!isClosed && !inProgressAt) {
+            // Open story without InProgress - this is normal, no warning needed
+            return {
+              ...issue,
+              inProgressAt: null, // Explicitly null for open stories
+              inProgressAtSource: null,
+            };
+          }
+
+          return {
+            ...issue,
+            inProgressAt,
+            inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : (inProgressAt ? 'status_change' : null),
+          };
+        })
+      );
+
+      if (issuesRequiringAdditionalFetch > 0) {
+        console.log(`✓ Fetched additional notes for ${issuesRequiringAdditionalFetch} closed issues`);
+      }
 
       // Fetch iteration metadata to get startDate and dueDate for MR fetching
       console.log(`Fetching iteration metadata for MR date range...`);
