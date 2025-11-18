@@ -28,6 +28,68 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## BUG-002: Incident Fetching and Classification
+
+**Completed:** 2025-11-18
+**Time Taken:** ~4 hours (investigation + 4 bug fixes)
+**GitHub Issue:** #117
+**Pull Request:** #118 - Ready for review
+
+**Goal:** Fix multiple critical bugs in incident handling causing incorrect metrics and missing incidents.
+
+**Problems Fixed:**
+
+1. **Incidents created before iteration not fetched**
+   - Root cause: `fetchIncidents()` filtered by creation date only
+   - Impact: Incidents created before but closed/updated during iteration were missed
+   - Solution: Fetch broader date range (60 days before iteration start) + local filtering for activity during iteration
+
+2. **Incidents from subprojects not fetched**
+   - Root cause: `fetchIncidents()` missing `includeSubgroups: true` parameter
+   - Impact: Only top-level group incidents were fetched
+   - Solution: Added `includeSubgroups: true` to match `fetchIterationDetails()` behavior
+   - Example: "Broken Digital Sharing" incident from `apis/membership_api` now fetched correctly
+
+3. **Incidents incorrectly included in velocity/stories**
+   - Root cause: `fetchIterationDetails()` didn't exclude incident-type issues
+   - Impact: Incidents counted as stories in velocity calculations
+   - Solution: Added `not: {types: ['INCIDENT']}` filter to issues query
+   - Result: Velocity calculations now exclude incidents (12 stories vs 16 before)
+
+4. **Duplicate incidents in Data Explorer**
+   - Root cause: No deduplication when aggregating across multiple iterations
+   - Impact: Same incident appeared 3 times (once per iteration)
+   - Solution: Map-based deduplication in DataExplorerView for Stories, Incidents, and MRs tables
+
+**Verified Results:**
+- ✅ 4 incidents now fetched correctly (was 0-1 before)
+- ✅ Incidents excluded from velocity (12 stories vs 16)
+- ✅ No duplicates in Data Explorer
+- ✅ All incidents from all subprojects included
+- ✅ MTTR and CFR calculations accurate
+
+**Key Learnings:**
+- GraphQL query parameters must match between related queries (`includeSubgroups`)
+- Local filtering after fetch provides more flexibility than API-only filtering
+- Deduplication is critical when aggregating data across multiple iterations
+- TDD approach caught issues early with comprehensive test coverage (5 new tests)
+
+**Technical Debt Created:**
+- None - all bugs fixed cleanly with tests
+
+**Files Changed:**
+- `src/lib/infrastructure/api/GitLabClient.js` (incident fetching logic)
+- `src/public/components/DataExplorerView.jsx` (deduplication logic)
+- `test/infrastructure/api/GitLabClient.test.js` (comprehensive test coverage)
+
+**Testing:**
+- All 645 tests passing
+- Added 5 new test cases for incident date filtering
+- Updated existing tests for new query parameters
+- Verified with real GitLab data
+
+---
+
 ## BUG-001: Cache Aging Indicator Flickering
 
 **Completed:** 2025-11-18
