@@ -62,6 +62,7 @@ const mockVelocityResponse = {
           {
             id: 'gid://gitlab/Issue/1',
             title: 'Implement user authentication',
+            webUrl: 'https://gitlab.example.com/project/-/issues/1',
             state: 'closed',
             weight: 5,
             createdAt: '2025-01-01T08:00:00Z',
@@ -76,6 +77,7 @@ const mockVelocityResponse = {
           {
             id: 'gid://gitlab/Issue/2',
             title: 'Add data export feature',
+            webUrl: 'https://gitlab.example.com/project/-/issues/2',
             state: 'opened',
             weight: 3,
             createdAt: '2025-01-06T09:00:00Z',
@@ -294,6 +296,7 @@ describe('DataExplorerView', () => {
               {
                 id: 'gid://gitlab/Issue/500',
                 title: 'Production database outage',
+                webUrl: 'https://gitlab.example.com/project/-/issues/500',
                 state: 'closed',
                 createdAt: '2025-01-03T14:00:00Z',
                 closedAt: '2025-01-03T20:30:00Z',
@@ -307,6 +310,7 @@ describe('DataExplorerView', () => {
               {
                 id: 'gid://gitlab/Issue/501',
                 title: 'API rate limiting issue',
+                webUrl: 'https://gitlab.example.com/project/-/issues/501',
                 state: 'closed',
                 createdAt: '2025-01-05T09:00:00Z',
                 closedAt: '2025-01-05T15:00:00Z',
@@ -383,6 +387,7 @@ describe('DataExplorerView', () => {
               {
                 id: 'gid://gitlab/MergeRequest/100',
                 title: 'Add user authentication',
+                webUrl: 'https://gitlab.example.com/project/-/merge_requests/100',
                 state: 'merged',
                 mergedAt: '2025-01-08T16:00:00Z',
                 author: {
@@ -407,6 +412,7 @@ describe('DataExplorerView', () => {
               {
                 id: 'gid://gitlab/MergeRequest/101',
                 title: 'Fix security vulnerability',
+                webUrl: 'https://gitlab.example.com/project/-/merge_requests/101',
                 state: 'merged',
                 mergedAt: '2025-01-10T11:00:00Z',
                 author: {
@@ -522,6 +528,7 @@ describe('DataExplorerView', () => {
             issues: [{
               id: 'gid://gitlab/Issue/1',
               title: 'Test issue',
+              webUrl: 'https://gitlab.example.com/project/-/issues/1',
               state: 'closed',
               weight: 3,
               createdAt: '2025-01-01T08:00:00Z',
@@ -539,6 +546,7 @@ describe('DataExplorerView', () => {
             incidents: [{
               id: 'gid://gitlab/Issue/500',
               title: 'Test incident',
+              webUrl: 'https://gitlab.example.com/project/-/issues/500',
               state: 'closed',
               createdAt: '2025-01-03T14:00:00Z',
               closedAt: '2025-01-03T20:00:00Z',
@@ -555,6 +563,7 @@ describe('DataExplorerView', () => {
             mergeRequests: [{
               id: 'gid://gitlab/MergeRequest/100',
               title: 'Test MR',
+              webUrl: 'https://gitlab.example.com/project/-/merge_requests/100',
               state: 'merged',
               mergedAt: '2025-01-08T16:00:00Z',
               author: { username: 'testuser' },

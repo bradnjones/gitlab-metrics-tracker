@@ -189,6 +189,7 @@ export class GitLabClient {
               createdAt
               closedAt
               weight
+              webUrl
               labels {
                 nodes {
                   title
@@ -329,6 +330,7 @@ export class GitLabClient {
               mergedAt
               targetBranch
               sourceBranch
+              webUrl
               author {
                 username
                 name
