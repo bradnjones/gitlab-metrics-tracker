@@ -844,18 +844,49 @@ export class GitLabClient {
 
       console.log(`✓ Filtered to ${relevantIncidents.length} incidents with activity during iteration`);
 
-      // Return raw data without calculations (business logic belongs in Core layer)
-      return relevantIncidents.map(({ incident }) => ({
-        id: incident.id,
-        iid: incident.iid,
-        title: incident.title,
-        state: incident.state,
-        createdAt: incident.createdAt,
-        closedAt: incident.closedAt,
-        updatedAt: incident.updatedAt,
-        labels: incident.labels,
-        webUrl: incident.webUrl,
-      }));
+      // Return raw data WITH timeline metadata for Data Explorer visibility
+      // This enrichment helps users understand which fields are being used in calculations
+      return relevantIncidents.map(({ incident, timelineEvents }) => {
+        // Determine which timeline events are being used
+        const startEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time');
+        const endEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'end time');
+        const mitigatedEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'impact mitigated');
+
+        // Get actual times used in calculations
+        const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
+
+        // Determine end time using same cascading logic as calculateDowntime
+        const actualEndTime = endEvent?.occurredAt || mitigatedEvent?.occurredAt || incident.closedAt;
+
+        // Determine sources for Data Explorer display
+        const startTimeSource = startEvent ? 'timeline' : 'created';
+        let endTimeSource = null;
+        if (endEvent) {
+          endTimeSource = 'timeline_end';
+        } else if (mitigatedEvent) {
+          endTimeSource = 'timeline_mitigated';
+        } else if (incident.closedAt) {
+          endTimeSource = 'closed';
+        }
+
+        return {
+          id: incident.id,
+          iid: incident.iid,
+          title: incident.title,
+          state: incident.state,
+          createdAt: incident.createdAt,
+          closedAt: incident.closedAt,
+          updatedAt: incident.updatedAt,
+          labels: incident.labels,
+          webUrl: incident.webUrl,
+          // Timeline metadata for Data Explorer
+          actualStartTime,
+          actualEndTime,
+          startTimeSource, // 'timeline' or 'created'
+          endTimeSource, // 'timeline_end', 'timeline_mitigated', 'closed', or null
+          hasTimelineEvents: timelineEvents && timelineEvents.length > 0,
+        };
+      });
     } catch (error) {
       // Check if it's a GraphQL error
       if (error.response?.errors) {

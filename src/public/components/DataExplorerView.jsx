@@ -444,13 +444,18 @@ const extractSeverity = (labels) => {
 /**
  * Transform GitLab incident to Incident table format
  *
- * @param {Object} incident - GitLab incident object from rawData
+ * @param {Object} incident - GitLab incident object from rawData (with timeline metadata)
  * @returns {Object} Transformed incident object for table display
  */
 const transformIncident = (incident) => {
-  // Calculate duration from created to closed (or null if still open)
-  const duration = incident.closedAt
-    ? calculateCycleTime(incident.createdAt, incident.closedAt) * 24 // Convert days to hours
+  // Use actualStartTime and actualEndTime if available (from timeline events)
+  // Otherwise fall back to createdAt/closedAt
+  const startTime = incident.actualStartTime || incident.createdAt;
+  const endTime = incident.actualEndTime || incident.closedAt;
+
+  // Calculate duration from actual start to actual end (or null if still open)
+  const duration = endTime
+    ? calculateCycleTime(startTime, endTime) * 24 // Convert days to hours
     : null;
 
   // Extract severity from labels
@@ -461,9 +466,14 @@ const transformIncident = (incident) => {
     title: incident.title,
     webUrl: incident.webUrl,
     severity,
-    startTime: formatDate(incident.createdAt),
+    startTime: formatDate(startTime),
+    startTimeRaw: startTime, // Raw ISO timestamp
+    startTimeSource: incident.startTimeSource || 'created', // 'timeline' or 'created'
     duration: duration !== null ? duration : null,
-    resolvedAt: formatDate(incident.closedAt)
+    resolvedAt: formatDate(endTime),
+    resolvedAtRaw: endTime, // Raw ISO timestamp
+    endTimeSource: incident.endTimeSource || (incident.closedAt ? 'closed' : null), // 'timeline_end', 'timeline_mitigated', 'closed', or null
+    hasTimelineEvents: incident.hasTimelineEvents || false,
   };
 };
 
@@ -915,7 +925,49 @@ export default function DataExplorerView({ selectedIterations }) {
         {loadingIncidents ? (
           <LoadingContainer>Loading incidents...</LoadingContainer>
         ) : incidentsData && incidentsData.length > 0 ? (
-          <Table aria-label="Incidents data table">
+          <>
+            {/* Timeline Event Statistics Summary */}
+            <SummaryCard>
+              <SummaryStat>
+                <SummaryLabel>Total Incidents</SummaryLabel>
+                <SummaryValue>{incidentsData.length}</SummaryValue>
+              </SummaryStat>
+              <SummaryStat>
+                <SummaryLabel>w/ Timeline Start</SummaryLabel>
+                <SummaryValue style={{ color: '#10b981' }}>
+                  {incidentsData.filter(i => i.startTimeSource === 'timeline').length}
+                  {incidentsData.length > 0 && (
+                    <span style={{ fontSize: '0.7em', marginLeft: '0.5em' }}>
+                      ({((incidentsData.filter(i => i.startTimeSource === 'timeline').length / incidentsData.length) * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </SummaryValue>
+              </SummaryStat>
+              <SummaryStat>
+                <SummaryLabel>w/ CreatedAt Fallback</SummaryLabel>
+                <SummaryValue style={{ color: '#f59e0b' }}>
+                  {incidentsData.filter(i => i.startTimeSource === 'created').length}
+                  {incidentsData.length > 0 && (
+                    <span style={{ fontSize: '0.7em', marginLeft: '0.5em' }}>
+                      ({((incidentsData.filter(i => i.startTimeSource === 'created').length / incidentsData.length) * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </SummaryValue>
+              </SummaryStat>
+              <SummaryStat>
+                <SummaryLabel>w/ Timeline End</SummaryLabel>
+                <SummaryValue style={{ color: '#10b981' }}>
+                  {incidentsData.filter(i => i.endTimeSource === 'timeline_end' || i.endTimeSource === 'timeline_mitigated').length}
+                </SummaryValue>
+              </SummaryStat>
+              <SummaryStat>
+                <SummaryLabel>w/ ClosedAt Fallback</SummaryLabel>
+                <SummaryValue style={{ color: '#f59e0b' }}>
+                  {incidentsData.filter(i => i.endTimeSource === 'closed').length}
+                </SummaryValue>
+              </SummaryStat>
+            </SummaryCard>
+            <Table aria-label="Incidents data table">
             <TableHeader>
               <tr>
                 <TableHeaderCell onClick={() => handleSort('title')}>
@@ -948,15 +1000,66 @@ export default function DataExplorerView({ selectedIterations }) {
                     )}
                   </TableCell>
                   <TableCell>{incident.severity}</TableCell>
-                  <TableCell>{incident.startTime}</TableCell>
+                  <TableCell>
+                    <DateWithTimestamp>
+                      <div>
+                        {incident.startTime}
+                        {incident.startTimeSource === 'timeline' ? (
+                          <InfoBadge title="Using actual incident start time from timeline events">
+                            ⏱️ Timeline
+                          </InfoBadge>
+                        ) : (
+                          <InfoBadge title="Using issue createdAt as fallback - no timeline 'Start time' tag found">
+                            📅 Created
+                          </InfoBadge>
+                        )}
+                      </div>
+                      <RawTimestamp title={incident.startTimeSource === 'timeline' ? 'Timeline "Start time" event' : 'Fallback to createdAt'}>
+                        {incident.startTimeRaw}
+                        {incident.startTimeSource === 'created' && ' (created)'}
+                      </RawTimestamp>
+                    </DateWithTimestamp>
+                  </TableCell>
                   <TableCell>
                     {incident.duration !== null ? `${incident.duration.toFixed(1)} hrs` : 'Open'}
                   </TableCell>
-                  <TableCell>{incident.resolvedAt}</TableCell>
+                  <TableCell>
+                    {incident.resolvedAt !== '-' ? (
+                      <DateWithTimestamp>
+                        <div>
+                          {incident.resolvedAt}
+                          {incident.endTimeSource === 'timeline_end' ? (
+                            <InfoBadge title="Using actual incident end time from timeline events">
+                              ⏱️ Timeline End
+                            </InfoBadge>
+                          ) : incident.endTimeSource === 'timeline_mitigated' ? (
+                            <InfoBadge title="Using 'Impact mitigated' timeline event (no 'End time' tag)">
+                              ⏱️ Mitigated
+                            </InfoBadge>
+                          ) : incident.endTimeSource === 'closed' ? (
+                            <InfoBadge title="Using issue closedAt as fallback - no timeline end events found">
+                              📅 Closed
+                            </InfoBadge>
+                          ) : null}
+                        </div>
+                        <RawTimestamp title={
+                          incident.endTimeSource === 'timeline_end' ? 'Timeline "End time" event' :
+                          incident.endTimeSource === 'timeline_mitigated' ? 'Timeline "Impact mitigated" event' :
+                          'Fallback to closedAt'
+                        }>
+                          {incident.resolvedAtRaw}
+                          {incident.endTimeSource === 'closed' && ' (closed)'}
+                        </RawTimestamp>
+                      </DateWithTimestamp>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </>
         ) : (
           <EmptyState>
             <EmptyStateMessage>No incidents found</EmptyStateMessage>
