@@ -32,7 +32,7 @@ Stories are prepended to this file (most recent at top).
 
 **Completed:** 2025-11-19
 **GitHub Issue:** #121
-**Pull Request:** TBD
+**Pull Request:** #122
 
 **Goal:** Fix Change Failure Rate (CFR) calculation to only count incidents explicitly linked to specific changes (MRs or commits), not all incidents with activity during an iteration.
 
