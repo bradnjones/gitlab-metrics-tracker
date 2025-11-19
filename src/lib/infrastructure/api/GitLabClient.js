@@ -1,5 +1,6 @@
 import { GraphQLClient } from 'graphql-request';
 import { IncidentAnalyzer } from '../../core/services/IncidentAnalyzer.js';
+import { ChangeLinkExtractor } from '../../core/services/ChangeLinkExtractor.js';
 
 /**
  * GitLab GraphQL API client for fetching sprint metrics data.
@@ -883,6 +884,12 @@ export class GitLabClient {
         console.log(`  → endTimeSource: ${endTimeSource}`);
         console.log(`  → actualStartTime: ${actualStartTime}`);
         console.log(`  → actualEndTime: ${actualEndTime}`);
+
+        // Extract change link (MR or commit) from timeline events for CFR calculation
+        const changeLink = ChangeLinkExtractor.extractFromTimelineEvents(timelineEvents);
+        if (changeLink) {
+          console.log(`  → changeLink: ${changeLink.type} - ${changeLink.url}`);
+        }
         console.log('---');
 
         return {
@@ -901,6 +908,10 @@ export class GitLabClient {
           startTimeSource, // 'timeline' or 'created'
           endTimeSource, // 'timeline_end', 'timeline_mitigated', 'closed', or null
           hasTimelineEvents: timelineEvents && timelineEvents.length > 0,
+          // Timeline events (full data for CFR calculation)
+          timelineEvents: timelineEvents || [],
+          // Extracted change link (MR or commit) for CFR correlation
+          changeLink, // { type, url, project, id/sha } or null
         };
       });
     } catch (error) {
@@ -1063,6 +1074,100 @@ export class GitLabClient {
       }
       // Return empty array instead of throwing - timeline events might not be available
       return [];
+    }
+  }
+
+  /**
+   * Fetch merge request details to get mergedAt date
+   * Used for CFR calculation to determine which iteration a change belongs to
+   *
+   * @param {string} projectPath - GitLab project path (e.g., 'group/project')
+   * @param {string} mrId - Merge request IID
+   * @returns {Promise<Object>} MR details including mergedAt date
+   * @throws {Error} If the request fails
+   */
+  async fetchMergeRequestDetails(projectPath, mrId) {
+    const query = `
+      query getMergeRequest($fullPath: ID!, $iid: String!) {
+        project(fullPath: $fullPath) {
+          mergeRequest(iid: $iid) {
+            id
+            iid
+            title
+            state
+            mergedAt
+            createdAt
+            targetBranch
+            sourceBranch
+            webUrl
+          }
+        }
+      }
+    `;
+
+    try {
+      const data = await this.client.request(query, {
+        fullPath: projectPath,
+        iid: mrId
+      });
+
+      if (!data.project || !data.project.mergeRequest) {
+        throw new Error(`Merge request !${mrId} not found in project ${projectPath}`);
+      }
+
+      return data.project.mergeRequest;
+    } catch (error) {
+      if (error.response?.errors) {
+        throw new Error(`Failed to fetch MR details: ${error.response.errors[0].message}`);
+      }
+      throw new Error(`Failed to fetch MR details: ${error.message}`);
+    }
+  }
+
+  /**
+   * Fetch commit details to get committedDate
+   * Used for CFR calculation to determine which iteration a change belongs to
+   *
+   * @param {string} projectPath - GitLab project path (e.g., 'group/project')
+   * @param {string} sha - Commit SHA
+   * @returns {Promise<Object>} Commit details including committedDate
+   * @throws {Error} If the request fails
+   */
+  async fetchCommitDetails(projectPath, sha) {
+    const query = `
+      query getCommit($fullPath: ID!, $sha: String!) {
+        project(fullPath: $fullPath) {
+          repository {
+            commit(ref: $sha) {
+              id
+              sha
+              title
+              message
+              committedDate
+              createdAt
+              webUrl
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const data = await this.client.request(query, {
+        fullPath: projectPath,
+        sha
+      });
+
+      if (!data.project || !data.project.repository || !data.project.repository.commit) {
+        throw new Error(`Commit ${sha} not found in project ${projectPath}`);
+      }
+
+      return data.project.repository.commit;
+    } catch (error) {
+      if (error.response?.errors) {
+        throw new Error(`Failed to fetch commit details: ${error.response.errors[0].message}`);
+      }
+      throw new Error(`Failed to fetch commit details: ${error.message}`);
     }
   }
 
