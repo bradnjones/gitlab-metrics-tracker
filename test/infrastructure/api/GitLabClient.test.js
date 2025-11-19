@@ -1432,7 +1432,19 @@ describe('GitLabClient', () => {
         }
       };
 
-      mockRequest.mockResolvedValueOnce(mockIncidentData);
+      // Mock timeline events for both incidents (empty arrays for backward compatibility test)
+      const mockTimelineEvents = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: []
+          }
+        }
+      };
+
+      mockRequest
+        .mockResolvedValueOnce(mockIncidentData) // Fetch incidents
+        .mockResolvedValueOnce(mockTimelineEvents) // Timeline for incident 1
+        .mockResolvedValueOnce(mockTimelineEvents); // Timeline for incident 2
 
       const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
 
@@ -1452,7 +1464,8 @@ describe('GitLabClient', () => {
       expect(result[1].state).toBe('opened');
       expect(result[1].closedAt).toBeNull();
 
-      expect(mockRequest).toHaveBeenCalledTimes(1);
+      // Now expects 3 calls: 1 for incidents + 2 for timeline events (one per incident)
+      expect(mockRequest).toHaveBeenCalledTimes(3);
 
       // Verify the GraphQL query was called
       const callArgs = mockRequest.mock.calls[0][1];
@@ -1471,6 +1484,15 @@ describe('GitLabClient', () => {
     });
 
     it('should handle pagination for incidents', async () => {
+      // Mock timeline events (empty for both incidents)
+      const mockTimelineEvents = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: []
+          }
+        }
+      };
+
       // Mock page 1 response
       mockRequest.mockResolvedValueOnce({
         group: {
@@ -1517,12 +1539,19 @@ describe('GitLabClient', () => {
         }
       });
 
+      // Mock timeline events for both incidents
+      mockRequest
+        .mockResolvedValueOnce(mockTimelineEvents) // Timeline for incident 1
+        .mockResolvedValueOnce(mockTimelineEvents); // Timeline for incident 2
+
       const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
 
       expect(result).toHaveLength(2);
       expect(result[0].title).toBe('Incident 1');
       expect(result[1].title).toBe('Incident 2');
-      expect(mockRequest).toHaveBeenCalledTimes(2);
+
+      // Now expects 4 calls: 2 for incident pagination + 2 for timeline events
+      expect(mockRequest).toHaveBeenCalledTimes(4);
 
       // Delay called once (between pages)
       expect(client.delay).toHaveBeenCalledTimes(1);
@@ -1753,5 +1782,638 @@ describe('GitLabClient', () => {
         expect(callArgs.createdBefore).toBe(new Date('2025-01-10').toISOString());
       });
     });
+<<<<<<< HEAD
+
+    describe('Timeline-based incident filtering (using actual start time)', () => {
+      it('should include incident with "Start time" during iteration even if createdAt is before', async () => {
+        // This is the KEY test - incident created before iteration but actual start time during iteration
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/1',
+                  iid: '1',
+                  title: 'Incident detected late',
+                  state: 'closed',
+                  createdAt: '2024-12-25T00:00:00Z', // Created BEFORE iteration (Dec 25)
+                  closedAt: '2025-01-06T00:00:00Z',
+                  updatedAt: '2025-01-06T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/1',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Mock timeline events for the incident showing actual start time during iteration
+        const mockTimelineEvents = {
+          project: {
+            incidentManagementTimelineEvents: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/1',
+                  occurredAt: '2025-01-03T10:00:00Z', // Actual start DURING iteration (Jan 3)
+                  timelineEventTags: {
+                    nodes: [{ name: 'Start time' }]
+                  }
+                }
+              ]
+            }
+          }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(mockIncidentData) // First call: fetch incidents
+          .mockResolvedValueOnce(mockTimelineEvents); // Second call: fetch timeline events
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Should be INCLUDED because actual start time (Jan 3) is during iteration
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Incident detected late');
+      });
+
+      it('should include incident with "Start time" during iteration even if createdAt is after', async () => {
+        // Edge case: incident issue created after iteration but actual start time during iteration
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/2',
+                  iid: '2',
+                  title: 'Incident documented late',
+                  state: 'closed',
+                  createdAt: '2025-01-15T00:00:00Z', // Created AFTER iteration (Jan 15)
+                  closedAt: '2025-01-16T00:00:00Z',
+                  updatedAt: '2025-01-16T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/2',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Mock timeline events showing actual start time during iteration
+        const mockTimelineEvents = {
+          project: {
+            incidentManagementTimelineEvents: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/2',
+                  occurredAt: '2025-01-08T14:30:00Z', // Actual start DURING iteration (Jan 8)
+                  timelineEventTags: {
+                    nodes: [{ name: 'Start time' }]
+                  }
+                }
+              ]
+            }
+          }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(mockIncidentData)
+          .mockResolvedValueOnce(mockTimelineEvents);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Should be INCLUDED because actual start time (Jan 8) is during iteration
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Incident documented late');
+      });
+
+      it('should exclude incident with "Start time" before iteration', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/3',
+                  iid: '3',
+                  title: 'Old incident',
+                  state: 'closed',
+                  createdAt: '2024-12-20T00:00:00Z',
+                  closedAt: '2025-01-05T00:00:00Z', // Closed during iteration
+                  updatedAt: '2025-01-05T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/3',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Timeline events show actual start time BEFORE iteration
+        const mockTimelineEvents = {
+          project: {
+            incidentManagementTimelineEvents: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/3',
+                  occurredAt: '2024-12-22T08:00:00Z', // Actual start BEFORE iteration (Dec 22)
+                  timelineEventTags: {
+                    nodes: [{ name: 'Start time' }]
+                  }
+                }
+              ]
+            }
+          }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(mockIncidentData)
+          .mockResolvedValueOnce(mockTimelineEvents);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Should be EXCLUDED - actual start (Dec 22) is before iteration
+        // Even though closedAt is during iteration, we prioritize start time
+        expect(result).toHaveLength(0);
+      });
+
+      it('should exclude incident with "Start time" after iteration', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/4',
+                  iid: '4',
+                  title: 'Future incident',
+                  state: 'opened',
+                  createdAt: '2025-01-05T00:00:00Z', // Created during iteration
+                  closedAt: null,
+                  updatedAt: '2025-01-06T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/4',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Timeline events show actual start time AFTER iteration
+        const mockTimelineEvents = {
+          project: {
+            incidentManagementTimelineEvents: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/4',
+                  occurredAt: '2025-01-12T16:00:00Z', // Actual start AFTER iteration (Jan 12)
+                  timelineEventTags: {
+                    nodes: [{ name: 'Start time' }]
+                  }
+                }
+              ]
+            }
+          }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(mockIncidentData)
+          .mockResolvedValueOnce(mockTimelineEvents);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Should be EXCLUDED - actual start (Jan 12) is after iteration
+        expect(result).toHaveLength(0);
+      });
+
+      it('should include incident without timeline events using createdAt (backward compatibility)', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/5',
+                  iid: '5',
+                  title: 'Incident without timeline',
+                  state: 'closed',
+                  createdAt: '2025-01-04T00:00:00Z', // Created during iteration
+                  closedAt: '2025-01-05T00:00:00Z',
+                  updatedAt: '2025-01-05T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/5',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // No timeline events (empty array)
+        const mockTimelineEvents = {
+          project: {
+            incidentManagementTimelineEvents: {
+              nodes: []
+            }
+          }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(mockIncidentData)
+          .mockResolvedValueOnce(mockTimelineEvents);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Should be INCLUDED using fallback to createdAt (backward compatibility)
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Incident without timeline');
+      });
+
+      it('should use first matching "Start time" tag when multiple timeline events exist', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/6',
+                  iid: '6',
+                  title: 'Incident with multiple events',
+                  state: 'closed',
+                  createdAt: '2024-12-28T00:00:00Z',
+                  closedAt: '2025-01-07T00:00:00Z',
+                  updatedAt: '2025-01-07T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/6',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Multiple timeline events including one with "Start time" tag
+        const mockTimelineEvents = {
+          project: {
+            incidentManagementTimelineEvents: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/10',
+                  occurredAt: '2024-12-30T08:00:00Z',
+                  timelineEventTags: {
+                    nodes: [{ name: 'Impact detected' }]
+                  }
+                },
+                {
+                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/11',
+                  occurredAt: '2025-01-02T10:00:00Z', // This is the "Start time" during iteration
+                  timelineEventTags: {
+                    nodes: [{ name: 'Start time' }]
+                  }
+                },
+                {
+                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/12',
+                  occurredAt: '2025-01-06T12:00:00Z',
+                  timelineEventTags: {
+                    nodes: [{ name: 'End time' }]
+                  }
+                }
+              ]
+            }
+          }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(mockIncidentData)
+          .mockResolvedValueOnce(mockTimelineEvents);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Should be INCLUDED using the "Start time" event (Jan 2) which is during iteration
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Incident with multiple events');
+      });
+
+      it('should handle case-insensitive tag matching for "start time"', async () => {
+        const mockIncidentData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/7',
+                  iid: '7',
+                  title: 'Incident with mixed-case tag',
+                  state: 'closed',
+                  createdAt: '2024-12-20T00:00:00Z',
+                  closedAt: '2025-01-08T00:00:00Z',
+                  updatedAt: '2025-01-08T00:00:00Z',
+                  webUrl: 'https://gitlab.com/group/project/-/issues/7',
+                  labels: { nodes: [] }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Tag with different casing: "START TIME" instead of "Start time"
+        const mockTimelineEvents = {
+          project: {
+            incidentManagementTimelineEvents: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/7',
+                  occurredAt: '2025-01-05T09:00:00Z',
+                  timelineEventTags: {
+                    nodes: [{ name: 'START TIME' }] // All caps
+                  }
+                }
+              ]
+            }
+          }
+        };
+
+        mockRequest
+          .mockResolvedValueOnce(mockIncidentData)
+          .mockResolvedValueOnce(mockTimelineEvents);
+
+        // Iteration: 2025-01-01 to 2025-01-10
+        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
+
+        // Should be INCLUDED - tag matching should be case-insensitive
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Incident with mixed-case tag');
+      });
+    });
+  });
+
+  describe('fetchIncidentTimelineEvents', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+    });
+
+    it('should fetch timeline events for an incident', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockResponse = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: [
+              {
+                id: 'gid://gitlab/IncidentManagement::TimelineEvent/1',
+                occurredAt: '2025-01-15T10:00:00Z',
+                createdAt: '2025-01-15T10:05:00Z',
+                note: 'Incident started',
+                timelineEventTags: {
+                  nodes: [{ name: 'Start time' }]
+                },
+                author: {
+                  username: 'testuser',
+                  name: 'Test User'
+                }
+              },
+              {
+                id: 'gid://gitlab/IncidentManagement::TimelineEvent/2',
+                occurredAt: '2025-01-15T12:00:00Z',
+                createdAt: '2025-01-15T12:05:00Z',
+                note: 'Incident resolved',
+                timelineEventTags: {
+                  nodes: [{ name: 'End time' }]
+                },
+                author: {
+                  username: 'testuser',
+                  name: 'Test User'
+                }
+              }
+            ]
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toHaveLength(2);
+      expect(events[0].occurredAt).toBe('2025-01-15T10:00:00Z');
+      expect(events[0].timelineEventTags.nodes[0].name).toBe('Start time');
+      expect(events[1].timelineEventTags.nodes[0].name).toBe('End time');
+
+      // Verify the GraphQL query was called with correct parameters
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('incidentManagementTimelineEvents'),
+        {
+          fullPath: 'group/project',
+          incidentId: 'gid://gitlab/Issue/123'
+        }
+      );
+    });
+
+    it('should return empty array when no timeline events exist', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockResponse = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: []
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toEqual([]);
+    });
+
+    it('should return empty array when project not found', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockResponse = {
+        project: null
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toEqual([]);
+    });
+
+    it('should handle GraphQL errors gracefully', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockError = new Error('GraphQL Error');
+      mockError.response = {
+        errors: [{ message: 'Timeline events not available' }]
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      // Should return empty array instead of throwing
+      expect(events).toEqual([]);
+    });
+
+    it('should extract project path from incident webUrl', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/456',
+        webUrl: 'https://gitlab.com/my-group/my-project/-/issues/456'
+      };
+
+      const mockResponse = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: []
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      await client.fetchIncidentTimelineEvents(mockIncident);
+
+      // Verify the project path was correctly extracted
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          fullPath: 'my-group/my-project'
+        })
+      );
+    });
+
+    it('should return empty array if project path extraction fails', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'invalid-url'
+      };
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toEqual([]);
+      // Should not make GraphQL request if URL is invalid
+      expect(mockRequest).not.toHaveBeenCalled();
+    });
+
+    it('should handle timeline events without tags', async () => {
+      const mockIncident = {
+        id: 'gid://gitlab/Issue/123',
+        webUrl: 'https://gitlab.com/group/project/-/issues/123'
+      };
+
+      const mockResponse = {
+        project: {
+          incidentManagementTimelineEvents: {
+            nodes: [
+              {
+                id: 'gid://gitlab/IncidentManagement::TimelineEvent/1',
+                occurredAt: '2025-01-15T10:00:00Z',
+                createdAt: '2025-01-15T10:05:00Z',
+                note: 'System generated event',
+                timelineEventTags: {
+                  nodes: []
+                },
+                author: {
+                  username: 'system',
+                  name: 'System'
+                }
+              }
+            ]
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockResponse);
+
+      const events = await client.fetchIncidentTimelineEvents(mockIncident);
+
+      expect(events).toHaveLength(1);
+      expect(events[0].timelineEventTags.nodes).toHaveLength(0);
+    });
+  });
+
+  describe('extractProjectPath', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+    });
+
+    it('should extract project path from standard GitLab URL', () => {
+      const url = 'https://gitlab.com/group/project/-/issues/123';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBe('group/project');
+    });
+
+    it('should extract project path from nested group structure', () => {
+      const url = 'https://gitlab.com/parent/child/project/-/issues/456';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBe('parent/child/project');
+    });
+
+    it('should extract project path from merge request URL', () => {
+      const url = 'https://gitlab.com/group/project/-/merge_requests/10';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBe('group/project');
+    });
+
+    it('should handle custom GitLab instance URLs', () => {
+      const url = 'https://gitlab.company.com/engineering/backend/-/issues/1';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBe('engineering/backend');
+    });
+
+    it('should return null for invalid URLs', () => {
+      const invalidUrl = 'not-a-valid-url';
+      const projectPath = client.extractProjectPath(invalidUrl);
+
+      expect(projectPath).toBeNull();
+    });
+
+    it('should return null for URLs without project path', () => {
+      const url = 'https://gitlab.com/';
+      const projectPath = client.extractProjectPath(url);
+
+      expect(projectPath).toBeNull();
+    });
+=======
+>>>>>>> origin/main
   });
 });

@@ -28,6 +28,202 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## BUG-FIX: Incident Date Filtering with Timeline Events
+
+**Completed:** 2025-11-18
+**GitHub Issue:** #117
+**Pull Request:** TBD
+
+**Goal:** Fix incident filtering to properly use timeline events for accurate MTTR and CFR calculations, and provide visibility into which data sources are being used.
+
+**Problems Solved:**
+
+1. **Timeline event metadata not visible in Data Explorer**
+   - Root cause: Cached data from before timeline metadata enrichment was added
+   - Impact: Couldn't verify which incidents were using timeline events vs fallback values
+   - Solution: Clear cache to force fresh fetch with timeline metadata fields
+
+2. **Incidents filtered out incorrectly**
+   - Root cause: Filtering logic only checked if incident started during iteration, ignoring closed/updated dates
+   - Impact: Incidents with timeline "Start time" tags that started before iteration but closed during iteration were excluded
+   - Example: Incident started Oct 20, closed Nov 5, iteration Nov 3-9 → incorrectly filtered out
+   - Solution: Updated filtering to include incidents with ANY activity during iteration (started OR closed OR updated)
+
+**Changes Made:**
+
+1. **GitLabClient.js (fetchIncidents method)**
+   - Simplified filtering logic to check for ANY activity during iteration
+   - Removed special case for timeline start times that was too restrictive
+   - Now includes incidents that started, closed, OR updated during iteration
+
+2. **Manual Testing & Cache Management**
+   - Added debug logging to diagnose timeline event processing
+   - Cleared cache to verify timeline metadata enrichment working correctly
+   - Validated all 4 incidents now appear with correct timeline badges
+
+**Acceptance Criteria:** All met ✅
+- [x] Incidents with timeline events show correct source badges (⏱️ Timeline, ⏱️ Timeline End)
+- [x] Incidents closed during iteration are included even if started before iteration
+- [x] Data Explorer shows all 4 expected incidents
+- [x] Timeline metadata properly flows from GitLabClient → MetricsService → API → Frontend
+- [x] Manual testing with real GitLab data confirms accuracy
+
+**Key Learnings:**
+- Cache invalidation is critical when adding new enrichment fields to data
+- Filtering logic must consider all types of activity (start/close/update), not just start time
+- Timeline-based filtering requires balancing accuracy with inclusiveness
+- Debug logging at enrichment points helps diagnose data flow issues
+
+**Technical Debt:**
+- Debug logging statements should be removed or made configurable (currently left in for troubleshooting)
+- Cache versioning/invalidation strategy should be implemented to handle schema changes automatically
+
+---
+
+## ENHANCEMENT-001: InProgress Date Detection and Navigation Simplification
+
+**Completed:** 2025-01-18
+**Time Taken:** ~3 hours (investigation + implementation + UI enhancement)
+**GitHub Issue:** TBD
+**Pull Request:** TBD
+
+**Goal:** Improve accuracy of cycle time calculations by ensuring all closed stories have InProgress dates, and simplify main navigation.
+
+**Problems Solved:**
+
+1. **Closed stories missing InProgress dates excluded from cycle time**
+   - Root cause: Only first 20 notes checked for InProgress status change
+   - Impact: Stories with many notes (>20) missing InProgress → excluded from cycle time metrics
+   - Solution: Implemented full note pagination for closed stories missing InProgress in first batch
+
+2. **No visibility into which stories affected**
+   - Root cause: No UI indication of InProgress date source or missing data
+   - Impact: Impossible to diagnose cycle time accuracy issues
+   - Solution: Added Data Explorer enhancements with summary stats and visual indicators
+
+3. **Stories without any InProgress status change excluded from metrics**
+   - Root cause: Some stories never moved to "In Progress" status
+   - Impact: Valid closed stories excluded from cycle time calculations
+   - Solution: Fallback to `createdAt` when no InProgress status found after exhausting all notes
+
+4. **Cluttered main navigation**
+   - Root cause: Annotations and Insights in both main nav and hamburger menu
+   - Impact: Redundant navigation, less focus on primary views
+   - Solution: Removed Annotations and Insights from main nav (kept in hamburger menu)
+
+**Implementation Details:**
+
+**GitLabClient.js:**
+- Added `fetchAdditionalNotesForIssue()` - paginates through all notes for a single issue
+- Enhanced enrichment logic - only fetches additional notes for CLOSED stories
+- Implements fallback to `createdAt` when no InProgress found
+- Tracks data source: `'status_change'` vs `'created'`
+- Detailed logging showing pagination progress and fallback usage
+
+**DataExplorerView.jsx:**
+- New summary statistics showing InProgress date sources
+- Visual indicators: ⚠️ for bugs, 📅 for createdAt fallback
+- Raw ISO timestamp display for verification
+- Distinguishes between open stories (N/A) and closed stories (must have date)
+- Summary stats: Total, Closed, w/ Status Change, w/ CreatedAt Fallback, Bugs
+
+**ViewNavigation.jsx:**
+- Removed "Annotations" and "Insights" buttons from main navigation
+- Simplified to: Dashboard and Data Explorer only
+- Updated JSDoc and PropTypes to match
+
+**Verified Results:**
+- ✅ ALL closed stories now have InProgress dates (via status change or createdAt fallback)
+- ✅ Full note pagination only for closed stories needing it (performance optimized)
+- ✅ Clear visual indicators showing data source (status change vs created)
+- ✅ Summary statistics show exactly how many stories use each method
+- ✅ Cleaner main navigation with Annotations still accessible via hamburger menu
+- ✅ No closed stories excluded from cycle time calculations
+
+**Key Learnings:**
+- Targeted pagination (only for closed stories) balances accuracy and performance
+- Fallback to createdAt ensures no closed stories are excluded from metrics
+- Visual feedback critical for understanding data quality and sources
+- Performance optimization: open stories don't need InProgress (not used in cycle time)
+
+**Technical Debt Created:**
+- None - clean implementation with fallback strategy
+
+**Files Changed:**
+- `src/lib/infrastructure/api/GitLabClient.js` (note pagination + fallback)
+- `src/public/components/DataExplorerView.jsx` (UI enhancements + stats)
+- `src/public/components/ViewNavigation.jsx` (simplified navigation)
+
+**Testing:**
+- Manual testing with real GitLab data
+- Verified pagination logs show "all notes exhausted"
+- Confirmed createdAt fallback activates correctly
+- Validated UI indicators display proper source
+
+---
+
+## BUG-002: Incident Fetching and Classification
+
+**Completed:** 2025-11-18
+**Time Taken:** ~4 hours (investigation + 4 bug fixes)
+**GitHub Issue:** #117
+**Pull Request:** #118 - Ready for review
+
+**Goal:** Fix multiple critical bugs in incident handling causing incorrect metrics and missing incidents.
+
+**Problems Fixed:**
+
+1. **Incidents created before iteration not fetched**
+   - Root cause: `fetchIncidents()` filtered by creation date only
+   - Impact: Incidents created before but closed/updated during iteration were missed
+   - Solution: Fetch broader date range (60 days before iteration start) + local filtering for activity during iteration
+
+2. **Incidents from subprojects not fetched**
+   - Root cause: `fetchIncidents()` missing `includeSubgroups: true` parameter
+   - Impact: Only top-level group incidents were fetched
+   - Solution: Added `includeSubgroups: true` to match `fetchIterationDetails()` behavior
+   - Example: "Broken Digital Sharing" incident from `apis/membership_api` now fetched correctly
+
+3. **Incidents incorrectly included in velocity/stories**
+   - Root cause: `fetchIterationDetails()` didn't exclude incident-type issues
+   - Impact: Incidents counted as stories in velocity calculations
+   - Solution: Added `not: {types: ['INCIDENT']}` filter to issues query
+   - Result: Velocity calculations now exclude incidents (12 stories vs 16 before)
+
+4. **Duplicate incidents in Data Explorer**
+   - Root cause: No deduplication when aggregating across multiple iterations
+   - Impact: Same incident appeared 3 times (once per iteration)
+   - Solution: Map-based deduplication in DataExplorerView for Stories, Incidents, and MRs tables
+
+**Verified Results:**
+- ✅ 4 incidents now fetched correctly (was 0-1 before)
+- ✅ Incidents excluded from velocity (12 stories vs 16)
+- ✅ No duplicates in Data Explorer
+- ✅ All incidents from all subprojects included
+- ✅ MTTR and CFR calculations accurate
+
+**Key Learnings:**
+- GraphQL query parameters must match between related queries (`includeSubgroups`)
+- Local filtering after fetch provides more flexibility than API-only filtering
+- Deduplication is critical when aggregating data across multiple iterations
+- TDD approach caught issues early with comprehensive test coverage (5 new tests)
+
+**Technical Debt Created:**
+- None - all bugs fixed cleanly with tests
+
+**Files Changed:**
+- `src/lib/infrastructure/api/GitLabClient.js` (incident fetching logic)
+- `src/public/components/DataExplorerView.jsx` (deduplication logic)
+- `test/infrastructure/api/GitLabClient.test.js` (comprehensive test coverage)
+
+**Testing:**
+- All 645 tests passing
+- Added 5 new test cases for incident date filtering
+- Updated existing tests for new query parameters
+- Verified with real GitLab data
+
+---
+
 ## BUG-001: Cache Aging Indicator Flickering
 
 **Completed:** 2025-11-18

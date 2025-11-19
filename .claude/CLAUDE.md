@@ -58,16 +58,18 @@ FOR EACH LOGICAL UNIT (Component/Layer/Feature):
 7. 🟢 GREEN: Minimal implementation to pass
 8. 🔄 REFACTOR: Clean up code
 9. ✅ Run tests and verify coverage ≥85%
-10. ✅ Commit and push to feature branch
-11. 🔀 Create Small PR (< 200 lines preferred)
-12. ✅ Merge PR with --squash --delete-branch
-13. 🔄 Return to step 4 for next unit (new branch from main)
+10. 📝 UPDATE BACKLOG - Document completed work (see "Backlog Updates" section)
+11. ✅ Commit and push to feature branch (includes backlog changes)
+12. 🔀 Create Small PR (< 200 lines preferred)
+13. ✅ Merge PR with --squash --delete-branch
+14. 🔄 Return to step 4 for next unit (new branch from main)
 
 AFTER ALL UNITS COMPLETE:
-14. 🤖 Clean Architecture Agent - Validate layer separation
-15. 🤖 Code Review Agent - Final review
-16. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
-17. ✅ Close GitHub issue
+15. 🤖 Clean Architecture Agent - Validate layer separation
+16. 🤖 Code Review Agent - Final review
+17. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
+18. 📝 FINAL BACKLOG UPDATE - Move story to completed.md with full summary
+19. ✅ Close GitHub issue
 ```
 
 **CRITICAL: Short-Lived Branches**
@@ -117,6 +119,64 @@ AFTER ALL UNITS COMPLETE:
 12. **❌ NO Long-Lived Branches** - Never reuse branches, never merge main into feature branches
 13. **⏸️ MANDATORY: ASK After PR Creation** - MUST ask "Have you merged PR #X?" and WAIT for confirmation before ANY new work
 14. **🚫 NEVER Add to Existing PR Branch** - One branch = One PR = One feature. Create NEW branch for new features
+15. **📝 MANDATORY: Update Backlog BEFORE Committing** - Update `_context/stories/` BEFORE every commit to keep backlog in sync
+
+---
+
+## 📝 Backlog Updates (MANDATORY)
+
+**CRITICAL: Update backlog BEFORE committing/pushing so backlog changes are included in the PR.**
+
+### When to Update Backlog
+
+**For Small PRs (bug fixes, improvements, refactors):**
+- Add entry to `_context/stories/completed.md` under "Bug Fixes & Improvements" section
+- Include: Date, PR #, Title, Brief description
+
+**For Story PRs (vertical slices, features):**
+- Update `_context/stories/in-progress.md` during work
+- Move to `_context/stories/completed.md` when story is complete
+- Include: Full story summary, what was delivered, key decisions
+
+### How to Update
+
+**Example for Bug Fix:**
+```markdown
+## Bug Fixes & Improvements
+
+### 2025-11-18 - PR #118 - Fix incident fetching and classification
+- Fixed incidents created before iteration not being fetched (60-day lookback)
+- Added includeSubgroups to fetch incidents from all subprojects
+- Excluded incidents from velocity calculations
+- Added deduplication in Data Explorer
+- Result: 4 incidents now fetched correctly vs 0 before
+```
+
+**Example for Story:**
+```markdown
+## Story V1: Velocity Tracking (COMPLETED)
+
+**Completed:** 2025-11-20
+**GitHub Issue:** #25
+**PR:** #30
+
+**Delivered:**
+- Complete velocity tracking feature (GitLab → Core → API → UI)
+- Users can view velocity trends across iterations
+- All 6 vertical slice layers implemented
+
+**Key Decisions:**
+- Used Chart.js for visualization (preserves prototype design)
+- Implemented local filtering for flexibility
+```
+
+### Backlog File Structure
+
+- `backlog.md` - Future stories (V1-V7)
+- `in-progress.md` - Currently active story
+- `completed.md` - All completed work (stories, bugs, improvements)
+
+**Remember:** Backlog updates are part of the deliverable - include them in your commit!
 
 ---
 

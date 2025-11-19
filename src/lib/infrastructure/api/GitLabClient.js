@@ -1,4 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
+import { IncidentAnalyzer } from '../../core/services/IncidentAnalyzer.js';
 
 /**
  * GitLab GraphQL API client for fetching sprint metrics data.
@@ -164,6 +165,81 @@ export class GitLabClient {
   }
 
   /**
+   * Fetches all notes for a specific issue using pagination.
+   * Used when the first batch of notes doesn't contain an InProgress status change.
+   *
+   * @param {string} issueId - GitLab issue ID (e.g., 'gid://gitlab/Issue/123')
+   * @param {string} startCursor - Cursor to start fetching from (endCursor from previous batch)
+   * @returns {Promise<Array>} Array of all remaining note objects
+   * @throws {Error} If the request fails
+   */
+  async fetchAdditionalNotesForIssue(issueId, startCursor) {
+    const query = `
+      query getIssueNotes($issueId: IssueID!, $after: String) {
+        issue(id: $issueId) {
+          id
+          notes(first: 100, after: $after) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              body
+              system
+              systemNoteMetadata {
+                action
+              }
+              createdAt
+            }
+          }
+        }
+      }
+    `;
+
+    let allNotes = [];
+    let hasNextPage = true;
+    let after = startCursor;
+    let pagesFetched = 0;
+
+    try {
+      while (hasNextPage) {
+        const data = await this.client.request(query, {
+          issueId,
+          after,
+        });
+
+        if (!data.issue) {
+          throw new Error(`Issue not found: ${issueId}`);
+        }
+
+        const { nodes, pageInfo } = data.issue.notes;
+        allNotes = allNotes.concat(nodes);
+        pagesFetched++;
+        hasNextPage = pageInfo.hasNextPage;
+        after = pageInfo.endCursor;
+
+        // Log pagination progress
+        console.log(`      → Fetched page ${pagesFetched}: ${nodes.length} notes (hasNextPage: ${hasNextPage})`);
+
+        // Small delay to avoid rate limiting
+        if (hasNextPage) {
+          await this.delay(100);
+        }
+      }
+
+      console.log(`      → Total: ${pagesFetched} pages, ${allNotes.length} notes (all notes exhausted)`);
+      return allNotes;
+    } catch (error) {
+      // Check if it's a GraphQL error
+      if (error.response?.errors) {
+        throw new Error(`Failed to fetch additional notes: ${error.response.errors[0].message}`);
+      }
+      throw new Error(`Failed to fetch additional notes: ${error.message}`);
+    }
+  }
+
+  /**
    * Fetches detailed information for a specific iteration, including all issues.
    * Issues are fetched from the group level with subgroup inclusion.
    *
@@ -256,13 +332,97 @@ export class GitLabClient {
       console.log(`✓ Fetched ${allIssues.length} issues for iteration ${iterationId}`);
 
       // Enrich issues with inProgressAt timestamp from status change notes
-      const enrichedIssues = allIssues.map((issue) => {
-        const inProgressAt = this.extractInProgressTimestamp(issue.notes?.nodes || []);
-        return {
-          ...issue,
-          inProgressAt,
-        };
-      });
+      // Only fetch additional notes for CLOSED stories (open stories don't need InProgress for cycle time)
+      let issuesRequiringAdditionalFetch = 0;
+      const enrichedIssues = await Promise.all(
+        allIssues.map(async (issue) => {
+          const initialNotes = issue.notes?.nodes || [];
+          let inProgressAt = this.extractInProgressTimestamp(initialNotes);
+
+          // Only fetch additional notes for CLOSED stories missing InProgress
+          // Open stories don't need InProgress date (not used in cycle time calculations)
+          const isClosed = issue.state === 'closed';
+          if (!inProgressAt && issue.notes?.pageInfo?.hasNextPage && isClosed) {
+            issuesRequiringAdditionalFetch++;
+            console.log(`  ⚠ CLOSED Issue #${issue.iid} missing InProgress in first 20 notes, fetching all notes...`);
+
+            try {
+              const additionalNotes = await this.fetchAdditionalNotesForIssue(
+                issue.id,
+                issue.notes.pageInfo.endCursor
+              );
+
+              // Combine initial notes with additional notes
+              const allNotes = [...initialNotes, ...additionalNotes];
+
+              // Try to extract InProgress date from all notes
+              inProgressAt = this.extractInProgressTimestamp(allNotes);
+
+              if (inProgressAt) {
+                console.log(`    ✅ FOUND InProgress date after fetching ALL notes: ${inProgressAt}`);
+              } else {
+                console.log(`    ❌ EXHAUSTED all ${allNotes.length} notes - NO InProgress status change found`);
+                console.log(`    → Falling back to createdAt: ${issue.createdAt}`);
+                // Fallback: Use createdAt if no InProgress status change found
+                inProgressAt = issue.createdAt;
+              }
+
+              // Update issue with all notes for consistency
+              return {
+                ...issue,
+                notes: {
+                  ...issue.notes,
+                  nodes: allNotes,
+                  pageInfo: {
+                    hasNextPage: false,
+                    endCursor: null,
+                  },
+                },
+                inProgressAt,
+                inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : 'status_change', // Track source
+              };
+            } catch (error) {
+              console.warn(`    ✗ Failed to fetch additional notes for issue #${issue.iid}: ${error.message}`);
+              // Fall back to using createdAt for closed stories
+              if (isClosed && !inProgressAt) {
+                console.log(`    → Error recovery: Falling back to createdAt: ${issue.createdAt}`);
+                inProgressAt = issue.createdAt;
+              }
+              return {
+                ...issue,
+                inProgressAt,
+                inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : 'status_change',
+              };
+            }
+          }
+
+          // For closed stories without InProgress in first batch and no more notes to fetch
+          if (isClosed && !inProgressAt && !issue.notes?.pageInfo?.hasNextPage) {
+            console.log(`  → Issue #${issue.iid}: No InProgress in ${initialNotes.length} notes, falling back to createdAt`);
+            inProgressAt = issue.createdAt;
+          }
+
+          // InProgress found in first batch, no more notes to fetch, or story is OPEN (doesn't need InProgress)
+          if (!isClosed && !inProgressAt) {
+            // Open story without InProgress - this is normal, no warning needed
+            return {
+              ...issue,
+              inProgressAt: null, // Explicitly null for open stories
+              inProgressAtSource: null,
+            };
+          }
+
+          return {
+            ...issue,
+            inProgressAt,
+            inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : (inProgressAt ? 'status_change' : null),
+          };
+        })
+      );
+
+      if (issuesRequiringAdditionalFetch > 0) {
+        console.log(`✓ Fetched additional notes for ${issuesRequiringAdditionalFetch} closed issues`);
+      }
 
       // Fetch iteration metadata to get startDate and dueDate for MR fetching
       console.log(`Fetching iteration metadata for MR date range...`);
@@ -639,39 +799,110 @@ export class GitLabClient {
 
       console.log(`✓ Fetched ${allIncidents.length} incidents from broader date range`);
 
-      // BUG FIX: Filter locally to only include incidents with activity during iteration
-      // An incident is relevant if it was created, closed, or updated during the iteration
-      const relevantIncidents = allIncidents.filter((incident) => {
-        const created = new Date(incident.createdAt);
+      // TIMELINE-BASED FILTERING: Fetch timeline events for each incident to get actual start times
+      // This provides more accurate filtering for CFR and MTTR calculations
+      console.log('Fetching timeline events for incidents...');
+      const incidentsWithTimelines = await Promise.all(
+        allIncidents.map(async (incident) => {
+          const timelineEvents = await this.fetchIncidentTimelineEvents(incident);
+          return { incident, timelineEvents };
+        })
+      );
+
+      console.log(`✓ Fetched timeline events for ${incidentsWithTimelines.length} incidents`);
+
+      // Filter to only include incidents with activity during iteration
+      // Uses actual incident start time (from timeline events) when available
+      const relevantIncidents = incidentsWithTimelines.filter(({ incident, timelineEvents }) => {
+        // Get actual start time using IncidentAnalyzer (cascading fallback: timeline → createdAt)
+        const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
+        const startTimeDate = new Date(actualStartTime);
+
+        // Check various activity dates
+        const startedDuringIteration = startTimeDate >= iterationStart && startTimeDate <= iterationEnd;
+
         const updated = incident.updatedAt ? new Date(incident.updatedAt) : null;
         const closed = incident.closedAt ? new Date(incident.closedAt) : null;
 
-        // Include if created during iteration
-        const createdDuringIteration = created >= iterationStart && created <= iterationEnd;
-
-        // Include if closed during iteration
         const closedDuringIteration = closed && closed >= iterationStart && closed <= iterationEnd;
-
-        // Include if updated during iteration
         const updatedDuringIteration = updated && updated >= iterationStart && updated <= iterationEnd;
 
-        return createdDuringIteration || closedDuringIteration || updatedDuringIteration;
+        // Include incident if it has ANY activity during iteration:
+        // - Started during iteration (using timeline start time if available)
+        // - Closed during iteration
+        // - Updated during iteration
+        return startedDuringIteration || closedDuringIteration || updatedDuringIteration;
       });
 
       console.log(`✓ Filtered to ${relevantIncidents.length} incidents with activity during iteration`);
 
-      // Return raw data without calculations (business logic belongs in Core layer)
-      return relevantIncidents.map((incident) => ({
-        id: incident.id,
-        iid: incident.iid,
-        title: incident.title,
-        state: incident.state,
-        createdAt: incident.createdAt,
-        closedAt: incident.closedAt,
-        updatedAt: incident.updatedAt,
-        labels: incident.labels,
-        webUrl: incident.webUrl,
-      }));
+      // Return raw data WITH timeline metadata for Data Explorer visibility
+      // This enrichment helps users understand which fields are being used in calculations
+      return relevantIncidents.map(({ incident, timelineEvents }) => {
+        // DEBUG: Log timeline events for each incident
+        console.log(`[DEBUG] Incident #${incident.iid} (${incident.title}):`);
+        console.log(`  Timeline events count: ${timelineEvents?.length || 0}`);
+        if (timelineEvents && timelineEvents.length > 0) {
+          timelineEvents.forEach((event, idx) => {
+            const tags = event.timelineEventTags?.nodes?.map(t => t.name).join(', ') || 'no tags';
+            console.log(`  Event ${idx + 1}: ${event.occurredAt} - Tags: [${tags}]`);
+          });
+        }
+
+        // Determine which timeline events are being used
+        const startEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time');
+        const endEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'end time');
+        const stopEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'stop time'); // GitLab also uses "stop time"
+        const mitigatedEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'impact mitigated');
+
+        console.log(`  Found start event: ${startEvent ? 'YES' : 'NO'}`);
+        console.log(`  Found end event: ${endEvent ? 'YES' : 'NO'}`);
+        console.log(`  Found stop event: ${stopEvent ? 'YES' : 'NO'}`);
+        console.log(`  Found mitigated event: ${mitigatedEvent ? 'YES' : 'NO'}`);
+
+        // Get actual times used in calculations
+        const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
+
+        // Determine end time using same cascading logic as calculateDowntime
+        const actualEndTime = endEvent?.occurredAt || stopEvent?.occurredAt || mitigatedEvent?.occurredAt || incident.closedAt;
+
+        // Determine sources for Data Explorer display
+        const startTimeSource = startEvent ? 'timeline' : 'created';
+        let endTimeSource = null;
+        if (endEvent) {
+          endTimeSource = 'timeline_end';
+        } else if (stopEvent) {
+          endTimeSource = 'timeline_stop';
+        } else if (mitigatedEvent) {
+          endTimeSource = 'timeline_mitigated';
+        } else if (incident.closedAt) {
+          endTimeSource = 'closed';
+        }
+
+        console.log(`  → startTimeSource: ${startTimeSource}`);
+        console.log(`  → endTimeSource: ${endTimeSource}`);
+        console.log(`  → actualStartTime: ${actualStartTime}`);
+        console.log(`  → actualEndTime: ${actualEndTime}`);
+        console.log('---');
+
+        return {
+          id: incident.id,
+          iid: incident.iid,
+          title: incident.title,
+          state: incident.state,
+          createdAt: incident.createdAt,
+          closedAt: incident.closedAt,
+          updatedAt: incident.updatedAt,
+          labels: incident.labels,
+          webUrl: incident.webUrl,
+          // Timeline metadata for Data Explorer
+          actualStartTime,
+          actualEndTime,
+          startTimeSource, // 'timeline' or 'created'
+          endTimeSource, // 'timeline_end', 'timeline_mitigated', 'closed', or null
+          hasTimelineEvents: timelineEvents && timelineEvents.length > 0,
+        };
+      });
     } catch (error) {
       // Check if it's a GraphQL error
       if (error.response?.errors) {
@@ -739,6 +970,100 @@ export class GitLabClient {
       /working/i,
     ];
     return patterns.some((pattern) => pattern.test(status));
+  }
+
+  /**
+   * Extracts project path from incident webUrl.
+   * Example: https://gitlab.com/group/project/-/issues/123 → group/project
+   *
+   * @param {string} webUrl - Incident web URL
+   * @returns {string|null} Project path or null if extraction fails
+   */
+  extractProjectPath(webUrl) {
+    try {
+      const url = new URL(webUrl);
+      const pathParts = url.pathname.split('/-/')[0]; // Get everything before /-/
+      const projectPath = pathParts.substring(1); // Remove leading /
+
+      // Validate that we got a meaningful path
+      if (!projectPath || projectPath.length === 0) {
+        return null;
+      }
+
+      return projectPath;
+    } catch (error) {
+      console.error(`Error extracting project path from URL: ${webUrl}`);
+      return null;
+    }
+  }
+
+  /**
+   * Fetches timeline events for a specific incident.
+   * Timeline events contain actual incident timing with tags like "Start time", "End time".
+   *
+   * @param {Object} incident - Incident object with id and webUrl
+   * @param {string} incident.id - GitLab incident ID (e.g., 'gid://gitlab/Issue/123')
+   * @param {string} incident.webUrl - Incident web URL (used to extract project path)
+   * @returns {Promise<Array>} Array of timeline event objects
+   * @throws {Error} If the request fails
+   */
+  async fetchIncidentTimelineEvents(incident) {
+    // Extract project path from incident's webUrl
+    const projectPath = this.extractProjectPath(incident.webUrl);
+
+    if (!projectPath) {
+      console.error(`  ⚠️  Could not extract project path from: ${incident.webUrl}`);
+      return [];
+    }
+
+    const query = `
+      query getIncidentTimelineEvents($fullPath: ID!, $incidentId: IssueID!) {
+        project(fullPath: $fullPath) {
+          incidentManagementTimelineEvents(incidentId: $incidentId) {
+            nodes {
+              id
+              occurredAt
+              createdAt
+              note
+              noteHtml
+              editable
+              action
+              timelineEventTags {
+                nodes {
+                  name
+                }
+              }
+              author {
+                username
+                name
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const data = await this.client.request(query, {
+        fullPath: projectPath,
+        incidentId: incident.id,
+      });
+
+      if (!data.project || !data.project.incidentManagementTimelineEvents) {
+        return [];
+      }
+
+      return data.project.incidentManagementTimelineEvents.nodes;
+    } catch (error) {
+      console.error(`  ⚠️  Error fetching timeline events: ${error.message}`);
+      if (error.response?.errors) {
+        error.response.errors.forEach(err => {
+          console.error(`     → ${err.message}`);
+        });
+      }
+      // Return empty array instead of throwing - timeline events might not be available
+      return [];
+    }
   }
 
   /**

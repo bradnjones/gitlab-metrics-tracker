@@ -4,10 +4,10 @@ import PropTypes from 'prop-types';
 /**
  * ViewNavigation Component
  *
- * Navigation buttons for switching between views (Dashboard, Annotations, Insights, Data Explorer)
+ * Navigation buttons for switching between views (Dashboard, Data Explorer)
  *
  * @param {Object} props
- * @param {string} props.currentView - Current active view ('dashboard', 'annotations', 'insights', 'dataExplorer')
+ * @param {string} props.currentView - Current active view ('dashboard', 'dataExplorer')
  * @param {Function} props.onViewChange - Callback when view changes, receives view name as parameter
  * @param {boolean} props.hasSelectedIterations - Whether iterations are selected (controls button disabled state)
  * @returns {JSX.Element}
@@ -118,26 +118,6 @@ export default function ViewNavigation({ currentView, onViewChange, hasSelectedI
       </ViewButton>
 
       <ViewButton
-        onClick={() => handleViewClick('annotations')}
-        disabled={!hasSelectedIterations}
-        $isActive={currentView === 'annotations'}
-        aria-current={currentView === 'annotations' ? 'page' : undefined}
-        type="button"
-      >
-        Annotations
-      </ViewButton>
-
-      <ViewButton
-        onClick={() => handleViewClick('insights')}
-        disabled={!hasSelectedIterations}
-        $isActive={currentView === 'insights'}
-        aria-current={currentView === 'insights' ? 'page' : undefined}
-        type="button"
-      >
-        Insights
-      </ViewButton>
-
-      <ViewButton
         onClick={() => handleViewClick('dataExplorer')}
         disabled={!hasSelectedIterations}
         $isActive={currentView === 'dataExplorer'}
@@ -154,7 +134,7 @@ export default function ViewNavigation({ currentView, onViewChange, hasSelectedI
  * PropTypes validation for runtime type checking
  */
 ViewNavigation.propTypes = {
-  currentView: PropTypes.oneOf(['dashboard', 'annotations', 'insights', 'dataExplorer']).isRequired,
+  currentView: PropTypes.oneOf(['dashboard', 'dataExplorer']).isRequired,
   onViewChange: PropTypes.func.isRequired,
   hasSelectedIterations: PropTypes.bool.isRequired
 };
