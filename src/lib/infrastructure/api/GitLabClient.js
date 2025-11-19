@@ -839,7 +839,7 @@ export class GitLabClient {
 
       // Return raw data WITH timeline metadata for Data Explorer visibility
       // This enrichment helps users understand which fields are being used in calculations
-      return relevantIncidents.map(({ incident, timelineEvents }) => {
+      const relevantIncidentsData = relevantIncidents.map(({ incident, timelineEvents }) => {
         // DEBUG: Log timeline events for each incident
         console.log(`[DEBUG] Incident #${incident.iid} (${incident.title}):`);
         console.log(`  Timeline events count: ${timelineEvents?.length || 0}`);
@@ -921,7 +921,7 @@ export class GitLabClient {
       // This is done AFTER mapping to batch the API calls
       console.log('Fetching change dates for incidents with change links...');
       const incidentsWithChangeDates = await Promise.all(
-        relevantIncidents.map(async (incidentData) => {
+        relevantIncidentsData.map(async (incidentData) => {
           if (!incidentData.changeLink) {
             return incidentData;
           }
