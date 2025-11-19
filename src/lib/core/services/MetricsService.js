@@ -122,9 +122,19 @@ export class MetricsService {
     // Calculate deployment count (merged MRs to main/master)
     const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
 
+    // Filter incidents to only those with change links (MR or commit)
+    // This ensures CFR only counts incidents that are correlated with specific changes
+    const linkedIncidents = (iterationData.incidents || []).filter(incident => incident.changeLink);
+
+    console.log(`CFR Calculation: ${linkedIncidents.length} incidents with change links out of ${(iterationData.incidents || []).length} total incidents`);
+    linkedIncidents.forEach(inc => {
+      console.log(`  - Incident #${inc.iid}: ${inc.changeLink.type} ${inc.changeLink.url}`);
+    });
+
     // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
+    // Only counts incidents that have been explicitly linked to a change (MR or commit)
     const changeFailureRate = ChangeFailureRateCalculator.calculate(
-      iterationData.incidents || [],
+      linkedIncidents,
       deploymentCount
     );
 
@@ -149,6 +159,7 @@ export class MetricsService {
       mrCount: (iterationData.mergeRequests || []).filter(mr => mr.state === 'merged').length,
       deploymentCount,
       incidentCount: (iterationData.incidents || []).length,
+      linkedIncidentCount: linkedIncidents.length, // Incidents with change links (used for CFR)
       rawData: {
         issues: iterationData.issues,
         mergeRequests: iterationData.mergeRequests || [],
@@ -214,9 +225,13 @@ export class MetricsService {
       // Calculate deployment count (merged MRs to main/master)
       const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
 
+      // Filter incidents to only those with change links (MR or commit)
+      const linkedIncidents = (iterationData.incidents || []).filter(incident => incident.changeLink);
+
       // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
+      // Only counts incidents that have been explicitly linked to a change (MR or commit)
       const changeFailureRate = ChangeFailureRateCalculator.calculate(
-        iterationData.incidents || [],
+        linkedIncidents,
         deploymentCount
       );
 
@@ -241,6 +256,7 @@ export class MetricsService {
         mrCount: (iterationData.mergeRequests || []).filter(mr => mr.state === 'merged').length,
         deploymentCount,
         incidentCount: (iterationData.incidents || []).length,
+        linkedIncidentCount: linkedIncidents.length, // Incidents with change links (used for CFR)
         rawData: {
           issues: iterationData.issues,
           mergeRequests: iterationData.mergeRequests || [],
