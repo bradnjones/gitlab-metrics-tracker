@@ -912,8 +912,55 @@ export class GitLabClient {
           timelineEvents: timelineEvents || [],
           // Extracted change link (MR or commit) for CFR correlation
           changeLink, // { type, url, project, id/sha } or null
+          // Change date placeholder (will be populated after mapping)
+          changeDate: null,
         };
       });
+
+      // Fetch change dates for incidents with change links
+      // This is done AFTER mapping to batch the API calls
+      console.log('Fetching change dates for incidents with change links...');
+      const incidentsWithChangeDates = await Promise.all(
+        relevantIncidents.map(async (incidentData) => {
+          if (!incidentData.changeLink) {
+            return incidentData;
+          }
+
+          try {
+            let changeDate = null;
+
+            if (incidentData.changeLink.type === 'merge_request') {
+              // Fetch MR details to get merge date
+              const mrDetails = await this.fetchMergeRequestDetails(
+                incidentData.changeLink.project,
+                incidentData.changeLink.id
+              );
+              changeDate = mrDetails?.mergedAt || null;
+              console.log(`  Incident #${incidentData.iid}: MR #${incidentData.changeLink.id} merged at ${changeDate}`);
+            } else if (incidentData.changeLink.type === 'commit') {
+              // Fetch commit details to get commit date
+              const commitDetails = await this.fetchCommitDetails(
+                incidentData.changeLink.project,
+                incidentData.changeLink.sha
+              );
+              changeDate = commitDetails?.committedDate || null;
+              console.log(`  Incident #${incidentData.iid}: Commit ${incidentData.changeLink.sha.substring(0, 8)} committed at ${changeDate}`);
+            }
+
+            return {
+              ...incidentData,
+              changeDate,
+            };
+          } catch (error) {
+            console.warn(`  Warning: Could not fetch change date for incident #${incidentData.iid}: ${error.message}`);
+            return incidentData;
+          }
+        })
+      );
+
+      console.log(`✓ Fetched change dates for incidents with change links`);
+
+      return incidentsWithChangeDates;
     } catch (error) {
       // Check if it's a GraphQL error
       if (error.response?.errors) {

@@ -28,6 +28,68 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## BUG-004: CFR Iteration-Based Filtering
+
+**Completed:** 2025-11-19
+**GitHub Issue:** #123
+**Pull Request:** #124
+
+**Goal:** Fix CFR to count only incidents caused by deployments in the SAME iteration, not incidents from other iterations.
+
+**Problem:** Even after BUG-003 added change link extraction, CFR still showed 100% incorrectly. Root cause: incidents were assigned to iterations by activity date (when created/updated/closed), while deployments were assigned by merge date. This created a mismatch where incidents caused by changes in previous iterations appeared in current iterations.
+
+**Example:**
+- 11/17-11/23 sprint had 4 deployments (MRs #93, #92, #166, #535)
+- 4 incidents with change links but to DIFFERENT MRs (#144, #531, #158) or commits
+- None of the incident-linked changes matched the deployment MRs
+- Result: 100% CFR even though none of those deployments caused incidents
+
+**Solution:** Assign incidents to the iteration where their linked change was deployed:
+1. Fetch merge date (for MRs) or commit date (for commits) from GitLab API
+2. Store as `changeDate` field on incident object
+3. Filter incidents to only those where `changeDate` falls within iteration date range
+4. CFR now only counts incidents caused by deployments in same iteration
+
+**Changes Made:**
+
+1. **GitLabClient.fetchIncidents()** - Added change date extraction:
+   - After extracting changeLink, fetch merge/commit date using `fetchMergeRequestDetails()` or `fetchCommitDetails()`
+   - Store as `changeDate` field on incident object
+   - Log change dates for transparency
+
+2. **MetricsService.calculateMetrics() & calculateMultipleMetrics()** - Added iteration-based filtering:
+   - Parse iteration start/end dates
+   - Filter incidents to those with `changeLink` AND `changeDate` within iteration
+   - Exclude incidents with change dates outside iteration
+   - Log exclusions for debugging
+
+**Verified Results:**
+- ✅ CFR now 0% for 11/17-11/23 sprint (was 100%)
+- ✅ 4 deployments, 4 incidents, 0 incidents from this iteration's deployments
+- ✅ All tests passing: 610/614 (3 unrelated JSX parsing failures)
+- ✅ Incidents correctly filtered by change deployment date
+
+**Key Learnings:**
+- Iteration assignment must be consistent: deployments by merge date = incidents by change date
+- Activity date (created/updated/closed) ≠ deployment date (when change was merged)
+- Change date extraction enables accurate temporal correlation
+- Debug logging critical for understanding filtering decisions
+- DORA CFR requires precise temporal alignment between deployments and incidents
+
+**Technical Debt Created:**
+- None significant
+
+**Files Changed:**
+- `src/lib/infrastructure/api/GitLabClient.js` (added change date fetching)
+- `src/lib/core/services/MetricsService.js` (added iteration-based filtering)
+
+**Testing:**
+- All 610 tests passing (3 unrelated failures)
+- Manual verification with 11/17-11/23 sprint: CFR corrected from 100% to 0%
+- Change date extraction logs confirm proper temporal filtering
+
+---
+
 ## BUG-003: Change Failure Rate with MR/Commit Linking
 
 **Completed:** 2025-11-19
