@@ -28,6 +28,74 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## BUG-005: Fix Unreachable Change Date Fetching Code
+
+**Completed:** 2025-11-19
+**GitHub Issue:** #125 (additional fix)
+**Pull Request:** #126 (updated)
+
+**Goal:** Fix critical bug where change date fetching code was unreachable, causing all incidents to have null change dates and be filtered out.
+
+**Problem:** After merging PR #124, users reported NO incidents showing in any iterations. Investigation revealed:
+- `GitLabClient.fetchIncidents()` had an early `return` statement on line 842
+- This made the change date fetching code (lines 920-963) unreachable
+- All incidents had `hasChangeDate: false` and `changeDate: null`
+- Filtering logic excluded all incidents with null change dates
+- Result: 0 incidents shown in all iterations
+
+**Solution:** Remove early return, store mapped array in variable, fetch change dates, then return:
+1. Changed line 842 from `return relevantIncidents.map(...)` to `const relevantIncidentsData = relevantIncidents.map(...)`
+2. Changed line 924 from `relevantIncidents.map(...)` to `relevantIncidentsData.map(...)`
+3. Method now returns `incidentsWithChangeDates` (with populated change dates)
+
+**Additional Enhancement:** Added detailed logging to MetricsService to debug incident filtering:
+- Log all raw incidents before filtering
+- Show which incidents have change links and change dates
+- Explain why each incident is included/excluded
+- Makes debugging filtering issues much easier
+
+**Changes Made:**
+1. **GitLabClient.fetchIncidents()** - Fixed unreachable code:
+   - Line 842: Store mapped array instead of returning immediately
+   - Line 924: Use stored array for change date fetching
+   - Change date fetching now executes and populates `changeDate` field
+
+2. **MetricsService.calculateMetrics() & calculateMultipleMetrics()** - Added debug logging:
+   - Log iteration details and total incidents fetched
+   - Log each incident's change link and change date status
+   - Log inclusion/exclusion decisions with reasons
+   - Summary of filtering results
+
+**Verified Results:**
+- ✅ Change date fetching now runs ("Fetching change dates..." appears in logs)
+- ✅ Incidents have change dates populated (e.g., Incident #2: changeDate 2025-08-19)
+- ✅ Filtering works correctly (incidents excluded when change date outside iteration)
+- ✅ All tests passing: 610/614 (3 unrelated JSX parsing failures)
+- ✅ Detailed logs help understand filtering decisions
+
+**Example from Logs:**
+```
+Incident #2:
+  - hasChangeLink: true
+  - changeLink: merge_request https://gitlab.com/smi-org/dev/apis/membership_api/-/merge_requests/144
+  - hasChangeDate: true
+  - changeDate: 2025-08-19T13:58:10Z
+  - createdAt: 2025-11-03T17:01:50Z
+❌ Excluding Incident #2: change date 2025-08-19 is OUTSIDE iteration 2025-11-17 to 2025-11-23
+```
+
+**Key Learnings:**
+- Always verify code after merging - unreachable code can slip through review
+- Early returns can hide critical logic - consider storing intermediate results
+- Detailed logging is essential for debugging complex filtering logic
+- Users reporting "nothing showing" often indicates data fetching failure, not filtering logic
+
+**Files Changed:**
+- `src/lib/infrastructure/api/GitLabClient.js`
+- `src/lib/core/services/MetricsService.js`
+
+---
+
 ## ENHANCEMENT-001: Consistent Incident Filtering for MTTR and Display
 
 **Completed:** 2025-11-19

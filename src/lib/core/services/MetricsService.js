@@ -125,15 +125,34 @@ export class MetricsService {
     const iterationStartDate = new Date(iterationData.iteration.startDate);
     const iterationEndDate = new Date(iterationData.iteration.dueDate);
 
+    console.log(`\n=== INCIDENT FILTERING for ${iterationData.iteration.title} ===`);
+    console.log(`Iteration dates: ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
+    console.log(`Total incidents fetched: ${(iterationData.incidents || []).length}`);
+
+    // Log all raw incidents
+    (iterationData.incidents || []).forEach(incident => {
+      console.log(`  Incident #${incident.iid}:`);
+      console.log(`    - hasChangeLink: ${!!incident.changeLink}`);
+      if (incident.changeLink) {
+        console.log(`    - changeLink: ${incident.changeLink.type} ${incident.changeLink.url}`);
+      }
+      console.log(`    - hasChangeDate: ${!!incident.changeDate}`);
+      if (incident.changeDate) {
+        console.log(`    - changeDate: ${incident.changeDate}`);
+      }
+      console.log(`    - createdAt: ${incident.createdAt}`);
+    });
+
     const linkedIncidents = (iterationData.incidents || []).filter(incident => {
       // Must have a change link
       if (!incident.changeLink) {
+        console.log(`  ❌ Excluding Incident #${incident.iid}: NO changeLink`);
         return false;
       }
 
       // Must have a change date
       if (!incident.changeDate) {
-        console.log(`  Warning: Incident #${incident.iid} has changeLink but no changeDate - excluding`);
+        console.log(`  ❌ Excluding Incident #${incident.iid}: has changeLink but NO changeDate`);
         return false;
       }
 
@@ -142,7 +161,9 @@ export class MetricsService {
       const isWithinIteration = changeDate >= iterationStartDate && changeDate <= iterationEndDate;
 
       if (!isWithinIteration) {
-        console.log(`  Excluding Incident #${incident.iid}: change date ${incident.changeDate} is outside iteration ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
+        console.log(`  ❌ Excluding Incident #${incident.iid}: change date ${incident.changeDate} is OUTSIDE iteration ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
+      } else {
+        console.log(`  ✅ Including Incident #${incident.iid}: change date ${incident.changeDate} is WITHIN iteration`);
       }
 
       return isWithinIteration;
@@ -252,12 +273,46 @@ export class MetricsService {
       const iterationStartDate = new Date(iterationData.iteration.startDate);
       const iterationEndDate = new Date(iterationData.iteration.dueDate);
 
+      console.log(`\n=== INCIDENT FILTERING for ${iterationData.iteration.title} ===`);
+      console.log(`Iteration dates: ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
+      console.log(`Total incidents fetched: ${(iterationData.incidents || []).length}`);
+
+      // Log all raw incidents
+      (iterationData.incidents || []).forEach(incident => {
+        console.log(`  Incident #${incident.iid}:`);
+        console.log(`    - hasChangeLink: ${!!incident.changeLink}`);
+        if (incident.changeLink) {
+          console.log(`    - changeLink: ${incident.changeLink.type} ${incident.changeLink.url}`);
+        }
+        console.log(`    - hasChangeDate: ${!!incident.changeDate}`);
+        if (incident.changeDate) {
+          console.log(`    - changeDate: ${incident.changeDate}`);
+        }
+        console.log(`    - createdAt: ${incident.createdAt}`);
+      });
+
       const linkedIncidents = (iterationData.incidents || []).filter(incident => {
-        if (!incident.changeLink || !incident.changeDate) {
+        if (!incident.changeLink) {
+          console.log(`  ❌ Excluding Incident #${incident.iid}: NO changeLink`);
+          return false;
+        }
+        if (!incident.changeDate) {
+          console.log(`  ❌ Excluding Incident #${incident.iid}: has changeLink but NO changeDate`);
           return false;
         }
         const changeDate = new Date(incident.changeDate);
-        return changeDate >= iterationStartDate && changeDate <= iterationEndDate;
+        const isWithinIteration = changeDate >= iterationStartDate && changeDate <= iterationEndDate;
+        if (!isWithinIteration) {
+          console.log(`  ❌ Excluding Incident #${incident.iid}: change date ${incident.changeDate} is OUTSIDE iteration ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
+        } else {
+          console.log(`  ✅ Including Incident #${incident.iid}: change date ${incident.changeDate} is WITHIN iteration`);
+        }
+        return isWithinIteration;
+      });
+
+      console.log(`Result: ${linkedIncidents.length} incidents from this iteration's deployments out of ${(iterationData.incidents || []).length} total`);
+      linkedIncidents.forEach(inc => {
+        console.log(`  - Incident #${inc.iid}: ${inc.changeLink.type} ${inc.changeLink.url} (deployed ${inc.changeDate})`);
       });
 
       // Calculate MTTR from filtered incidents (only those caused by this iteration's deployments)
