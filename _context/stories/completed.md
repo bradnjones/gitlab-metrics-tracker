@@ -32,7 +32,7 @@ Stories are prepended to this file (most recent at top).
 
 **Completed:** 2025-11-19
 **GitHub Issue:** #125
-**Pull Request:** TBD
+**Pull Request:** #126
 
 **Goal:** Apply consistent change deployment date filtering to MTTR calculation and incident display.
 
