@@ -1782,6 +1782,7 @@ describe('GitLabClient', () => {
         expect(callArgs.createdBefore).toBe(new Date('2025-01-10').toISOString());
       });
     });
+<<<<<<< HEAD
 
     describe('Timeline-based incident filtering (using actual start time)', () => {
       it('should include incident with "Start time" during iteration even if createdAt is before', async () => {
@@ -2412,5 +2413,7 @@ describe('GitLabClient', () => {
 
       expect(projectPath).toBeNull();
     });
+=======
+>>>>>>> origin/main
   });
 });
