@@ -28,6 +28,58 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## BUG-FIX: Incident Date Filtering with Timeline Events
+
+**Completed:** 2025-11-18
+**GitHub Issue:** #117
+**Pull Request:** TBD
+
+**Goal:** Fix incident filtering to properly use timeline events for accurate MTTR and CFR calculations, and provide visibility into which data sources are being used.
+
+**Problems Solved:**
+
+1. **Timeline event metadata not visible in Data Explorer**
+   - Root cause: Cached data from before timeline metadata enrichment was added
+   - Impact: Couldn't verify which incidents were using timeline events vs fallback values
+   - Solution: Clear cache to force fresh fetch with timeline metadata fields
+
+2. **Incidents filtered out incorrectly**
+   - Root cause: Filtering logic only checked if incident started during iteration, ignoring closed/updated dates
+   - Impact: Incidents with timeline "Start time" tags that started before iteration but closed during iteration were excluded
+   - Example: Incident started Oct 20, closed Nov 5, iteration Nov 3-9 → incorrectly filtered out
+   - Solution: Updated filtering to include incidents with ANY activity during iteration (started OR closed OR updated)
+
+**Changes Made:**
+
+1. **GitLabClient.js (fetchIncidents method)**
+   - Simplified filtering logic to check for ANY activity during iteration
+   - Removed special case for timeline start times that was too restrictive
+   - Now includes incidents that started, closed, OR updated during iteration
+
+2. **Manual Testing & Cache Management**
+   - Added debug logging to diagnose timeline event processing
+   - Cleared cache to verify timeline metadata enrichment working correctly
+   - Validated all 4 incidents now appear with correct timeline badges
+
+**Acceptance Criteria:** All met ✅
+- [x] Incidents with timeline events show correct source badges (⏱️ Timeline, ⏱️ Timeline End)
+- [x] Incidents closed during iteration are included even if started before iteration
+- [x] Data Explorer shows all 4 expected incidents
+- [x] Timeline metadata properly flows from GitLabClient → MetricsService → API → Frontend
+- [x] Manual testing with real GitLab data confirms accuracy
+
+**Key Learnings:**
+- Cache invalidation is critical when adding new enrichment fields to data
+- Filtering logic must consider all types of activity (start/close/update), not just start time
+- Timeline-based filtering requires balancing accuracy with inclusiveness
+- Debug logging at enrichment points helps diagnose data flow issues
+
+**Technical Debt:**
+- Debug logging statements should be removed or made configurable (currently left in for troubleshooting)
+- Cache versioning/invalidation strategy should be implemented to handle schema changes automatically
+
+---
+
 ## ENHANCEMENT-001: InProgress Date Detection and Navigation Simplification
 
 **Completed:** 2025-01-18

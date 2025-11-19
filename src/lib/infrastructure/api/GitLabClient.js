@@ -812,34 +812,26 @@ export class GitLabClient {
       console.log(`✓ Fetched timeline events for ${incidentsWithTimelines.length} incidents`);
 
       // Filter to only include incidents with activity during iteration
-      // Uses actual incident start time (from timeline events) instead of issue createdAt
+      // Uses actual incident start time (from timeline events) when available
       const relevantIncidents = incidentsWithTimelines.filter(({ incident, timelineEvents }) => {
         // Get actual start time using IncidentAnalyzer (cascading fallback: timeline → createdAt)
         const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
         const startTimeDate = new Date(actualStartTime);
 
-        // Check if ACTUAL START TIME is during iteration
+        // Check various activity dates
         const startedDuringIteration = startTimeDate >= iterationStart && startTimeDate <= iterationEnd;
 
-        // If we have timeline events with "Start time" tag, use ONLY that for filtering
-        // This ensures incidents are attributed to the correct iteration based on when they actually occurred
-        const hasTimelineStartTime = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time');
-        if (hasTimelineStartTime) {
-          // When we have explicit timeline start time, trust it completely
-          return startedDuringIteration;
-        }
-
-        // BACKWARD COMPATIBILITY: If no timeline events exist, fall back to old behavior
-        // Check created/closed/updated dates (existing behavior for legacy incidents)
-        const created = new Date(incident.createdAt);
         const updated = incident.updatedAt ? new Date(incident.updatedAt) : null;
         const closed = incident.closedAt ? new Date(incident.closedAt) : null;
 
-        const createdDuringIteration = created >= iterationStart && created <= iterationEnd;
         const closedDuringIteration = closed && closed >= iterationStart && closed <= iterationEnd;
         const updatedDuringIteration = updated && updated >= iterationStart && updated <= iterationEnd;
 
-        return createdDuringIteration || closedDuringIteration || updatedDuringIteration;
+        // Include incident if it has ANY activity during iteration:
+        // - Started during iteration (using timeline start time if available)
+        // - Closed during iteration
+        // - Updated during iteration
+        return startedDuringIteration || closedDuringIteration || updatedDuringIteration;
       });
 
       console.log(`✓ Filtered to ${relevantIncidents.length} incidents with activity during iteration`);
@@ -847,11 +839,26 @@ export class GitLabClient {
       // Return raw data WITH timeline metadata for Data Explorer visibility
       // This enrichment helps users understand which fields are being used in calculations
       return relevantIncidents.map(({ incident, timelineEvents }) => {
+        // DEBUG: Log timeline events for each incident
+        console.log(`[DEBUG] Incident #${incident.iid} (${incident.title}):`);
+        console.log(`  Timeline events count: ${timelineEvents?.length || 0}`);
+        if (timelineEvents && timelineEvents.length > 0) {
+          timelineEvents.forEach((event, idx) => {
+            const tags = event.timelineEventTags?.nodes?.map(t => t.name).join(', ') || 'no tags';
+            console.log(`  Event ${idx + 1}: ${event.occurredAt} - Tags: [${tags}]`);
+          });
+        }
+
         // Determine which timeline events are being used
         const startEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time');
         const endEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'end time');
         const stopEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'stop time'); // GitLab also uses "stop time"
         const mitigatedEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'impact mitigated');
+
+        console.log(`  Found start event: ${startEvent ? 'YES' : 'NO'}`);
+        console.log(`  Found end event: ${endEvent ? 'YES' : 'NO'}`);
+        console.log(`  Found stop event: ${stopEvent ? 'YES' : 'NO'}`);
+        console.log(`  Found mitigated event: ${mitigatedEvent ? 'YES' : 'NO'}`);
 
         // Get actual times used in calculations
         const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
@@ -871,6 +878,12 @@ export class GitLabClient {
         } else if (incident.closedAt) {
           endTimeSource = 'closed';
         }
+
+        console.log(`  → startTimeSource: ${startTimeSource}`);
+        console.log(`  → endTimeSource: ${endTimeSource}`);
+        console.log(`  → actualStartTime: ${actualStartTime}`);
+        console.log(`  → actualEndTime: ${actualEndTime}`);
+        console.log('---');
 
         return {
           id: incident.id,
