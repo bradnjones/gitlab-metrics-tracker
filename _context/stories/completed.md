@@ -32,7 +32,7 @@ Stories are prepended to this file (most recent at top).
 
 **Completed:** 2025-11-19
 **GitHub Issue:** #123
-**Pull Request:** TBD
+**Pull Request:** #124
 
 **Goal:** Fix CFR to count only incidents caused by deployments in the SAME iteration, not incidents from other iterations.
 
