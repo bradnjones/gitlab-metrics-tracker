@@ -116,15 +116,12 @@ export class MetricsService {
     // Calculate lead time (DORA metric: commit to production)
     const leadTime = LeadTimeCalculator.calculate(iterationData.mergeRequests);
 
-    // Calculate MTTR from incidents
-    const mttr = IncidentAnalyzer.calculateMTTR(iterationData.incidents || []);
-
     // Calculate deployment count (merged MRs to main/master)
     const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
 
     // Filter incidents to only those with change links (MR or commit)
     // AND where the change was deployed during this iteration
-    // This ensures CFR only counts incidents caused by deployments in the same iteration
+    // This ensures ALL incident-related metrics (CFR, MTTR, incident count) are consistent
     const iterationStartDate = new Date(iterationData.iteration.startDate);
     const iterationEndDate = new Date(iterationData.iteration.dueDate);
 
@@ -136,7 +133,7 @@ export class MetricsService {
 
       // Must have a change date
       if (!incident.changeDate) {
-        console.log(`  Warning: Incident #${incident.iid} has changeLink but no changeDate - excluding from CFR`);
+        console.log(`  Warning: Incident #${incident.iid} has changeLink but no changeDate - excluding`);
         return false;
       }
 
@@ -151,13 +148,16 @@ export class MetricsService {
       return isWithinIteration;
     });
 
-    console.log(`CFR Calculation: ${linkedIncidents.length} incidents with change links deployed during iteration out of ${(iterationData.incidents || []).length} total incidents`);
+    console.log(`Incident Filtering: ${linkedIncidents.length} incidents from this iteration's deployments out of ${(iterationData.incidents || []).length} total incidents`);
     linkedIncidents.forEach(inc => {
       console.log(`  - Incident #${inc.iid}: ${inc.changeLink.type} ${inc.changeLink.url} (deployed ${inc.changeDate})`);
     });
 
+    // Calculate MTTR from filtered incidents (only those caused by this iteration's deployments)
+    const mttr = IncidentAnalyzer.calculateMTTR(linkedIncidents);
+
     // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
-    // Only counts incidents that have been explicitly linked to a change (MR or commit)
+    // Uses same filtered incidents as MTTR for consistency
     const changeFailureRate = ChangeFailureRateCalculator.calculate(
       linkedIncidents,
       deploymentCount
@@ -183,12 +183,12 @@ export class MetricsService {
       issueCount: iterationData.issues.length,
       mrCount: (iterationData.mergeRequests || []).filter(mr => mr.state === 'merged').length,
       deploymentCount,
-      incidentCount: (iterationData.incidents || []).length,
-      linkedIncidentCount: linkedIncidents.length, // Incidents with change links (used for CFR)
+      incidentCount: linkedIncidents.length, // Only incidents from this iteration's deployments
+      linkedIncidentCount: linkedIncidents.length, // Same as incidentCount for consistency
       rawData: {
         issues: iterationData.issues,
         mergeRequests: iterationData.mergeRequests || [],
-        incidents: iterationData.incidents || [],
+        incidents: linkedIncidents, // Only incidents from this iteration's deployments
         pipelines: iterationData.pipelines || [],
         iteration: iterationData.iteration
       }
@@ -244,9 +244,6 @@ export class MetricsService {
       // Calculate lead time (DORA metric: commit to production)
       const leadTime = LeadTimeCalculator.calculate(iterationData.mergeRequests);
 
-      // Calculate MTTR from incidents
-      const mttr = IncidentAnalyzer.calculateMTTR(iterationData.incidents || []);
-
       // Calculate deployment count (merged MRs to main/master)
       const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
 
@@ -263,9 +260,11 @@ export class MetricsService {
         return changeDate >= iterationStartDate && changeDate <= iterationEndDate;
       });
 
+      // Calculate MTTR from filtered incidents (only those caused by this iteration's deployments)
+      const mttr = IncidentAnalyzer.calculateMTTR(linkedIncidents);
+
       // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
-      // Only counts incidents that have been explicitly linked to a change (MR or commit)
-      // AND where the change was deployed during this iteration
+      // Uses same filtered incidents as MTTR for consistency
       const changeFailureRate = ChangeFailureRateCalculator.calculate(
         linkedIncidents,
         deploymentCount
@@ -291,12 +290,12 @@ export class MetricsService {
         issueCount: iterationData.issues.length,
         mrCount: (iterationData.mergeRequests || []).filter(mr => mr.state === 'merged').length,
         deploymentCount,
-        incidentCount: (iterationData.incidents || []).length,
-        linkedIncidentCount: linkedIncidents.length, // Incidents with change links (used for CFR)
+        incidentCount: linkedIncidents.length, // Only incidents from this iteration's deployments
+        linkedIncidentCount: linkedIncidents.length, // Same as incidentCount for consistency
         rawData: {
           issues: iterationData.issues,
           mergeRequests: iterationData.mergeRequests || [],
-          incidents: iterationData.incidents || [],
+          incidents: linkedIncidents, // Only incidents from this iteration's deployments
           pipelines: iterationData.pipelines || [],
           iteration: iterationData.iteration
         }
