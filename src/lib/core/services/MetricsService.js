@@ -123,12 +123,37 @@ export class MetricsService {
     const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
 
     // Filter incidents to only those with change links (MR or commit)
-    // This ensures CFR only counts incidents that are correlated with specific changes
-    const linkedIncidents = (iterationData.incidents || []).filter(incident => incident.changeLink);
+    // AND where the change was deployed during this iteration
+    // This ensures CFR only counts incidents caused by deployments in the same iteration
+    const iterationStartDate = new Date(iterationData.iteration.startDate);
+    const iterationEndDate = new Date(iterationData.iteration.dueDate);
 
-    console.log(`CFR Calculation: ${linkedIncidents.length} incidents with change links out of ${(iterationData.incidents || []).length} total incidents`);
+    const linkedIncidents = (iterationData.incidents || []).filter(incident => {
+      // Must have a change link
+      if (!incident.changeLink) {
+        return false;
+      }
+
+      // Must have a change date
+      if (!incident.changeDate) {
+        console.log(`  Warning: Incident #${incident.iid} has changeLink but no changeDate - excluding from CFR`);
+        return false;
+      }
+
+      // Change must have been deployed during this iteration
+      const changeDate = new Date(incident.changeDate);
+      const isWithinIteration = changeDate >= iterationStartDate && changeDate <= iterationEndDate;
+
+      if (!isWithinIteration) {
+        console.log(`  Excluding Incident #${incident.iid}: change date ${incident.changeDate} is outside iteration ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
+      }
+
+      return isWithinIteration;
+    });
+
+    console.log(`CFR Calculation: ${linkedIncidents.length} incidents with change links deployed during iteration out of ${(iterationData.incidents || []).length} total incidents`);
     linkedIncidents.forEach(inc => {
-      console.log(`  - Incident #${inc.iid}: ${inc.changeLink.type} ${inc.changeLink.url}`);
+      console.log(`  - Incident #${inc.iid}: ${inc.changeLink.type} ${inc.changeLink.url} (deployed ${inc.changeDate})`);
     });
 
     // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
@@ -226,10 +251,21 @@ export class MetricsService {
       const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
 
       // Filter incidents to only those with change links (MR or commit)
-      const linkedIncidents = (iterationData.incidents || []).filter(incident => incident.changeLink);
+      // AND where the change was deployed during this iteration
+      const iterationStartDate = new Date(iterationData.iteration.startDate);
+      const iterationEndDate = new Date(iterationData.iteration.dueDate);
+
+      const linkedIncidents = (iterationData.incidents || []).filter(incident => {
+        if (!incident.changeLink || !incident.changeDate) {
+          return false;
+        }
+        const changeDate = new Date(incident.changeDate);
+        return changeDate >= iterationStartDate && changeDate <= iterationEndDate;
+      });
 
       // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
       // Only counts incidents that have been explicitly linked to a change (MR or commit)
+      // AND where the change was deployed during this iteration
       const changeFailureRate = ChangeFailureRateCalculator.calculate(
         linkedIncidents,
         deploymentCount
