@@ -28,6 +28,34 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## ENHANCEMENT-001: Consistent Incident Filtering for MTTR and Display
+
+**Completed:** 2025-11-19
+**GitHub Issue:** #125
+**Pull Request:** #126
+
+**Goal:** Apply consistent change deployment date filtering to MTTR calculation and incident display.
+
+**Problem:** After #124, CFR used change deployment date filtering but MTTR and incident display used activity date filtering, causing confusion (4 incidents shown but 0% CFR).
+
+**Solution:** Use filtered incidents (from iteration's deployments) for MTTR and rawData.incidents.
+
+**Changes Made:**
+- MetricsService: Calculate MTTR from linkedIncidents instead of all incidents
+- MetricsService: Use linkedIncidents in rawData.incidents for display
+- MetricsService: Update incidentCount to reflect filtered incidents
+
+**Verified Results:**
+- ✅ All tests passing: 610/614
+- ✅ MTTR calculated from filtered incidents only
+- ✅ Incident display shows only filtered incidents
+- ✅ Consistent filtering across all incident metrics
+
+**Files Changed:**
+- `src/lib/core/services/MetricsService.js`
+
+---
+
 ## BUG-004: CFR Iteration-Based Filtering
 
 **Completed:** 2025-11-19
