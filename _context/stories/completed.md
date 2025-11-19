@@ -28,6 +28,69 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## BUG-006: Fix Iteration Selector Modal Clearing Graphs on Open
+
+**Completed:** 2025-11-19
+**GitHub Issue:** #129
+**Pull Request:** TBD
+
+**Goal:** Fix UX bug where opening the iteration selector modal would immediately clear graphs, and clicking Cancel would leave graphs blank.
+
+**Problem:** When user opened "Change Sprints" modal:
+- `VelocityApp.handleOpenModal()` called `setSelectedIterations([])` on line 204
+- This immediately cleared all selected iterations
+- Graphs disappeared and EmptyState showed
+- If user clicked Cancel, graphs stayed blank (data loss)
+- Violated standard modal UX pattern (changes should only apply on Apply)
+
+**Solution:** Remove premature state clearing from `handleOpenModal()`:
+1. Removed `setSelectedIterations([])` call from VelocityApp.jsx line 204
+2. Modal already maintains temporary state internally (`tempSelectedIds`)
+3. Only Apply button commits changes to parent state
+4. Cancel properly preserves original selections
+
+**Expected Behavior After Fix:**
+1. User has iterations selected → sees graphs
+2. User opens modal → graphs remain visible in background
+3. User modifies selections → graphs unchanged (temp state only)
+4. User clicks Cancel → modal closes, graphs still showing original data
+5. User clicks Apply → graphs update to new selections
+
+**Changes Made:**
+1. **VelocityApp.jsx (line 202-204):**
+   - Removed: `setSelectedIterations([])`
+   - Updated JSDoc comment to reflect correct behavior
+   - Modal visibility now only controlled by `setIsModalOpen(true)`
+
+2. **VelocityApp.test.jsx (lines 583-662):**
+   - Added Test 9.16: Verifies modal preserves selections on open
+   - Tests complete flow: load iterations → open modal → verify graphs visible → cancel → verify graphs still visible
+   - Uses localStorage mock to simulate pre-selected iterations
+
+**Test Results:**
+- ✅ New test passes (GREEN phase after fix)
+- ✅ All 16 VelocityApp tests pass
+- ✅ TDD approach followed (RED-GREEN-REFACTOR)
+
+**Verified Results:**
+- ✅ Opening modal preserves selectedIterations state
+- ✅ Graphs remain visible when modal opens
+- ✅ Cancel button preserves original selections
+- ✅ Apply button commits new selections
+- ✅ Aligns with standard modal UX pattern
+
+**Key Learnings:**
+- Modal components should maintain temporary state and only commit on Apply
+- Premature state mutations violate modal UX patterns
+- Simple one-line removal can fix significant UX bugs
+- TDD caught the regression and verified the fix
+
+**Files Changed:**
+- `src/public/components/VelocityApp.jsx` (removed 1 line, updated comment)
+- `test/public/components/VelocityApp.test.jsx` (added test)
+
+---
+
 ## BUG-005: Fix Unreachable Change Date Fetching Code
 
 **Completed:** 2025-11-19
