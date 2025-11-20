@@ -174,6 +174,499 @@ describe('MetricsService', () => {
     });
   });
 
+  describe('_calculateSprintDays', () => {
+    it('should calculate sprint days correctly (inclusive of start and end)', () => {
+      const service = new MetricsService(mockDataProvider);
+
+      // 14-day sprint: Jan 1 to Jan 14
+      const days = service._calculateSprintDays('2025-01-01', '2025-01-14');
+      expect(days).toBe(14);
+    });
+
+    it('should handle single-day sprint', () => {
+      const service = new MetricsService(mockDataProvider);
+
+      const days = service._calculateSprintDays('2025-01-01', '2025-01-01');
+      expect(days).toBe(1); // Single day = 1 day
+    });
+
+    it('should handle cross-month sprint', () => {
+      const service = new MetricsService(mockDataProvider);
+
+      // Jan 25 to Feb 7 = 14 days
+      const days = service._calculateSprintDays('2025-01-25', '2025-02-07');
+      expect(days).toBe(14);
+    });
+  });
+
+  describe('_calculateDeploymentCount', () => {
+    it('should count merged MRs to main branch', () => {
+      const service = new MetricsService(mockDataProvider);
+
+      const mergeRequests = [
+        { state: 'merged', targetBranch: 'main' },
+        { state: 'merged', targetBranch: 'feature' },
+        { state: 'open', targetBranch: 'main' }
+      ];
+
+      const count = service._calculateDeploymentCount(mergeRequests);
+      expect(count).toBe(1); // Only 1 merged to main
+    });
+
+    it('should count merged MRs to master branch', () => {
+      const service = new MetricsService(mockDataProvider);
+
+      const mergeRequests = [
+        { state: 'merged', targetBranch: 'master' },
+        { state: 'merged', targetBranch: 'develop' }
+      ];
+
+      const count = service._calculateDeploymentCount(mergeRequests);
+      expect(count).toBe(1); // Only 1 merged to master
+    });
+
+    it('should handle case-insensitive branch names', () => {
+      const service = new MetricsService(mockDataProvider);
+
+      const mergeRequests = [
+        { state: 'merged', targetBranch: 'MAIN' },
+        { state: 'merged', targetBranch: 'Main' },
+        { state: 'merged', targetBranch: 'MASTER' }
+      ];
+
+      const count = service._calculateDeploymentCount(mergeRequests);
+      expect(count).toBe(3); // All should count (case-insensitive)
+    });
+
+    it('should handle empty or null mergeRequests', () => {
+      const service = new MetricsService(mockDataProvider);
+
+      expect(service._calculateDeploymentCount([])).toBe(0);
+      expect(service._calculateDeploymentCount(null)).toBe(0);
+      expect(service._calculateDeploymentCount(undefined)).toBe(0);
+    });
+
+    it('should handle missing targetBranch property', () => {
+      const service = new MetricsService(mockDataProvider);
+
+      const mergeRequests = [
+        { state: 'merged' }, // No targetBranch
+        { state: 'merged', targetBranch: null }
+      ];
+
+      const count = service._calculateDeploymentCount(mergeRequests);
+      expect(count).toBe(0); // Should not crash, returns 0
+    });
+  });
+
+  describe('incident filtering logic', () => {
+    beforeEach(() => {
+      // Spy on console.log to suppress output and verify branches
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      console.log.mockRestore();
+    });
+
+    it('should filter out incidents without changeLink', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      mockDataProvider.fetchIterationData.mockResolvedValue({
+        ...mockIterationData,
+        incidents: [
+          {
+            iid: 1,
+            changeLink: null, // NO changeLink
+            changeDate: '2025-01-05',
+            createdAt: '2025-01-05'
+          },
+          {
+            iid: 2,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/1' },
+            changeDate: '2025-01-06',
+            createdAt: '2025-01-06'
+          }
+        ]
+      });
+
+      const result = await service.calculateMetrics(iterationId);
+
+      // Should only count incident #2 (has changeLink)
+      expect(result.incidentCount).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Excluding Incident #1: NO changeLink')
+      );
+    });
+
+    it('should filter out incidents without changeDate', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      mockDataProvider.fetchIterationData.mockResolvedValue({
+        ...mockIterationData,
+        incidents: [
+          {
+            iid: 1,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/1' },
+            changeDate: null, // NO changeDate
+            createdAt: '2025-01-05'
+          },
+          {
+            iid: 2,
+            changeLink: { type: 'Commit', url: 'http://gitlab.com/commit/abc' },
+            changeDate: '2025-01-06',
+            createdAt: '2025-01-06'
+          }
+        ]
+      });
+
+      const result = await service.calculateMetrics(iterationId);
+
+      // Should only count incident #2 (has changeDate)
+      expect(result.incidentCount).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Excluding Incident #1: has changeLink but NO changeDate')
+      );
+    });
+
+    it('should filter out incidents with changeDate before iteration', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      mockDataProvider.fetchIterationData.mockResolvedValue({
+        ...mockIterationData,
+        iteration: {
+          id: iterationId,
+          title: 'Sprint 2025-01',
+          startDate: '2025-01-01',
+          dueDate: '2025-01-14'
+        },
+        incidents: [
+          {
+            iid: 1,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/1' },
+            changeDate: '2024-12-31', // Before iteration start
+            createdAt: '2024-12-31'
+          },
+          {
+            iid: 2,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/2' },
+            changeDate: '2025-01-05', // Within iteration
+            createdAt: '2025-01-05'
+          }
+        ]
+      });
+
+      const result = await service.calculateMetrics(iterationId);
+
+      // Should only count incident #2 (within iteration)
+      expect(result.incidentCount).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Excluding Incident #1: change date 2024-12-31 is OUTSIDE iteration')
+      );
+    });
+
+    it('should filter out incidents with changeDate after iteration', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      mockDataProvider.fetchIterationData.mockResolvedValue({
+        ...mockIterationData,
+        iteration: {
+          id: iterationId,
+          title: 'Sprint 2025-01',
+          startDate: '2025-01-01',
+          dueDate: '2025-01-14'
+        },
+        incidents: [
+          {
+            iid: 1,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/1' },
+            changeDate: '2025-01-15', // After iteration end
+            createdAt: '2025-01-15'
+          },
+          {
+            iid: 2,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/2' },
+            changeDate: '2025-01-10', // Within iteration
+            createdAt: '2025-01-10'
+          }
+        ]
+      });
+
+      const result = await service.calculateMetrics(iterationId);
+
+      // Should only count incident #2 (within iteration)
+      expect(result.incidentCount).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Excluding Incident #1: change date 2025-01-15 is OUTSIDE iteration')
+      );
+    });
+
+    it('should include incidents with changeDate on iteration boundaries', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      mockDataProvider.fetchIterationData.mockResolvedValue({
+        ...mockIterationData,
+        iteration: {
+          id: iterationId,
+          title: 'Sprint 2025-01',
+          startDate: '2025-01-01',
+          dueDate: '2025-01-14'
+        },
+        incidents: [
+          {
+            iid: 1,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/1' },
+            changeDate: '2025-01-01', // On start date
+            createdAt: '2025-01-01'
+          },
+          {
+            iid: 2,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/2' },
+            changeDate: '2025-01-14', // On end date
+            createdAt: '2025-01-14'
+          }
+        ]
+      });
+
+      const result = await service.calculateMetrics(iterationId);
+
+      // Should count both incidents (boundaries are inclusive)
+      expect(result.incidentCount).toBe(2);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('✅ Including Incident #1: change date 2025-01-01 is WITHIN iteration')
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('✅ Including Incident #2: change date 2025-01-14 is WITHIN iteration')
+      );
+    });
+
+    it('should log incident details with changeLink type and URL', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      mockDataProvider.fetchIterationData.mockResolvedValue({
+        ...mockIterationData,
+        incidents: [
+          {
+            iid: 1,
+            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/123' },
+            changeDate: '2025-01-05',
+            createdAt: '2025-01-05'
+          }
+        ]
+      });
+
+      await service.calculateMetrics(iterationId);
+
+      // Verify console.log shows changeLink details
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('changeLink: MR http://gitlab.com/mr/123')
+      );
+    });
+  });
+
+  describe('calculateMultipleMetrics error handling', () => {
+    it('should throw descriptive error when fetchMultipleIterations fails', async () => {
+      const iterationIds = ['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124'];
+      const dataError = new Error('Network timeout');
+
+      mockDataProvider.fetchMultipleIterations.mockRejectedValue(dataError);
+
+      await expect(service.calculateMultipleMetrics(iterationIds)).rejects.toThrow(
+        'Failed to fetch multiple iterations: Network timeout'
+      );
+
+      // Verify fetchMultipleIterations was called
+      expect(mockDataProvider.fetchMultipleIterations).toHaveBeenCalledWith(iterationIds);
+    });
+  });
+
+  describe('calculateMultipleMetrics incident filtering', () => {
+    beforeEach(() => {
+      // Spy on console.log to suppress output and verify branches
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      console.log.mockRestore();
+    });
+
+    it('should filter incidents in each iteration of calculateMultipleMetrics', async () => {
+      const iterationIds = ['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124'];
+
+      mockDataProvider.fetchMultipleIterations.mockResolvedValue([
+        {
+          issues: [],
+          mergeRequests: [],
+          pipelines: [],
+          incidents: [
+            {
+              iid: 1,
+              changeLink: null, // NO changeLink
+              changeDate: '2025-01-05',
+              createdAt: '2025-01-05'
+            },
+            {
+              iid: 2,
+              changeLink: { type: 'MR', url: 'http://gitlab.com/mr/1' },
+              changeDate: '2025-01-06',
+              createdAt: '2025-01-06'
+            }
+          ],
+          iteration: {
+            id: 'gid://gitlab/Iteration/123',
+            title: 'Sprint 1',
+            startDate: '2025-01-01',
+            dueDate: '2025-01-14'
+          }
+        },
+        {
+          issues: [],
+          mergeRequests: [],
+          pipelines: [],
+          incidents: [
+            {
+              iid: 3,
+              changeLink: { type: 'MR', url: 'http://gitlab.com/mr/2' },
+              changeDate: null, // NO changeDate
+              createdAt: '2025-01-20'
+            },
+            {
+              iid: 4,
+              changeLink: { type: 'MR', url: 'http://gitlab.com/mr/3' },
+              changeDate: '2025-01-22',
+              createdAt: '2025-01-22'
+            }
+          ],
+          iteration: {
+            id: 'gid://gitlab/Iteration/124',
+            title: 'Sprint 2',
+            startDate: '2025-01-15',
+            dueDate: '2025-01-28'
+          }
+        }
+      ]);
+
+      const results = await service.calculateMultipleMetrics(iterationIds);
+
+      // Sprint 1: Should exclude incident #1 (no changeLink), include #2
+      expect(results[0].incidentCount).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Excluding Incident #1: NO changeLink')
+      );
+
+      // Sprint 2: Should exclude incident #3 (no changeDate), include #4
+      expect(results[1].incidentCount).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Excluding Incident #3: has changeLink but NO changeDate')
+      );
+    });
+
+    it('should filter incidents by date range in calculateMultipleMetrics', async () => {
+      const iterationIds = ['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124'];
+
+      mockDataProvider.fetchMultipleIterations.mockResolvedValue([
+        {
+          issues: [],
+          mergeRequests: [],
+          pipelines: [],
+          incidents: [
+            {
+              iid: 1,
+              changeLink: { type: 'MR', url: 'http://gitlab.com/mr/1' },
+              changeDate: '2024-12-31', // Before iteration
+              createdAt: '2024-12-31'
+            },
+            {
+              iid: 2,
+              changeLink: { type: 'MR', url: 'http://gitlab.com/mr/2' },
+              changeDate: '2025-01-05', // Within iteration
+              createdAt: '2025-01-05'
+            }
+          ],
+          iteration: {
+            id: 'gid://gitlab/Iteration/123',
+            title: 'Sprint 1',
+            startDate: '2025-01-01',
+            dueDate: '2025-01-14'
+          }
+        },
+        {
+          issues: [],
+          mergeRequests: [],
+          pipelines: [],
+          incidents: [
+            {
+              iid: 3,
+              changeLink: { type: 'MR', url: 'http://gitlab.com/mr/3' },
+              changeDate: '2025-01-29', // After iteration
+              createdAt: '2025-01-29'
+            },
+            {
+              iid: 4,
+              changeLink: { type: 'MR', url: 'http://gitlab.com/mr/4' },
+              changeDate: '2025-01-20', // Within iteration
+              createdAt: '2025-01-20'
+            }
+          ],
+          iteration: {
+            id: 'gid://gitlab/Iteration/124',
+            title: 'Sprint 2',
+            startDate: '2025-01-15',
+            dueDate: '2025-01-28'
+          }
+        }
+      ]);
+
+      const results = await service.calculateMultipleMetrics(iterationIds);
+
+      // Sprint 1: Should exclude #1 (before), include #2
+      expect(results[0].incidentCount).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Excluding Incident #1: change date 2024-12-31 is OUTSIDE iteration')
+      );
+
+      // Sprint 2: Should exclude #3 (after), include #4
+      expect(results[1].incidentCount).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Excluding Incident #3: change date 2025-01-29 is OUTSIDE iteration')
+      );
+    });
+
+    it('should log incident details for each iteration in calculateMultipleMetrics', async () => {
+      const iterationIds = ['gid://gitlab/Iteration/123'];
+
+      mockDataProvider.fetchMultipleIterations.mockResolvedValue([
+        {
+          issues: [],
+          mergeRequests: [],
+          pipelines: [],
+          incidents: [
+            {
+              iid: 1,
+              changeLink: { type: 'Commit', url: 'http://gitlab.com/commit/abc123' },
+              changeDate: '2025-01-05',
+              createdAt: '2025-01-05'
+            }
+          ],
+          iteration: {
+            id: 'gid://gitlab/Iteration/123',
+            title: 'Sprint 1',
+            startDate: '2025-01-01',
+            dueDate: '2025-01-14'
+          }
+        }
+      ]);
+
+      await service.calculateMultipleMetrics(iterationIds);
+
+      // Verify console.log shows incident details
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Incident #1:'));
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('changeLink: Commit http://gitlab.com/commit/abc123')
+      );
+    });
+  });
+
   describe('calculateMultipleMetrics', () => {
     // NOTE: Metrics persistence removed (see ADR 001)
     // These tests removed as repository.save() no longer called:
