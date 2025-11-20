@@ -161,7 +161,8 @@ describe('DataExplorerView', () => {
     // Should render table headers (with sort indicators)
     expect(screen.getByText(/Title/)).toBeInTheDocument();
     expect(screen.getByText(/Points/)).toBeInTheDocument();
-    expect(screen.getByText(/Status/)).toBeInTheDocument();
+    // Use getByRole to specifically target the table header, not the filter chip
+    expect(screen.getByRole('columnheader', { name: /Status/ })).toBeInTheDocument();
     expect(screen.getByText(/Cycle Time/)).toBeInTheDocument();
     expect(screen.getByText(/Assignees/)).toBeInTheDocument();
 
