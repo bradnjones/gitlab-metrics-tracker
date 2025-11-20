@@ -819,19 +819,27 @@ export class GitLabClient {
         const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
         const startTimeDate = new Date(actualStartTime);
 
+        // Check if we have a timeline start time event (more authoritative than createdAt)
+        const hasTimelineStartTime = timelineEvents && timelineEvents.length > 0 &&
+          IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time') !== null;
+
         // Check various activity dates
         const startedDuringIteration = startTimeDate >= iterationStart && startTimeDate <= iterationEnd;
 
+        // If we have a timeline start time event, ONLY use that for filtering
+        // This is the most authoritative source and should take precedence
+        if (hasTimelineStartTime) {
+          return startedDuringIteration;
+        }
+
+        // Fallback: If no timeline events, use any activity (closed/updated) for backward compatibility
         const updated = incident.updatedAt ? new Date(incident.updatedAt) : null;
         const closed = incident.closedAt ? new Date(incident.closedAt) : null;
 
         const closedDuringIteration = closed && closed >= iterationStart && closed <= iterationEnd;
         const updatedDuringIteration = updated && updated >= iterationStart && updated <= iterationEnd;
 
-        // Include incident if it has ANY activity during iteration:
-        // - Started during iteration (using timeline start time if available)
-        // - Closed during iteration
-        // - Updated during iteration
+        // Include incident if it has ANY activity during iteration (backward compatibility)
         return startedDuringIteration || closedDuringIteration || updatedDuringIteration;
       });
 
