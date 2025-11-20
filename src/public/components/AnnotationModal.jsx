@@ -61,7 +61,6 @@ const IMPACT_OPTIONS = [
  */
 const AFFECTED_METRICS = [
   { value: 'velocity', label: 'Velocity' },
-  { value: 'throughput', label: 'Throughput' },
   { value: 'cycle_time_avg', label: 'Cycle Time' },
   { value: 'deployment_frequency', label: 'Deployment Frequency' },
   { value: 'lead_time_avg', label: 'Lead Time' },

@@ -579,4 +579,85 @@ describe('VelocityApp', () => {
       expect(screen.getByText(/Add Annotation/i)).toBeInTheDocument();
     });
   });
+
+  /**
+   * Test 9.16: Opening iteration selector modal preserves selected iterations (does NOT clear graphs)
+   * BUG FIX: Previously, opening the modal would clear selectedIterations, causing graphs to disappear
+   * EXPECTED: Modal should maintain temporary state - only Apply should update graphs
+   */
+  test('opening iteration selector modal preserves selected iterations and does not clear graphs', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const mockStoredIterations = [
+      { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' },
+      { id: 'gid://gitlab/Iteration/2', title: 'Sprint 2' },
+    ];
+
+    // Mock localStorage with pre-selected iterations
+    Storage.prototype.getItem = jest.fn(() => JSON.stringify(mockStoredIterations));
+
+    // Mock fetch for API calls
+    global.fetch = jest.fn((url) => {
+      if (url.includes('/api/cache/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ iterations: [] })
+        });
+      }
+      if (url.includes('/api/iterations')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ iterations: mockStoredIterations })
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ metrics: [] })
+      });
+    });
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Verify initial state - charts should be visible (not empty state)
+    await waitFor(() => {
+      expect(screen.queryByText(/Select sprint iterations to view/i)).not.toBeInTheDocument();
+    });
+
+    // Open hamburger menu
+    const menuButton = screen.getByRole('button', { name: 'Menu' });
+    await user.click(menuButton);
+
+    // Click "Change Sprints" to open modal
+    await user.click(screen.getByText('Change Sprints'));
+
+    // Wait for modal to open
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /Select Sprint Iterations/i })).toBeInTheDocument();
+    });
+
+    // Assert - Charts should STILL be visible in background (not replaced by EmptyState)
+    // This is the key assertion - modal opening should NOT clear selectedIterations
+    expect(screen.queryByText(/Select sprint iterations to view/i)).not.toBeInTheDocument();
+
+    // Close modal by clicking Cancel
+    const cancelButton = screen.getByRole('button', { name: /cancel/i });
+    await user.click(cancelButton);
+
+    // Wait for modal to close
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: /Select Sprint Iterations/i })).not.toBeInTheDocument();
+    });
+
+    // Assert - Charts should STILL be visible (iterations preserved)
+    expect(screen.queryByText(/Select sprint iterations to view/i)).not.toBeInTheDocument();
+
+    // Cleanup
+    global.fetch.mockRestore();
+    Storage.prototype.getItem.mockRestore();
+  });
 });
