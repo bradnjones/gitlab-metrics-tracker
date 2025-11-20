@@ -54,10 +54,8 @@ describe('ViewNavigation', () => {
       />
     );
 
-    // Should render all 4 view buttons
+    // Should render both view buttons (Dashboard and Data Explorer)
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Annotations')).toBeInTheDocument();
-    expect(screen.getByText('Insights')).toBeInTheDocument();
     expect(screen.getByText('Data Explorer')).toBeInTheDocument();
   });
 
@@ -107,10 +105,8 @@ describe('ViewNavigation', () => {
       />
     );
 
-    // All view buttons except Dashboard should be disabled
+    // Dashboard should not be disabled, but Data Explorer should be disabled when no iterations selected
     expect(screen.getByText('Dashboard')).not.toBeDisabled();
-    expect(screen.getByText('Annotations')).toBeDisabled();
-    expect(screen.getByText('Insights')).toBeDisabled();
     expect(screen.getByText('Data Explorer')).toBeDisabled();
   });
 });

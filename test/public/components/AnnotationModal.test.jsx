@@ -156,11 +156,11 @@ describe('AnnotationModal', () => {
     // Verify affected metrics checkboxes are checked
     const velocityCheckbox = screen.getByRole('checkbox', { name: /Velocity/i });
     const cycleTimeCheckbox = screen.getByRole('checkbox', { name: /Cycle Time/i });
-    const throughputCheckbox = screen.getByRole('checkbox', { name: /Throughput/i });
+    const deploymentFrequencyCheckbox = screen.getByRole('checkbox', { name: /Deployment Frequency/i });
 
     expect(velocityCheckbox).toBeChecked();
     expect(cycleTimeCheckbox).toBeChecked();
-    expect(throughputCheckbox).not.toBeChecked();
+    expect(deploymentFrequencyCheckbox).not.toBeChecked();
   });
 
   /**
@@ -392,24 +392,24 @@ describe('AnnotationModal', () => {
 
     // Get checkboxes
     const velocityCheckbox = screen.getByRole('checkbox', { name: /Velocity/i });
-    const throughputCheckbox = screen.getByRole('checkbox', { name: /Throughput/i });
+    const cycleTimeCheckbox = screen.getByRole('checkbox', { name: /Cycle Time/i });
 
     // Initially unchecked
     expect(velocityCheckbox).not.toBeChecked();
-    expect(throughputCheckbox).not.toBeChecked();
+    expect(cycleTimeCheckbox).not.toBeChecked();
 
     // Check velocity
     fireEvent.click(velocityCheckbox);
     expect(velocityCheckbox).toBeChecked();
 
-    // Check throughput
-    fireEvent.click(throughputCheckbox);
-    expect(throughputCheckbox).toBeChecked();
+    // Check cycle time
+    fireEvent.click(cycleTimeCheckbox);
+    expect(cycleTimeCheckbox).toBeChecked();
 
     // Uncheck velocity
     fireEvent.click(velocityCheckbox);
     expect(velocityCheckbox).not.toBeChecked();
-    expect(throughputCheckbox).toBeChecked(); // Should still be checked
+    expect(cycleTimeCheckbox).toBeChecked(); // Should still be checked
   });
 
   /**
@@ -438,7 +438,7 @@ describe('AnnotationModal', () => {
 
     // Select some metrics
     fireEvent.click(screen.getByRole('checkbox', { name: /Velocity/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /Throughput/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Cycle Time/i }));
 
     // Submit form
     const saveButton = screen.getByText('Save');
@@ -452,7 +452,7 @@ describe('AnnotationModal', () => {
       description: 'Test description',
       type: 'process',
       impact: 'positive',
-      affectedMetrics: ['velocity', 'throughput'],
+      affectedMetrics: ['velocity', 'cycle_time_avg'],
       color: '#3b82f6',
     });
   });
@@ -591,9 +591,8 @@ describe('AnnotationModal', () => {
       </ThemeProvider>
     );
 
-    // Should have all 7 metrics
+    // Should have all 6 metrics (Velocity + 5 DORA metrics)
     expect(screen.getByRole('checkbox', { name: /Velocity/i })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: /Throughput/i })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Cycle Time/i })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Deployment Frequency/i })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Lead Time/i })).toBeInTheDocument();
