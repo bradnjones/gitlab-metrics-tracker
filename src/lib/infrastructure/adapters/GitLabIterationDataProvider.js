@@ -22,11 +22,13 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    *
    * @param {Object} gitlabClient - GitLabClient instance for API calls
    * @param {Object} [cacheRepository] - Optional cache repository (IIterationCacheRepository)
+   * @param {import('../../core/interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional, falls back to console)
    */
-  constructor(gitlabClient, cacheRepository) {
+  constructor(gitlabClient, cacheRepository, logger = null) {
     super();
     this.gitlabClient = gitlabClient;
     this.cacheRepository = cacheRepository;
+    this.logger = logger;
 
     // In-memory cache for iteration list (lightweight metadata only)
     // Prevents redundant fetchIterations() calls when fetching multiple iteration details

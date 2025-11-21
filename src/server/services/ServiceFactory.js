@@ -11,6 +11,7 @@ import { IterationCacheRepository } from '../../lib/infrastructure/repositories/
 import { FileAnnotationsRepository } from '../../lib/infrastructure/repositories/FileAnnotationsRepository.js';
 import { MetricsService } from '../../lib/core/services/MetricsService.js';
 import { GetCacheStatusUseCase } from '../../lib/core/use-cases/GetCacheStatusUseCase.js';
+import { ConsoleLogger } from '../../lib/infrastructure/logging/ConsoleLogger.js';
 
 /**
  * ServiceFactory
@@ -22,6 +23,18 @@ import { GetCacheStatusUseCase } from '../../lib/core/use-cases/GetCacheStatusUs
  * - This is the ONLY place where concrete classes are instantiated
  */
 export class ServiceFactory {
+  /**
+   * Create a logger instance
+   * @private
+   * @param {string} serviceName - Name of the service using the logger
+   * @returns {ConsoleLogger} Configured logger instance
+   */
+  static _createLogger(serviceName) {
+    return new ConsoleLogger({
+      env: process.env.NODE_ENV,
+      serviceName
+    });
+  }
   /**
    * Create GitLabClient with configuration
    *
@@ -44,7 +57,8 @@ export class ServiceFactory {
       throw new Error('GITLAB_PROJECT_PATH is required');
     }
 
-    return new GitLabClient(gitlabConfig);
+    const logger = this._createLogger('GitLabClient');
+    return new GitLabClient(gitlabConfig, logger);
   }
 
   /**
@@ -83,13 +97,18 @@ export class ServiceFactory {
     }
 
     // Create Infrastructure dependencies
-    const gitlabClient = new GitLabClient(gitlabConfig);
+    const logger = this._createLogger('MetricsService');
+    const gitlabClient = new GitLabClient(gitlabConfig, this._createLogger('GitLabClient'));
     const cacheRepository = this.createIterationCacheRepository('./src/data/cache/iterations');
-    const dataProvider = new GitLabIterationDataProvider(gitlabClient, cacheRepository);
+    const dataProvider = new GitLabIterationDataProvider(
+      gitlabClient,
+      cacheRepository,
+      this._createLogger('GitLabIterationDataProvider')
+    );
 
     // Create and return Core service with injected dependencies
     // Note: Metrics are calculated on-demand, not persisted (see ADR 001)
-    return new MetricsService(dataProvider);
+    return new MetricsService(dataProvider, logger);
   }
 
   /**
