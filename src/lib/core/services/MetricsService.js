@@ -41,9 +41,11 @@ export class MetricsService {
    * Create a MetricsService instance
    *
    * @param {Object} dataProvider - IIterationDataProvider implementation for data fetching
+   * @param {import('../interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional, falls back to console)
    */
-  constructor(dataProvider) {
+  constructor(dataProvider, logger = null) {
     this.dataProvider = dataProvider;
+    this.logger = logger;
   }
 
   /**

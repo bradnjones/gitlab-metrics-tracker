@@ -14,9 +14,10 @@ export class GitLabClient {
    * @param {string} [config.url='https://gitlab.com'] - GitLab instance URL
    * @param {string} config.token - GitLab personal access token
    * @param {string} config.projectPath - GitLab project path (e.g., 'group/project')
+   * @param {import('../../core/interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional, falls back to console)
    * @throws {Error} If token or projectPath is missing
    */
-  constructor(config) {
+  constructor(config, logger = null) {
     // Validate required configuration
     if (!config.token) {
       throw new Error('GITLAB_TOKEN is required');
@@ -30,6 +31,7 @@ export class GitLabClient {
     this.url = config.url || 'https://gitlab.com';
     this.token = config.token;
     this.projectPath = config.projectPath;
+    this.logger = logger;
 
     // Initialize GraphQL client
     this.client = new GraphQLClient(`${this.url}/api/graphql`, {
