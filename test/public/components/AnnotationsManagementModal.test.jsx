@@ -346,4 +346,376 @@ describe('AnnotationsManagementModal', () => {
 
     expect(document.body.style.overflow).toBe('');
   });
+
+  test('handles delete cancellation when user clicks Cancel', async () => {
+    // Setup
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockAnnotations),
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        onCreate={mockOnCreate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint Planning Process Change')).toBeInTheDocument();
+    });
+
+    // Mock window.confirm to return false (user cancels)
+    global.confirm = jest.fn(() => false);
+
+    // Click delete button
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    deleteButtons[0].click();
+
+    // Assert - Confirmation was shown
+    expect(global.confirm).toHaveBeenCalledWith('Are you sure you want to delete this annotation?');
+
+    // Assert - onDelete was NOT called (user cancelled)
+    expect(mockOnDelete).not.toHaveBeenCalled();
+  });
+
+  test('handles missing onCreate callback gracefully', async () => {
+    // Setup
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        // onCreate intentionally omitted
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/no annotations yet/i)).toBeInTheDocument();
+    });
+
+    // Assert - Add Annotation button exists
+    const addButtons = screen.getAllByRole('button', { name: /add annotation/i });
+    expect(addButtons.length).toBeGreaterThan(0);
+
+    // Act - Click Add Annotation button
+    expect(() => addButtons[0].click()).not.toThrow();
+  });
+
+  test('handles missing onEdit callback gracefully', async () => {
+    // Setup
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockAnnotations),
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        // onEdit intentionally omitted
+        onDelete={mockOnDelete}
+        onCreate={mockOnCreate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint Planning Process Change')).toBeInTheDocument();
+    });
+
+    // Assert - Edit button exists
+    const editButtons = screen.getAllByRole('button', { name: /edit/i });
+    expect(editButtons.length).toBeGreaterThan(0);
+
+    // Act - Click Edit button
+    expect(() => editButtons[0].click()).not.toThrow();
+  });
+
+  test('handles missing onDelete callback gracefully', async () => {
+    // Setup
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockAnnotations),
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        // onDelete intentionally omitted
+        onCreate={mockOnCreate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint Planning Process Change')).toBeInTheDocument();
+    });
+
+    // Mock window.confirm to return true
+    global.confirm = jest.fn(() => true);
+
+    // Assert - Delete button exists
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    expect(deleteButtons.length).toBeGreaterThan(0);
+
+    // Act - Click Delete button
+    expect(() => deleteButtons[0].click()).not.toThrow();
+  });
+
+  test('renders annotations without description correctly', async () => {
+    // Setup - annotation without description
+    const annotationWithoutDescription = {
+      id: 'ann-3',
+      title: 'No Description Annotation',
+      date: '2024-03-01',
+      type: 'tooling',
+      impact: 'neutral',
+      affectedMetrics: ['velocity'],
+      color: '#6b7280',
+      // description intentionally omitted
+    };
+
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([annotationWithoutDescription]),
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        onCreate={mockOnCreate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('No Description Annotation')).toBeInTheDocument();
+    });
+
+    // Assert - Title and meta are shown
+    expect(screen.getByText('No Description Annotation')).toBeInTheDocument();
+    expect(screen.getByText(/tooling/i)).toBeInTheDocument();
+    expect(screen.getByText(/neutral/i)).toBeInTheDocument();
+
+    // Assert - Affected metrics is shown (to verify card rendered)
+    expect(screen.getByText(/Affected: Velocity/i)).toBeInTheDocument();
+
+    // Note: We can't directly test that DescriptionPreview is NOT rendered
+    // without accessing internals, but the component renders correctly without description
+  });
+
+  test('formatAffectedMetrics handles null and empty arrays', async () => {
+    // Setup - annotations with null/empty affected metrics
+    const annotationsWithoutMetrics = [
+      {
+        id: 'ann-4',
+        title: 'No Metrics',
+        date: '2024-03-01',
+        type: 'external',
+        impact: 'negative',
+        affectedMetrics: null, // null metrics
+        color: '#ef4444',
+      },
+      {
+        id: 'ann-5',
+        title: 'Empty Metrics',
+        date: '2024-03-02',
+        type: 'incident',
+        impact: 'negative',
+        affectedMetrics: [], // empty array
+        color: '#ef4444',
+      },
+    ];
+
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(annotationsWithoutMetrics),
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        onCreate={mockOnCreate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('No Metrics')).toBeInTheDocument();
+    });
+
+    // Assert - Both annotations show "Affected: None"
+    const noneTexts = screen.getAllByText(/Affected: None/i);
+    expect(noneTexts.length).toBe(2);
+  });
+
+  test('formatDate handles empty and null dates', async () => {
+    // Setup - annotation with empty date
+    const annotationWithEmptyDate = {
+      id: 'ann-6',
+      title: 'Empty Date',
+      date: '', // empty string
+      type: 'team',
+      impact: 'positive',
+      affectedMetrics: ['throughput'],
+      color: '#22c55e',
+    };
+
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([annotationWithEmptyDate]),
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        onCreate={mockOnCreate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Empty Date')).toBeInTheDocument();
+    });
+
+    // Assert - Annotation renders without crashing (formatDate returns empty string)
+    expect(screen.getByText('Empty Date')).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
+  });
+
+  test('capitalize handles empty strings', async () => {
+    // Setup - annotation with empty type/impact (edge case)
+    const annotationWithEmptyFields = {
+      id: 'ann-7',
+      title: 'Empty Fields',
+      date: '2024-03-01',
+      type: '', // empty string
+      impact: '', // empty string
+      affectedMetrics: ['velocity'],
+      color: '#3b82f6',
+    };
+
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([annotationWithEmptyFields]),
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        onCreate={mockOnCreate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Empty Fields')).toBeInTheDocument();
+    });
+
+    // Assert - Component renders without crashing (capitalize returns empty string)
+    expect(screen.getByText('Empty Fields')).toBeInTheDocument();
+  });
+
+  test('handles HTTP 500 error from API', async () => {
+    // Setup
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+      })
+    );
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        onCreate={mockOnCreate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load annotations/i)).toBeInTheDocument();
+    });
+
+    // Assert - Error message and retry button shown
+    expect(screen.getByText(/failed to load annotations/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  test('retry button re-fetches annotations after error', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Setup - First call fails, second succeeds
+    global.fetch = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockAnnotations),
+      });
+
+    renderWithTheme(
+      <AnnotationsManagementModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        onCreate={mockOnCreate}
+      />
+    );
+
+    // Wait for error state
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load annotations/i)).toBeInTheDocument();
+    });
+
+    // Click retry button
+    const retryButton = screen.getByRole('button', { name: /retry/i });
+    retryButton.click();
+
+    // Wait for successful fetch
+    await waitFor(() => {
+      expect(screen.getByText('Sprint Planning Process Change')).toBeInTheDocument();
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+
+    consoleErrorSpy.mockRestore();
+  });
 });

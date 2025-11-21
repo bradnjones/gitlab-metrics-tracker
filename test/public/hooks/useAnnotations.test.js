@@ -267,4 +267,134 @@ describe('useAnnotations', () => {
     // Should use custom color, not impact color
     expect(result.current.annotations['annotation_1'].borderColor).toBe('#ff00ff');
   });
+
+  test('positions annotation between two data points with proportional positioning', async () => {
+    // Annotation on 1/17 should fall between 1/15 (index 1) and 1/20 (index 2)
+    const mockAnnotations = [
+      {
+        id: '1',
+        title: 'Mid-Sprint Change',
+        date: '2025-01-17', // Between 1/15 and 1/20
+        impact: 'positive',
+        affectedMetrics: ['velocity'],
+        description: 'Falls between data points'
+      }
+    ];
+
+    const dateLabels = ['1/10', '1/15', '1/20', '1/25'];
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockAnnotations
+    });
+
+    const { result } = renderHook(() => useAnnotations('velocity', dateLabels));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Should position annotation between index 1 and 2 (proportionally)
+    const annotation = result.current.annotations['annotation_1'];
+    expect(annotation).toBeDefined();
+    expect(annotation.xMin).toBeGreaterThan(1); // After 1/15 (index 1)
+    expect(annotation.xMin).toBeLessThan(2); // Before 1/20 (index 2)
+  });
+
+  test('positions annotation before first data point at index 0', async () => {
+    // Annotation on 1/5 is before first data point (1/10)
+    const mockAnnotations = [
+      {
+        id: '1',
+        title: 'Pre-Sprint Change',
+        date: '2025-01-05', // Before first data point
+        impact: 'negative',
+        affectedMetrics: ['velocity'],
+        description: 'Before chart start'
+      }
+    ];
+
+    const dateLabels = ['1/10', '1/15', '1/20', '1/25'];
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockAnnotations
+    });
+
+    const { result } = renderHook(() => useAnnotations('velocity', dateLabels));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Should position at index 0 (start of chart)
+    const annotation = result.current.annotations['annotation_1'];
+    expect(annotation).toBeDefined();
+    expect(annotation.xMin).toBe(0);
+    expect(annotation.xMax).toBe(0);
+  });
+
+  test('positions annotation after last data point at final index', async () => {
+    // Annotation on 1/30 is after last data point (1/25)
+    const mockAnnotations = [
+      {
+        id: '1',
+        title: 'Post-Sprint Change',
+        date: '2025-01-30', // After last data point
+        impact: 'neutral',
+        affectedMetrics: ['velocity'],
+        description: 'After chart end'
+      }
+    ];
+
+    const dateLabels = ['1/10', '1/15', '1/20', '1/25'];
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockAnnotations
+    });
+
+    const { result } = renderHook(() => useAnnotations('velocity', dateLabels));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Should position at index 3 (end of chart, last data point)
+    const annotation = result.current.annotations['annotation_1'];
+    expect(annotation).toBeDefined();
+    expect(annotation.xMin).toBe(3); // Index of last data point (1/25)
+    expect(annotation.xMax).toBe(3);
+  });
+
+  test('handles annotation without id using index for key', async () => {
+    // Annotation missing 'id' field - should use array index
+    const mockAnnotations = [
+      {
+        // No id field
+        title: 'No ID Annotation',
+        date: '2025-01-15',
+        impact: 'positive',
+        affectedMetrics: ['velocity'],
+        description: 'Missing id field'
+      }
+    ];
+
+    const dateLabels = ['1/10', '1/15', '1/20'];
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockAnnotations
+    });
+
+    const { result } = renderHook(() => useAnnotations('velocity', dateLabels));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Should use 'annotation_0' (index) instead of 'annotation_undefined'
+    expect(result.current.annotations['annotation_0']).toBeDefined();
+    expect(result.current.annotations['annotation_undefined']).toBeUndefined();
+  });
 });

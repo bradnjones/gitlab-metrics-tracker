@@ -3,6 +3,7 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from 'styled-components';
 import DataExplorerView from '../../../src/public/components/DataExplorerView.jsx';
 
@@ -161,7 +162,8 @@ describe('DataExplorerView', () => {
     // Should render table headers (with sort indicators)
     expect(screen.getByText(/Title/)).toBeInTheDocument();
     expect(screen.getByText(/Points/)).toBeInTheDocument();
-    expect(screen.getByText(/Status/)).toBeInTheDocument();
+    // Use getByRole to specifically target the table header, not the filter chip
+    expect(screen.getByRole('columnheader', { name: /Status/ })).toBeInTheDocument();
     expect(screen.getByText(/Cycle Time/)).toBeInTheDocument();
     expect(screen.getByText(/Assignees/)).toBeInTheDocument();
 
@@ -603,5 +605,277 @@ describe('DataExplorerView', () => {
     expect(tables[0]).toHaveAttribute('aria-label', 'Stories data table');
     expect(tables[1]).toHaveAttribute('aria-label', 'Incidents data table');
     expect(tables[2]).toHaveAttribute('aria-label', 'Merge Requests data table');
+  });
+
+  test('handles sorting stories by clicking column headers', async () => {
+    const user = userEvent.setup();
+
+    // Mock all 3 fetch calls in order
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockVelocityResponse
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ metrics: [], count: 0 })
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ metrics: [], count: 0 })
+    });
+
+    const mockIterations = [
+      { id: 'gid://gitlab/Iteration/123', title: 'Sprint 42' }
+    ];
+
+    renderWithTheme(<DataExplorerView selectedIterations={mockIterations} />);
+
+    // Wait for loading to finish
+    await waitFor(() => {
+      expect(screen.queryByText('Loading stories...')).not.toBeInTheDocument();
+    });
+
+    // Verify data loaded
+    expect(screen.getByText('Implement user authentication')).toBeInTheDocument();
+
+    // Click "Points" header to sort by points
+    const pointsHeader = screen.getByText(/Points/);
+    await user.click(pointsHeader);
+
+    // Should show sort indicator
+    await waitFor(() => {
+      expect(screen.getByText(/Points ▲/)).toBeInTheDocument();
+    });
+
+    // Click again to toggle sort direction
+    await user.click(pointsHeader);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Points ▼/)).toBeInTheDocument();
+    });
+
+    // Click different column (Status) - should reset to ascending
+    // Use getAllByText because "Status" appears in both table header and stats card
+    const statusHeaders = screen.getAllByText(/Status/);
+    // The table header is the second one (first is "w/ Status Change" in stats)
+    const statusHeader = statusHeaders[1];
+    await user.click(statusHeader);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Status ▲/)).toBeInTheDocument();
+      // Points should not have indicator anymore
+      expect(screen.queryByText(/Points ▲/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Points ▼/)).not.toBeInTheDocument();
+    });
+  });
+
+  test('handles sorting incidents by clicking column headers', async () => {
+    const user = userEvent.setup();
+
+    const mockIncidentsResponse = {
+      metrics: [{
+        iterationId: 'gid://gitlab/Iteration/123',
+        iterationTitle: 'Sprint 42',
+        incidentCount: 1,
+        rawData: {
+          incidents: [
+            {
+              id: 'gid://gitlab/Issue/100',
+              title: 'Database outage',
+              webUrl: 'https://gitlab.example.com/project/-/issues/100',
+              state: 'closed',
+              createdAt: '2024-01-01T10:00:00Z',
+              closedAt: '2024-01-01T12:00:00Z',
+              labels: {
+                nodes: [
+                  { title: 'severity::critical' }
+                ]
+              }
+            }
+          ]
+        }
+      }],
+      count: 1
+    };
+
+    // Mock all 3 fetch calls in order: Velocity (Stories), MTTR (Incidents), Lead Time (MRs)
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ metrics: [], count: 0 })
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockIncidentsResponse
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ metrics: [], count: 0 })
+    });
+
+    const mockIterations = [
+      { id: 'gid://gitlab/Iteration/123', title: 'Sprint 42' }
+    ];
+
+    renderWithTheme(<DataExplorerView selectedIterations={mockIterations} />);
+
+    // Wait for loading to finish
+    await waitFor(() => {
+      expect(screen.queryByText('Loading incidents...')).not.toBeInTheDocument();
+    });
+
+    // Verify data loaded
+    expect(screen.getByText('Database outage')).toBeInTheDocument();
+
+    // Click "Severity" header to sort by severity
+    const severityHeader = screen.getByText(/Severity/);
+    await user.click(severityHeader);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Severity ▲/)).toBeInTheDocument();
+    });
+
+    // Click again to toggle
+    await user.click(severityHeader);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Severity ▼/)).toBeInTheDocument();
+    });
+  });
+
+  test('handles sorting merge requests by clicking column headers', async () => {
+    const user = userEvent.setup();
+
+    const mockMergeRequestsResponse = {
+      metrics: [{
+        iterationId: 'gid://gitlab/Iteration/123',
+        iterationTitle: 'Sprint 42',
+        rawData: {
+          mergeRequests: [
+            {
+              id: 'gid://gitlab/MergeRequest/200',
+              iid: '42',
+              title: 'Add new feature',
+              webUrl: 'https://gitlab.example.com/project/-/merge_requests/42',
+              state: 'merged',
+              mergedAt: '2024-01-05T14:00:00Z',
+              author: { username: 'developer1', name: 'Developer One' },
+              commits: { nodes: [{ committedDate: '2024-01-04T10:00:00Z' }] }
+            }
+          ]
+        }
+      }],
+      count: 1
+    };
+
+    // Mock all 3 fetch calls in order: Velocity (Stories), MTTR (Incidents), Lead Time (MRs)
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ metrics: [], count: 0 })
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ metrics: [], count: 0 })
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockMergeRequestsResponse
+    });
+
+    const mockIterations = [
+      { id: 'gid://gitlab/Iteration/123', title: 'Sprint 42' }
+    ];
+
+    renderWithTheme(<DataExplorerView selectedIterations={mockIterations} />);
+
+    // Wait for loading to finish
+    await waitFor(() => {
+      expect(screen.queryByText('Loading merge requests...')).not.toBeInTheDocument();
+    });
+
+    // Verify data loaded
+    expect(screen.getByText('Add new feature')).toBeInTheDocument();
+
+    // Click "Author" header to sort by author
+    const authorHeader = screen.getByText(/Author/);
+    await user.click(authorHeader);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Author ▲/)).toBeInTheDocument();
+    });
+
+    // Click "Lead Time" header - should switch column
+    const leadTimeHeader = screen.getByText(/Lead Time/);
+    await user.click(leadTimeHeader);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Lead Time ▲/)).toBeInTheDocument();
+      expect(screen.queryByText(/Author ▲/)).not.toBeInTheDocument();
+    });
+  });
+
+  test('handles incidents with missing severity labels', async () => {
+    const mockIncidentsWithoutSeverity = {
+      metrics: [{
+        iterationId: 'gid://gitlab/Iteration/123',
+        iterationTitle: 'Sprint 42',
+        incidentCount: 2,
+        rawData: {
+          incidents: [
+            {
+              id: 'gid://gitlab/Issue/101',
+              title: 'Service degradation',
+              webUrl: 'https://gitlab.example.com/project/-/issues/101',
+              state: 'closed',
+              createdAt: '2024-01-02T10:00:00Z',
+              closedAt: '2024-01-02T11:00:00Z',
+              labels: null // No labels - should extract as 'Unknown'
+            },
+            {
+              id: 'gid://gitlab/Issue/102',
+              title: 'Performance issue',
+              webUrl: 'https://gitlab.example.com/project/-/issues/102',
+              state: 'closed',
+              createdAt: '2024-01-03T10:00:00Z',
+              closedAt: '2024-01-03T11:30:00Z',
+              labels: { nodes: [] } // Empty labels array - should extract as 'Unknown'
+            }
+          ]
+        }
+      }],
+      count: 1
+    };
+
+    // Mock all 3 fetch calls in order: Velocity (Stories), MTTR (Incidents), Lead Time (MRs)
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ metrics: [], count: 0 })
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockIncidentsWithoutSeverity
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ metrics: [], count: 0 })
+    });
+
+    const mockIterations = [
+      { id: 'gid://gitlab/Iteration/123', title: 'Sprint 42' }
+    ];
+
+    renderWithTheme(<DataExplorerView selectedIterations={mockIterations} />);
+
+    // Wait for loading to finish
+    await waitFor(() => {
+      expect(screen.queryByText('Loading incidents...')).not.toBeInTheDocument();
+    });
+
+    // Verify data loaded
+    expect(screen.getByText('Service degradation')).toBeInTheDocument();
+    expect(screen.getByText('Performance issue')).toBeInTheDocument();
+
+    // Both incidents should show "Unknown" severity
+    const unknownSeverities = screen.getAllByText('Unknown');
+    expect(unknownSeverities.length).toBeGreaterThanOrEqual(2);
   });
 });

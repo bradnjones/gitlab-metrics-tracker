@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from '../../../src/server/app.js';
 import { ServiceFactory } from '../../../src/server/services/ServiceFactory.js';
@@ -98,6 +98,301 @@ describe('GET /health', () => {
     expect(response.body).toEqual({
       status: 'ok',
       service: 'gitlab-metrics-tracker'
+    });
+  });
+});
+
+// Comprehensive tests for all GET metrics routes
+describe('Metrics Routes - GET endpoints', () => {
+  let app;
+  let mockMetricsService;
+  let consoleErrorSpy;
+
+  const mockMetricsData = [
+    {
+      iterationId: 'gid://gitlab/Iteration/123',
+      iterationTitle: 'Sprint 1',
+      startDate: '2025-01-01',
+      endDate: '2025-01-14',
+      velocityPoints: 42,
+      velocityStories: 8,
+      cycleTimeAvg: 3.5,
+      cycleTimeP50: 3.0,
+      cycleTimeP90: 5.0,
+      deploymentFrequency: 2.5,
+      leadTimeAvg: 2.0,
+      leadTimeP50: 1.5,
+      leadTimeP90: 3.0,
+      mttrAvg: 12.5,
+      changeFailureRate: 5.5,
+      issueCount: 10,
+      rawData: {
+        issues: [
+          { id: '1', state: 'closed', weight: 5 },
+          { id: '2', state: 'opened', weight: 3 }
+        ],
+        mergeRequests: [],
+        incidents: [],
+        pipelines: [],
+        iteration: { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1' }
+      }
+    }
+  ];
+
+  beforeEach(() => {
+    // Mock console.error to suppress error logs during tests
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Create mock MetricsService
+    mockMetricsService = {
+      calculateMultipleMetrics: jest.fn().mockResolvedValue(mockMetricsData)
+    };
+
+    // Mock ServiceFactory
+    ServiceFactory.createMetricsService = jest.fn().mockReturnValue(mockMetricsService);
+
+    // Create app
+    app = createApp();
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    jest.restoreAllMocks();
+  });
+
+  describe('GET /api/metrics/velocity', () => {
+    it('should return velocity metrics for valid iterations', async () => {
+      const response = await request(app)
+        .get('/api/metrics/velocity?iterations=gid://gitlab/Iteration/123')
+        .expect(200)
+        .expect('Content-Type', /json/);
+
+      expect(response.body.metrics).toHaveLength(1);
+      expect(response.body.metrics[0]).toMatchObject({
+        iterationId: 'gid://gitlab/Iteration/123',
+        completedPoints: 42,
+        completedStories: 8
+      });
+      expect(response.body.count).toBe(1);
+    });
+
+    it('should return 400 when iterations parameter is missing', async () => {
+      const response = await request(app)
+        .get('/api/metrics/velocity')
+        .expect(400)
+        .expect('Content-Type', /json/);
+
+      expect(response.body.error.message).toBe('Missing required parameter: iterations');
+    });
+
+    it('should return 500 when service throws error', async () => {
+      mockMetricsService.calculateMultipleMetrics.mockRejectedValue(
+        new Error('Service error')
+      );
+
+      const response = await request(app)
+        .get('/api/metrics/velocity?iterations=invalid')
+        .expect(500)
+        .expect('Content-Type', /json/);
+
+      expect(response.body.error.message).toBe('Failed to calculate velocity metrics');
+    });
+  });
+
+  describe('GET /api/metrics/cycle-time', () => {
+    it('should return cycle time metrics for valid iterations', async () => {
+      const response = await request(app)
+        .get('/api/metrics/cycle-time?iterations=gid://gitlab/Iteration/123')
+        .expect(200)
+        .expect('Content-Type', /json/);
+
+      expect(response.body.metrics).toHaveLength(1);
+      expect(response.body.metrics[0]).toMatchObject({
+        iterationId: 'gid://gitlab/Iteration/123',
+        cycleTimeAvg: 3.5,
+        cycleTimeP50: 3.0,
+        cycleTimeP90: 5.0
+      });
+    });
+
+    it('should return 400 when iterations parameter is missing', async () => {
+      const response = await request(app)
+        .get('/api/metrics/cycle-time')
+        .expect(400);
+
+      expect(response.body.error.message).toBe('Missing required parameter: iterations');
+    });
+
+    it('should return 500 when service throws error', async () => {
+      mockMetricsService.calculateMultipleMetrics.mockRejectedValue(
+        new Error('Service error')
+      );
+
+      const response = await request(app)
+        .get('/api/metrics/cycle-time?iterations=invalid')
+        .expect(500);
+
+      expect(response.body.error.message).toBe('Failed to calculate cycle time metrics');
+    });
+  });
+
+  describe('GET /api/metrics/deployment-frequency', () => {
+    it('should return deployment frequency metrics for valid iterations', async () => {
+      const response = await request(app)
+        .get('/api/metrics/deployment-frequency?iterations=gid://gitlab/Iteration/123')
+        .expect(200);
+
+      expect(response.body.metrics).toHaveLength(1);
+      expect(response.body.metrics[0]).toMatchObject({
+        iterationId: 'gid://gitlab/Iteration/123',
+        deploymentFrequency: 2.5
+      });
+    });
+
+    it('should return 400 when iterations parameter is missing', async () => {
+      const response = await request(app)
+        .get('/api/metrics/deployment-frequency')
+        .expect(400);
+
+      expect(response.body.error.message).toBe('Missing required parameter: iterations');
+    });
+
+    it('should return 500 when service throws error', async () => {
+      mockMetricsService.calculateMultipleMetrics.mockRejectedValue(
+        new Error('Service error')
+      );
+
+      const response = await request(app)
+        .get('/api/metrics/deployment-frequency?iterations=invalid')
+        .expect(500);
+
+      expect(response.body.error.message).toBe('Failed to calculate deployment frequency metrics');
+    });
+  });
+
+  describe('GET /api/metrics/lead-time', () => {
+    it('should return lead time metrics for valid iterations', async () => {
+      const response = await request(app)
+        .get('/api/metrics/lead-time?iterations=gid://gitlab/Iteration/123')
+        .expect(200);
+
+      expect(response.body.metrics).toHaveLength(1);
+      expect(response.body.metrics[0]).toMatchObject({
+        iterationId: 'gid://gitlab/Iteration/123',
+        leadTimeAvg: 2.0,
+        leadTimeP50: 1.5,
+        leadTimeP90: 3.0
+      });
+    });
+
+    it('should return 400 when iterations parameter is missing', async () => {
+      const response = await request(app)
+        .get('/api/metrics/lead-time')
+        .expect(400);
+
+      expect(response.body.error.message).toBe('Missing required parameter: iterations');
+    });
+
+    it('should return 500 when service throws error', async () => {
+      mockMetricsService.calculateMultipleMetrics.mockRejectedValue(
+        new Error('Service error')
+      );
+
+      const response = await request(app)
+        .get('/api/metrics/lead-time?iterations=invalid')
+        .expect(500);
+
+      expect(response.body.error.message).toBe('Failed to calculate lead time metrics');
+    });
+  });
+
+  describe('GET /api/metrics/mttr', () => {
+    it('should return MTTR metrics for valid iterations', async () => {
+      const response = await request(app)
+        .get('/api/metrics/mttr?iterations=gid://gitlab/Iteration/123')
+        .expect(200);
+
+      expect(response.body.metrics).toHaveLength(1);
+      expect(response.body.metrics[0]).toMatchObject({
+        iterationId: 'gid://gitlab/Iteration/123',
+        mttrAvg: 12.5
+      });
+    });
+
+    it('should return 400 when iterations parameter is missing', async () => {
+      const response = await request(app)
+        .get('/api/metrics/mttr')
+        .expect(400);
+
+      expect(response.body.error.message).toBe('Missing required parameter: iterations');
+    });
+
+    it('should return 500 when service throws error', async () => {
+      mockMetricsService.calculateMultipleMetrics.mockRejectedValue(
+        new Error('Service error')
+      );
+
+      const response = await request(app)
+        .get('/api/metrics/mttr?iterations=invalid')
+        .expect(500);
+
+      expect(response.body.error.message).toBe('Failed to calculate MTTR metrics');
+    });
+  });
+
+  describe('GET /api/metrics/change-failure-rate', () => {
+    it('should return change failure rate metrics for valid iterations', async () => {
+      const response = await request(app)
+        .get('/api/metrics/change-failure-rate?iterations=gid://gitlab/Iteration/123')
+        .expect(200);
+
+      expect(response.body.metrics).toHaveLength(1);
+      expect(response.body.metrics[0]).toMatchObject({
+        iterationId: 'gid://gitlab/Iteration/123',
+        changeFailureRate: 5.5
+      });
+    });
+
+    it('should return 400 when iterations parameter is missing', async () => {
+      const response = await request(app)
+        .get('/api/metrics/change-failure-rate')
+        .expect(400);
+
+      expect(response.body.error.message).toBe('Missing required parameter: iterations');
+    });
+
+    it('should return 500 when service throws error', async () => {
+      mockMetricsService.calculateMultipleMetrics.mockRejectedValue(
+        new Error('Service error')
+      );
+
+      const response = await request(app)
+        .get('/api/metrics/change-failure-rate?iterations=invalid')
+        .expect(500);
+
+      expect(response.body.error.message).toBe('Failed to calculate change failure rate metrics');
+    });
+  });
+
+  describe('Multiple iterations', () => {
+    it('should handle comma-separated iteration IDs', async () => {
+      mockMetricsService.calculateMultipleMetrics.mockResolvedValue([
+        mockMetricsData[0],
+        { ...mockMetricsData[0], iterationId: 'gid://gitlab/Iteration/124' }
+      ]);
+
+      const response = await request(app)
+        .get('/api/metrics/velocity?iterations=gid://gitlab/Iteration/123,gid://gitlab/Iteration/124')
+        .expect(200);
+
+      expect(response.body.metrics).toHaveLength(2);
+      expect(response.body.count).toBe(2);
+      expect(mockMetricsService.calculateMultipleMetrics).toHaveBeenCalledWith([
+        'gid://gitlab/Iteration/123',
+        'gid://gitlab/Iteration/124'
+      ]);
     });
   });
 });

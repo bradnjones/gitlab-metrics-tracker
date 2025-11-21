@@ -501,4 +501,65 @@ describe('IterationCacheRepository', () => {
       await fs.rm(nonExistentDir, { recursive: true, force: true });
     });
   });
+
+  describe('Error handling', () => {
+    test('get() throws non-SyntaxError errors during file read', async () => {
+      const iterationId = 'gid://gitlab/Iteration/999';
+      const mockData = {
+        issues: [],
+        mergeRequests: [],
+        pipelines: [],
+        incidents: [],
+        iteration: { id: iterationId, title: 'Sprint' }
+      };
+
+      await repository.set(iterationId, mockData);
+
+      // Mock fs.readFile to throw a non-SyntaxError
+      const originalReadFile = fs.readFile;
+      fs.readFile = jest.fn().mockRejectedValue(new Error('EACCES: permission denied'));
+
+      await expect(repository.get(iterationId)).rejects.toThrow('EACCES: permission denied');
+
+      fs.readFile = originalReadFile;
+    });
+
+    test('clear() throws non-ENOENT errors during file deletion', async () => {
+      const iterationId = 'gid://gitlab/Iteration/999';
+
+      // Mock fs.unlink to throw a permission error
+      const originalUnlink = fs.unlink;
+      fs.unlink = jest.fn().mockRejectedValue(Object.assign(new Error('EACCES'), { code: 'EACCES' }));
+
+      await expect(repository.clear(iterationId)).rejects.toThrow('EACCES');
+
+      fs.unlink = originalUnlink;
+    });
+
+    test('clearAll() throws non-ENOENT errors during directory clear', async () => {
+      // Create a cache entry first
+      await repository.set('gid://gitlab/Iteration/123', { issues: [], mergeRequests: [], pipelines: [], incidents: [], iteration: {} });
+
+      // Mock fs.unlink to throw a permission error
+      const originalUnlink = fs.unlink;
+      fs.unlink = jest.fn().mockRejectedValue(Object.assign(new Error('EACCES'), { code: 'EACCES' }));
+
+      await expect(repository.clearAll()).rejects.toThrow('EACCES');
+
+      fs.unlink = originalUnlink;
+    });
+
+    test('_getFilePath() prevents path traversal attempts', async () => {
+      // Attempt path traversal attack - should sanitize to safe filename
+      const maliciousId = '../../../etc/passwd';
+
+      // The method sanitizes the ID but also checks the resolved path
+      // If path is outside cache dir, it throws
+      const filePath = repository._getFilePath(maliciousId);
+
+      // Verify path stays within cache directory
+      expect(filePath).toContain(tempDir);
+      expect(filePath).not.toContain('../');
+    });
+  });
 });

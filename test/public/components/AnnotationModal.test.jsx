@@ -646,4 +646,178 @@ describe('AnnotationModal', () => {
     // Body scroll should be restored
     expect(document.body.style.overflow).toBe('');
   });
+
+  /**
+   * Test 21: Shows delete button in edit mode when onDelete is provided
+   * Verifies delete button visibility logic
+   */
+  test('shows delete button in edit mode when onDelete is provided', () => {
+    const existingAnnotation = {
+      id: 'annotation-1',
+      date: '2025-11-14',
+      title: 'Test Annotation',
+      description: 'Test description',
+      type: 'process',
+      impact: 'positive',
+      affectedMetrics: ['velocity'],
+    };
+
+    render(
+      <ThemeProvider theme={theme}>
+        <AnnotationModal
+          isOpen={true}
+          onClose={() => {}}
+          onSave={() => {}}
+          onDelete={() => {}}
+          annotation={existingAnnotation}
+        />
+      </ThemeProvider>
+    );
+
+    // Delete button should be visible
+    expect(screen.getByText('Delete')).toBeInTheDocument();
+  });
+
+  /**
+   * Test 22: Hides delete button in create mode
+   * Verifies delete button is not shown when creating new annotation
+   */
+  test('hides delete button in create mode', () => {
+    render(
+      <ThemeProvider theme={theme}>
+        <AnnotationModal
+          isOpen={true}
+          onClose={() => {}}
+          onSave={() => {}}
+          onDelete={() => {}}
+          annotation={null}
+        />
+      </ThemeProvider>
+    );
+
+    // Delete button should not be visible
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Test 23: Hides delete button when onDelete is not provided
+   * Verifies delete button requires onDelete prop
+   */
+  test('hides delete button when onDelete is not provided', () => {
+    const existingAnnotation = {
+      id: 'annotation-1',
+      date: '2025-11-14',
+      title: 'Test Annotation',
+      description: 'Test description',
+      type: 'process',
+      impact: 'positive',
+      affectedMetrics: ['velocity'],
+    };
+
+    render(
+      <ThemeProvider theme={theme}>
+        <AnnotationModal
+          isOpen={true}
+          onClose={() => {}}
+          onSave={() => {}}
+          annotation={existingAnnotation}
+        />
+      </ThemeProvider>
+    );
+
+    // Delete button should not be visible
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Test 24: Calls onDelete when user confirms deletion
+   * Verifies delete confirmation dialog and callback
+   */
+  test('calls onDelete when user confirms deletion', () => {
+    const mockOnDelete = jest.fn();
+    const existingAnnotation = {
+      id: 'annotation-1',
+      date: '2025-11-14',
+      title: 'Test Annotation',
+      description: 'Test description',
+      type: 'process',
+      impact: 'positive',
+      affectedMetrics: ['velocity'],
+    };
+
+    // Mock window.confirm to return true (user confirms)
+    const originalConfirm = window.confirm;
+    window.confirm = jest.fn(() => true);
+
+    render(
+      <ThemeProvider theme={theme}>
+        <AnnotationModal
+          isOpen={true}
+          onClose={() => {}}
+          onSave={() => {}}
+          onDelete={mockOnDelete}
+          annotation={existingAnnotation}
+        />
+      </ThemeProvider>
+    );
+
+    // Click Delete button
+    const deleteButton = screen.getByText('Delete');
+    fireEvent.click(deleteButton);
+
+    // Should show confirmation dialog
+    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete this annotation?');
+
+    // Should call onDelete with annotation ID
+    expect(mockOnDelete).toHaveBeenCalledWith('annotation-1');
+
+    // Restore original confirm
+    window.confirm = originalConfirm;
+  });
+
+  /**
+   * Test 25: Does not call onDelete when user cancels deletion
+   * Verifies delete is skipped when user cancels confirmation
+   */
+  test('does not call onDelete when user cancels deletion', () => {
+    const mockOnDelete = jest.fn();
+    const existingAnnotation = {
+      id: 'annotation-1',
+      date: '2025-11-14',
+      title: 'Test Annotation',
+      description: 'Test description',
+      type: 'process',
+      impact: 'positive',
+      affectedMetrics: ['velocity'],
+    };
+
+    // Mock window.confirm to return false (user cancels)
+    const originalConfirm = window.confirm;
+    window.confirm = jest.fn(() => false);
+
+    render(
+      <ThemeProvider theme={theme}>
+        <AnnotationModal
+          isOpen={true}
+          onClose={() => {}}
+          onSave={() => {}}
+          onDelete={mockOnDelete}
+          annotation={existingAnnotation}
+        />
+      </ThemeProvider>
+    );
+
+    // Click Delete button
+    const deleteButton = screen.getByText('Delete');
+    fireEvent.click(deleteButton);
+
+    // Should show confirmation dialog
+    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete this annotation?');
+
+    // Should NOT call onDelete
+    expect(mockOnDelete).not.toHaveBeenCalled();
+
+    // Restore original confirm
+    window.confirm = originalConfirm;
+  });
 });

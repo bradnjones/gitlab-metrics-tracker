@@ -141,7 +141,7 @@ describe('IterationSelectorToolbar', () => {
    * Verifies toolbar container uses theme-based styling
    */
   test('toolbar has proper styling and structure', () => {
-    const { container } = render(
+    const { container} = render(
       <ThemeProvider theme={theme}>
         <IterationSelectorToolbar
           selectedIterations={[]}
@@ -155,5 +155,120 @@ describe('IterationSelectorToolbar', () => {
     const toolbar = container.firstChild;
     expect(toolbar).toBeInTheDocument();
     expect(toolbar.className).toBeTruthy(); // Has styled-component class
+  });
+
+  /**
+   * Test 10.6: Handles missing onRemoveIteration callback gracefully
+   * Verifies component doesn't crash when onRemoveIteration is undefined
+   */
+  test('handles missing onRemoveIteration callback gracefully', () => {
+    const mockIterations = [{ id: '1', title: 'Sprint 1' }];
+
+    render(
+      <ThemeProvider theme={theme}>
+        <IterationSelectorToolbar
+          selectedIterations={mockIterations}
+          onOpenModal={() => {}}
+        />
+      </ThemeProvider>
+    );
+
+    // Should render without crashing
+    expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+
+    // Clicking remove button should not throw error
+    const removeButton = screen.getByLabelText(/remove sprint 1/i);
+    expect(() => fireEvent.click(removeButton)).not.toThrow();
+  });
+
+  /**
+   * Test 10.7: Handles missing onOpenModal callback gracefully
+   * Verifies component doesn't crash when onOpenModal is undefined
+   */
+  test('handles missing onOpenModal callback gracefully', () => {
+    render(
+      <ThemeProvider theme={theme}>
+        <IterationSelectorToolbar
+          selectedIterations={[]}
+          onRemoveIteration={() => {}}
+        />
+      </ThemeProvider>
+    );
+
+    // Should render without crashing
+    expect(screen.getByText(/no sprints selected/i)).toBeInTheDocument();
+
+    // Clicking change button should not throw error
+    const changeButton = screen.getByText(/change iterations/i);
+    expect(() => fireEvent.click(changeButton)).not.toThrow();
+  });
+
+  /**
+   * Test 10.8: Renders iteration title fallbacks correctly
+   * Verifies component handles missing title with iterationCadence fallback
+   */
+  test('uses iterationCadence title when iteration title is missing', () => {
+    const mockIterations = [
+      { id: '1', iterationCadence: { title: 'Cadence Sprint 1' } },
+    ];
+
+    render(
+      <ThemeProvider theme={theme}>
+        <IterationSelectorToolbar
+          selectedIterations={mockIterations}
+          onRemoveIteration={() => {}}
+          onOpenModal={() => {}}
+        />
+      </ThemeProvider>
+    );
+
+    // Should render cadence title
+    expect(screen.getByText('Cadence Sprint 1')).toBeInTheDocument();
+  });
+
+  /**
+   * Test 10.9: Uses iid as fallback when title and cadence are missing
+   * Verifies component handles all title fallback scenarios
+   */
+  test('uses "Sprint {iid}" when both title and cadence are missing', () => {
+    const mockIterations = [
+      { id: 'gid://gitlab/Iteration/123', iid: 42 },
+    ];
+
+    render(
+      <ThemeProvider theme={theme}>
+        <IterationSelectorToolbar
+          selectedIterations={mockIterations}
+          onRemoveIteration={() => {}}
+          onOpenModal={() => {}}
+        />
+      </ThemeProvider>
+    );
+
+    // Should render "Sprint {iid}"
+    expect(screen.getByText('Sprint 42')).toBeInTheDocument();
+  });
+
+  /**
+   * Test 10.10: Renders "Sprint undefined" when iid is undefined
+   * Verifies template literal behavior when iid is missing
+   */
+  test('renders "Sprint undefined" when iid is missing', () => {
+    const mockIterations = [
+      { id: 'gid://gitlab/Iteration/999' }, // No title, no cadence, no iid
+    ];
+
+    render(
+      <ThemeProvider theme={theme}>
+        <IterationSelectorToolbar
+          selectedIterations={mockIterations}
+          onRemoveIteration={() => {}}
+          onOpenModal={() => {}}
+        />
+      </ThemeProvider>
+    );
+
+    // Should render "Sprint undefined" (template literal evaluates even with undefined)
+    expect(screen.getByText('Sprint undefined')).toBeInTheDocument();
   });
 });

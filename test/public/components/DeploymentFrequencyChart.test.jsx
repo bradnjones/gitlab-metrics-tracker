@@ -243,4 +243,75 @@ describe('DeploymentFrequencyChart', () => {
     // Assert - The annotationRefreshKey is passed to useAnnotations, component still renders
     expect(screen.getByTestId('deployment-frequency-bar-chart')).toBeInTheDocument();
   });
+
+  test('handles localStorage read errors gracefully', async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('localStorage error');
+    });
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse
+    });
+
+    render(
+      <ThemeProvider theme={theme}>
+        <DeploymentFrequencyChart selectedIterations={mockIterations} />
+      </ThemeProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Failed to load chart filters from localStorage:',
+      expect.any(Error)
+    );
+
+    consoleWarnSpy.mockRestore();
+    getItemSpy.mockRestore();
+  });
+
+  test('handles all iterations being filtered out', async () => {
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
+
+    const { rerender } = render(
+      <ThemeProvider theme={theme}>
+        <DeploymentFrequencyChart selectedIterations={mockIterations} />
+      </ThemeProvider>
+    );
+
+    rerender(
+      <ThemeProvider theme={theme}>
+        <DeploymentFrequencyChart selectedIterations={[]} />
+      </ThemeProvider>
+    );
+
+    expect(screen.getByText(/select iterations to view deployment frequency metrics/i)).toBeInTheDocument();
+
+    getItemSpy.mockRestore();
+  });
+
+  test('handles HTTP 500 error from API', async () => {
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500
+    });
+
+    render(
+      <ThemeProvider theme={theme}>
+        <DeploymentFrequencyChart selectedIterations={mockIterations} />
+      </ThemeProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/error loading deployment frequency data/i)).toBeInTheDocument();
+    });
+
+    getItemSpy.mockRestore();
+  });
 });
