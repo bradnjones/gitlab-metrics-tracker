@@ -423,6 +423,169 @@ describe('GitLabClient', () => {
     });
   });
 
+  describe('fetchAdditionalNotesForIssue', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+      // Mock the delay method to avoid actual delays in tests
+      client.delay = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it('should fetch additional notes with pagination', async () => {
+      // Mock page 1 response
+      mockRequest.mockResolvedValueOnce({
+        issue: {
+          id: 'gid://gitlab/Issue/123',
+          notes: {
+            nodes: [
+              {
+                id: 'note-21',
+                body: 'Comment 21',
+                system: false,
+                systemNoteMetadata: null,
+                createdAt: '2025-01-03T10:00:00Z'
+              },
+              {
+                id: 'note-22',
+                body: 'set status to **In progress**',
+                system: true,
+                systemNoteMetadata: { action: 'work_item_status' },
+                createdAt: '2025-01-03T11:00:00Z'
+              }
+            ],
+            pageInfo: { hasNextPage: true, endCursor: 'cursor2' }
+          }
+        }
+      });
+
+      // Mock page 2 response
+      mockRequest.mockResolvedValueOnce({
+        issue: {
+          id: 'gid://gitlab/Issue/123',
+          notes: {
+            nodes: [
+              {
+                id: 'note-23',
+                body: 'Comment 23',
+                system: false,
+                systemNoteMetadata: null,
+                createdAt: '2025-01-03T12:00:00Z'
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      });
+
+      const result = await client.fetchAdditionalNotesForIssue('gid://gitlab/Issue/123', 'cursor1');
+
+      expect(result).toHaveLength(3);
+      expect(result[0].id).toBe('note-21');
+      expect(result[1].id).toBe('note-22');
+      expect(result[2].id).toBe('note-23');
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+
+      // First call with startCursor
+      expect(mockRequest).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('query getIssueNotes'),
+        { issueId: 'gid://gitlab/Issue/123', after: 'cursor1' }
+      );
+
+      // Second call with cursor2
+      expect(mockRequest).toHaveBeenNthCalledWith(2,
+        expect.stringContaining('query getIssueNotes'),
+        { issueId: 'gid://gitlab/Issue/123', after: 'cursor2' }
+      );
+
+      // Delay called once (between pages)
+      expect(client.delay).toHaveBeenCalledTimes(1);
+      expect(client.delay).toHaveBeenCalledWith(100);
+    });
+
+    it('should handle single page response (no pagination needed)', async () => {
+      mockRequest.mockResolvedValueOnce({
+        issue: {
+          id: 'gid://gitlab/Issue/456',
+          notes: {
+            nodes: [
+              {
+                id: 'note-50',
+                body: 'set status to **Done**',
+                system: true,
+                systemNoteMetadata: { action: 'work_item_status' },
+                createdAt: '2025-01-04T10:00:00Z'
+              }
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      });
+
+      const result = await client.fetchAdditionalNotesForIssue('gid://gitlab/Issue/456', 'cursor1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('note-50');
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(client.delay).not.toHaveBeenCalled();
+    });
+
+    it('should throw error if issue not found', async () => {
+      mockRequest.mockResolvedValueOnce({
+        issue: null
+      });
+
+      await expect(client.fetchAdditionalNotesForIssue('gid://gitlab/Issue/999', 'cursor1')).rejects.toThrow(
+        'Issue not found: gid://gitlab/Issue/999'
+      );
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockError = {
+        response: {
+          errors: [
+            { message: 'Insufficient permissions' }
+          ]
+        }
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+
+      await expect(client.fetchAdditionalNotesForIssue('gid://gitlab/Issue/123', 'cursor1')).rejects.toThrow(
+        'Failed to fetch additional notes: Insufficient permissions'
+      );
+    });
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Connection timeout');
+      mockRequest.mockRejectedValue(networkError);
+
+      await expect(client.fetchAdditionalNotesForIssue('gid://gitlab/Issue/123', 'cursor1')).rejects.toThrow(
+        'Failed to fetch additional notes: Connection timeout'
+      );
+    });
+
+    it('should handle empty notes response', async () => {
+      mockRequest.mockResolvedValueOnce({
+        issue: {
+          id: 'gid://gitlab/Issue/789',
+          notes: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null }
+          }
+        }
+      });
+
+      const result = await client.fetchAdditionalNotesForIssue('gid://gitlab/Issue/789', 'cursor1');
+
+      expect(result).toEqual([]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('fetchIterationDetails', () => {
     let client;
 
@@ -895,6 +1058,332 @@ describe('GitLabClient', () => {
         expect(result.issues).toHaveLength(2);
         expect(result.issues[0].inProgressAt).toBe('2025-01-02T10:00:00Z');
         expect(result.issues[1].inProgressAt).toBeNull();
+      });
+
+      it('should fetch additional notes for CLOSED issue missing InProgress in first 20 notes', async () => {
+        const mockIterationData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/1',
+                  iid: '101',
+                  title: 'Issue with many notes',
+                  state: 'closed',
+                  createdAt: '2025-01-01T00:00:00Z',
+                  closedAt: '2025-01-10T00:00:00Z',
+                  weight: 3,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [
+                      // First 20 notes don't have InProgress status
+                      {
+                        id: 'note-1',
+                        body: 'Comment 1',
+                        system: false,
+                        systemNoteMetadata: null,
+                        createdAt: '2025-01-01T10:00:00Z'
+                      }
+                    ],
+                    pageInfo: { hasNextPage: true, endCursor: 'cursor1' }
+                  }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Mock additional notes with InProgress status
+        const additionalNotes = [
+          {
+            id: 'note-21',
+            body: 'set status to **In progress**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-01-02T14:00:00Z'
+          }
+        ];
+
+        // Mock fetchIterations and fetchMergeRequestsForGroup
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+        ]);
+        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
+        jest.spyOn(client, 'fetchAdditionalNotesForIssue').mockResolvedValue(additionalNotes);
+
+        mockRequest.mockResolvedValueOnce(mockIterationData);
+
+        const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+        expect(result.issues).toHaveLength(1);
+        expect(result.issues[0].inProgressAt).toBe('2025-01-02T14:00:00Z');
+        expect(result.issues[0].inProgressAtSource).toBe('status_change');
+        expect(client.fetchAdditionalNotesForIssue).toHaveBeenCalledWith(
+          'gid://gitlab/Issue/1',
+          'cursor1'
+        );
+      });
+
+      it('should fallback to createdAt when CLOSED issue has no InProgress in all notes', async () => {
+        const mockIterationData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/2',
+                  iid: '102',
+                  title: 'Issue without InProgress',
+                  state: 'closed',
+                  createdAt: '2025-01-01T08:00:00Z',
+                  closedAt: '2025-01-10T00:00:00Z',
+                  weight: 5,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [
+                      {
+                        id: 'note-1',
+                        body: 'set status to **Done**',
+                        system: true,
+                        systemNoteMetadata: { action: 'work_item_status' },
+                        createdAt: '2025-01-09T10:00:00Z'
+                      }
+                    ],
+                    pageInfo: { hasNextPage: true, endCursor: 'cursor1' }
+                  }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Mock additional notes WITHOUT InProgress status
+        const additionalNotes = [
+          {
+            id: 'note-21',
+            body: 'Comment about bug',
+            system: false,
+            systemNoteMetadata: null,
+            createdAt: '2025-01-05T14:00:00Z'
+          }
+        ];
+
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+        ]);
+        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
+        jest.spyOn(client, 'fetchAdditionalNotesForIssue').mockResolvedValue(additionalNotes);
+
+        mockRequest.mockResolvedValueOnce(mockIterationData);
+
+        const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+        expect(result.issues).toHaveLength(1);
+        // Should fallback to createdAt
+        expect(result.issues[0].inProgressAt).toBe('2025-01-01T08:00:00Z');
+        expect(result.issues[0].inProgressAtSource).toBe('created');
+      });
+
+      it('should handle error fetching additional notes and fallback to createdAt', async () => {
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const mockIterationData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/3',
+                  iid: '103',
+                  title: 'Issue with fetch error',
+                  state: 'closed',
+                  createdAt: '2025-01-01T09:00:00Z',
+                  closedAt: '2025-01-10T00:00:00Z',
+                  weight: 2,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [],
+                    pageInfo: { hasNextPage: true, endCursor: 'cursor1' }
+                  }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+        ]);
+        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
+        jest.spyOn(client, 'fetchAdditionalNotesForIssue').mockRejectedValue(new Error('Network error'));
+
+        mockRequest.mockResolvedValueOnce(mockIterationData);
+
+        const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+        expect(result.issues).toHaveLength(1);
+        // Should fallback to createdAt after error
+        expect(result.issues[0].inProgressAt).toBe('2025-01-01T09:00:00Z');
+        expect(result.issues[0].inProgressAtSource).toBe('created');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to fetch additional notes')
+        );
+
+        consoleWarnSpy.mockRestore();
+      });
+
+      it('should fallback to createdAt for CLOSED issue without more notes to fetch', async () => {
+        const mockIterationData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/4',
+                  iid: '104',
+                  title: 'Issue with no more notes',
+                  state: 'closed',
+                  createdAt: '2025-01-01T07:00:00Z',
+                  closedAt: '2025-01-10T00:00:00Z',
+                  weight: 3,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [
+                      {
+                        id: 'note-1',
+                        body: 'Comment',
+                        system: false,
+                        systemNoteMetadata: null,
+                        createdAt: '2025-01-02T10:00:00Z'
+                      }
+                    ],
+                    pageInfo: { hasNextPage: false, endCursor: null }
+                  }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+        ]);
+        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
+
+        mockRequest.mockResolvedValueOnce(mockIterationData);
+
+        const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+        expect(result.issues).toHaveLength(1);
+        // Should fallback to createdAt (no InProgress found, no more notes to fetch)
+        expect(result.issues[0].inProgressAt).toBe('2025-01-01T07:00:00Z');
+        expect(result.issues[0].inProgressAtSource).toBe('created');
+      });
+
+      it('should return null inProgressAt for OPEN issue without InProgress', async () => {
+        const mockIterationData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/5',
+                  iid: '105',
+                  title: 'Open issue without InProgress',
+                  state: 'opened',
+                  createdAt: '2025-01-05T00:00:00Z',
+                  closedAt: null,
+                  weight: 5,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [
+                      {
+                        id: 'note-1',
+                        body: 'Comment',
+                        system: false,
+                        systemNoteMetadata: null,
+                        createdAt: '2025-01-06T10:00:00Z'
+                      }
+                    ],
+                    pageInfo: { hasNextPage: false, endCursor: null }
+                  }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
+        ]);
+        jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
+
+        mockRequest.mockResolvedValueOnce(mockIterationData);
+
+        const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+        expect(result.issues).toHaveLength(1);
+        // OPEN issue without InProgress should have null
+        expect(result.issues[0].inProgressAt).toBeNull();
+        expect(result.issues[0].inProgressAtSource).toBeNull();
+      });
+
+      it('should skip MR fetching when iteration metadata not found', async () => {
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const mockIterationData = {
+          group: {
+            id: 'gid://gitlab/Group/1',
+            issues: {
+              nodes: [
+                {
+                  id: 'gid://gitlab/Issue/6',
+                  iid: '106',
+                  title: 'Issue 1',
+                  state: 'closed',
+                  createdAt: '2025-01-01T00:00:00Z',
+                  closedAt: '2025-01-10T00:00:00Z',
+                  weight: 3,
+                  labels: { nodes: [] },
+                  assignees: { nodes: [] },
+                  notes: {
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null }
+                  }
+                }
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+
+        // Mock fetchIterations returns iterations WITHOUT the requested iteration
+        jest.spyOn(client, 'fetchIterations').mockResolvedValue([
+          { id: 'gid://gitlab/Iteration/999', title: 'Sprint 99', startDate: '2025-02-01', dueDate: '2025-02-14' }
+        ]);
+
+        mockRequest.mockResolvedValueOnce(mockIterationData);
+
+        const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
+
+        expect(result.issues).toHaveLength(1);
+        expect(result.mergeRequests).toEqual([]);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Iteration gid://gitlab/Iteration/123 not found')
+        );
+
+        consoleWarnSpy.mockRestore();
       });
     });
   });
@@ -2411,6 +2900,172 @@ describe('GitLabClient', () => {
       const projectPath = client.extractProjectPath(url);
 
       expect(projectPath).toBeNull();
+    });
+  });
+
+  describe('fetchMergeRequestDetails', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+    });
+
+    it('should fetch merge request details successfully', async () => {
+      const mockMRData = {
+        project: {
+          mergeRequest: {
+            id: 'gid://gitlab/MergeRequest/123',
+            iid: '10',
+            title: 'Feature Implementation',
+            state: 'merged',
+            createdAt: '2025-01-01T00:00:00Z',
+            mergedAt: '2025-01-03T10:00:00Z',
+            targetBranch: 'main',
+            sourceBranch: 'feature-branch',
+            author: {
+              username: 'developer1',
+              name: 'Developer One'
+            }
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockMRData);
+
+      const result = await client.fetchMergeRequestDetails('group/project', '10');
+
+      expect(result).toEqual(mockMRData.project.mergeRequest);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('query getMergeRequest'),
+        {
+          fullPath: 'group/project',
+          iid: '10'
+        }
+      );
+    });
+
+    it('should throw error when merge request not found', async () => {
+      mockRequest.mockResolvedValue({
+        project: {
+          mergeRequest: null
+        }
+      });
+
+      await expect(
+        client.fetchMergeRequestDetails('group/project', '999')
+      ).rejects.toThrow('Failed to fetch MR details: Merge request !999 not found in project group/project');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockError = {
+        response: {
+          errors: [
+            { message: 'Insufficient permissions to access merge request' }
+          ]
+        }
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+
+      await expect(
+        client.fetchMergeRequestDetails('group/project', '10')
+      ).rejects.toThrow('Failed to fetch MR details: Insufficient permissions to access merge request');
+    });
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Connection timeout');
+      mockRequest.mockRejectedValue(networkError);
+
+      await expect(
+        client.fetchMergeRequestDetails('group/project', '10')
+      ).rejects.toThrow('Failed to fetch MR details: Connection timeout');
+    });
+  });
+
+  describe('fetchCommitDetails', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new GitLabClient({
+        token: 'test-token',
+        projectPath: 'group/project'
+      });
+    });
+
+    it('should fetch commit details successfully', async () => {
+      const mockCommitData = {
+        project: {
+          repository: {
+            commit: {
+              id: 'gid://gitlab/Commit/abc123',
+              sha: 'abc123def456',
+              shortId: 'abc123d',
+              title: 'Fix critical bug',
+              message: 'Fix critical bug\n\nDetailed description here',
+              committedDate: '2025-01-02T15:30:00Z',
+              author: {
+                name: 'Developer Two',
+                email: 'dev2@example.com'
+              }
+            }
+          }
+        }
+      };
+
+      mockRequest.mockResolvedValue(mockCommitData);
+
+      const result = await client.fetchCommitDetails('group/project', 'abc123def456');
+
+      expect(result).toEqual(mockCommitData.project.repository.commit);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringContaining('query getCommit'),
+        {
+          fullPath: 'group/project',
+          sha: 'abc123def456'
+        }
+      );
+    });
+
+    it('should throw error when commit not found', async () => {
+      mockRequest.mockResolvedValue({
+        project: {
+          repository: {
+            commit: null
+          }
+        }
+      });
+
+      await expect(
+        client.fetchCommitDetails('group/project', 'invalidsha')
+      ).rejects.toThrow('Failed to fetch commit details: Commit invalidsha not found in project group/project');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockError = {
+        response: {
+          errors: [
+            { message: 'Repository not accessible' }
+          ]
+        }
+      };
+
+      mockRequest.mockRejectedValue(mockError);
+
+      await expect(
+        client.fetchCommitDetails('group/project', 'abc123')
+      ).rejects.toThrow('Failed to fetch commit details: Repository not accessible');
+    });
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Network failure');
+      mockRequest.mockRejectedValue(networkError);
+
+      await expect(
+        client.fetchCommitDetails('group/project', 'abc123')
+      ).rejects.toThrow('Failed to fetch commit details: Network failure');
     });
   });
 });
