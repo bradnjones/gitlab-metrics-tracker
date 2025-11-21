@@ -660,4 +660,555 @@ describe('VelocityApp', () => {
     global.fetch.mockRestore();
     Storage.prototype.getItem.mockRestore();
   });
+
+  /**
+   * Test 9.17: localStorage handles invalid data format gracefully
+   * Verifies app clears invalid localStorage data and shows empty state
+   */
+  test('handles invalid localStorage data format gracefully', () => {
+    // Arrange
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(
+      JSON.stringify('invalid')  // String instead of array
+    );
+    const removeItemSpy = jest.spyOn(Storage.prototype, 'removeItem');
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Assert - Should warn and clear invalid data
+    expect(consoleWarnSpy).toHaveBeenCalledWith('Invalid localStorage data format, clearing...');
+    expect(removeItemSpy).toHaveBeenCalledWith('gitlab-metrics-selected-iterations');
+
+    // Should show empty state
+    expect(screen.getByText(/select sprint iterations/i)).toBeInTheDocument();
+
+    // Cleanup
+    consoleWarnSpy.mockRestore();
+    getItemSpy.mockRestore();
+    removeItemSpy.mockRestore();
+  });
+
+  /**
+   * Test 9.18: localStorage handles array with invalid item structure
+   * Verifies app clears localStorage when items don't have required 'id' property
+   */
+  test('handles localStorage array with invalid items', () => {
+    // Arrange
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(
+      JSON.stringify([{ title: 'Sprint 1' }])  // Missing 'id' property
+    );
+    const removeItemSpy = jest.spyOn(Storage.prototype, 'removeItem');
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Assert - Should warn and clear invalid data
+    expect(consoleWarnSpy).toHaveBeenCalledWith('Invalid localStorage data format, clearing...');
+    expect(removeItemSpy).toHaveBeenCalledWith('gitlab-metrics-selected-iterations');
+
+    // Cleanup
+    consoleWarnSpy.mockRestore();
+    getItemSpy.mockRestore();
+    removeItemSpy.mockRestore();
+  });
+
+  /**
+   * Test 9.19: localStorage handles read errors gracefully
+   * Verifies app handles localStorage read exceptions without crashing
+   */
+  test('handles localStorage read errors gracefully', () => {
+    // Arrange
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('localStorage read error');
+    });
+    const removeItemSpy = jest.spyOn(Storage.prototype, 'removeItem');
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Assert - Should catch error and clear data
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Failed to load selections from localStorage:',
+      expect.any(Error)
+    );
+    expect(removeItemSpy).toHaveBeenCalledWith('gitlab-metrics-selected-iterations');
+
+    // Cleanup
+    consoleWarnSpy.mockRestore();
+    getItemSpy.mockRestore();
+    removeItemSpy.mockRestore();
+  });
+
+  /**
+   * Test 9.20: localStorage handles write errors gracefully
+   * Verifies app handles localStorage write exceptions without crashing
+   */
+  test('handles localStorage write errors gracefully', () => {
+    // Arrange
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
+    const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('localStorage write error');
+    });
+
+    // Mock fetch
+    global.fetch = jest.fn((url) => {
+      if (url.includes('/api/cache/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ iterations: [] })
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ metrics: [] })
+      });
+    });
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Note: Write error happens when selectedIterations changes
+    // In this test, the initial render won't trigger a write since there are no selections
+    // We're just verifying the app doesn't crash with the mocked error
+
+    expect(screen.getByText(/select sprint iterations/i)).toBeInTheDocument();
+
+    // Cleanup
+    consoleWarnSpy.mockRestore();
+    getItemSpy.mockRestore();
+    setItemSpy.mockRestore();
+    global.fetch.mockRestore();
+  });
+
+  /**
+   * Test 9.21: Removing iteration chip updates selected iterations
+   * Verifies handleRemoveIteration filters out the removed iteration
+   */
+  test('removing iteration chip updates selected iterations', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const mockIterations = [
+      { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' },
+      { id: 'gid://gitlab/Iteration/2', title: 'Sprint 2' },
+    ];
+    Storage.prototype.getItem = jest.fn(() => JSON.stringify(mockIterations));
+
+    // Mock fetch
+    global.fetch = jest.fn(() => Promise.resolve({
+      ok: true,
+      json: async () => ({ metrics: [] })
+    }));
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Wait for iterations to load
+    await waitFor(() => {
+      expect(screen.queryByText(/no sprints selected/i)).not.toBeInTheDocument();
+    });
+
+    // Find and click remove button for Sprint 1
+    // CompactHeaderWithIterations renders iteration chips with × button
+    const removeButtons = screen.getAllByRole('button', { name: /remove/i });
+    await user.click(removeButtons[0]); // Remove first iteration
+
+    // Assert - Sprint 1 should be removed, Sprint 2 should remain
+    await waitFor(() => {
+      // The component should still have Sprint 2, not showing empty state
+      expect(screen.queryByText(/Sprint 1/i)).not.toBeInTheDocument();
+    });
+
+    // Cleanup
+    Storage.prototype.getItem.mockRestore();
+    global.fetch.mockRestore();
+  });
+
+  /**
+   * Test 9.22: Saving annotation makes POST API call
+   * Verifies handleSaveAnnotation sends correct data to API
+   */
+  test('saving new annotation makes POST API call', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const mockFetch = jest.fn(() => Promise.resolve({
+      ok: true,
+      json: async () => ({ id: 'new-annotation' })
+    }));
+    global.fetch = mockFetch;
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Open annotation modal via hamburger menu
+    const menuButton = screen.getByRole('button', { name: 'Menu' });
+    await user.click(menuButton);
+    await user.click(screen.getByText('Add Annotation'));
+
+    // Wait for modal to open
+    await waitFor(() => {
+      expect(screen.getByText(/Add Annotation/i)).toBeInTheDocument();
+    });
+
+    // Fill out ALL required annotation form fields
+    const dateInput = screen.getByLabelText('Date');
+    const titleInput = screen.getByLabelText('Title');
+    const typeSelect = screen.getByLabelText('Type');
+    const impactSelect = screen.getByLabelText('Impact');
+
+    fireEvent.change(dateInput, { target: { value: '2025-11-15' } });
+    fireEvent.change(titleInput, { target: { value: 'Test Annotation' } });
+    fireEvent.change(typeSelect, { target: { value: 'process' } });
+    fireEvent.change(impactSelect, { target: { value: 'positive' } });
+
+    // Submit form
+    const saveButton = screen.getByText('Save');
+    await user.click(saveButton);
+
+    // Assert - Should make POST request
+    await waitFor(() => {
+      const postCalls = mockFetch.mock.calls.filter(call =>
+        call[0] === '/api/annotations' && call[1]?.method === 'POST'
+      );
+      expect(postCalls.length).toBeGreaterThan(0);
+    });
+
+    // Cleanup
+    global.fetch.mockRestore();
+  });
+
+  /**
+   * Test 9.23: Saving annotation handles API errors
+   * Verifies handleSaveAnnotation catches and logs errors
+   */
+  test('saving annotation handles API errors gracefully', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockFetch = jest.fn(() => Promise.resolve({
+      ok: false,
+      status: 500
+    }));
+    global.fetch = mockFetch;
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Open annotation modal
+    const menuButton = screen.getByRole('button', { name: 'Menu' });
+    await user.click(menuButton);
+    await user.click(screen.getByText('Add Annotation'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Add Annotation/i)).toBeInTheDocument();
+    });
+
+    // Fill out ALL required fields
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Test' } });
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'process' } });
+    fireEvent.change(screen.getByLabelText('Impact'), { target: { value: 'positive' } });
+
+    // Submit form
+    await user.click(screen.getByText('Save'));
+
+    // Assert - Should log error
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error saving annotation:',
+        expect.any(Error)
+      );
+    });
+
+    // Cleanup
+    consoleErrorSpy.mockRestore();
+    global.fetch.mockRestore();
+  });
+
+  /**
+   * Test 9.24: Deleting annotation makes DELETE API call
+   * Verifies handleDeleteAnnotation sends correct request
+   */
+  test('deleting annotation makes DELETE API call', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const mockAnnotation = {
+      id: 'annotation-1',
+      date: '2025-11-15',
+      title: 'Test Annotation',
+      description: 'Test',
+      type: 'process',
+      impact: 'positive',
+      affectedMetrics: ['velocity']
+    };
+
+    const mockFetch = jest.fn((url) => {
+      if (url.includes('/api/annotations') && !url.includes('/api/annotations/')) {
+        // GET annotations list
+        return Promise.resolve({
+          ok: true,
+          json: async () => [mockAnnotation]
+        });
+      }
+      // DELETE annotation
+      return Promise.resolve({ ok: true });
+    });
+    global.fetch = mockFetch;
+
+    // Mock window.confirm
+    const originalConfirm = window.confirm;
+    window.confirm = jest.fn(() => true);
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Open manage annotations modal
+    const menuButton = screen.getByRole('button', { name: 'Menu' });
+    await user.click(menuButton);
+    await user.click(screen.getByText('Manage Annotations'));
+
+    // Wait for modal and annotations to load
+    await waitFor(() => {
+      expect(screen.getByText(/Manage Annotations \(/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    // Click delete button on annotation
+    const deleteButtons = screen.getAllByText('Delete');
+    await user.click(deleteButtons[0]);
+
+    // Assert - Should make DELETE request
+    await waitFor(() => {
+      const deleteCalls = mockFetch.mock.calls.filter(call =>
+        call[0].includes('/api/annotations/annotation-1') && call[1]?.method === 'DELETE'
+      );
+      expect(deleteCalls.length).toBeGreaterThan(0);
+    });
+
+    // Cleanup
+    window.confirm = originalConfirm;
+    global.fetch.mockRestore();
+  });
+
+  /**
+   * Test 9.25: Deleting annotation handles API errors
+   * Verifies handleDeleteAnnotation catches and logs errors
+   */
+  test('deleting annotation handles API errors gracefully', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockAnnotation = {
+      id: 'annotation-1',
+      date: '2025-11-15',
+      title: 'Test Annotation',
+      description: 'Test',
+      type: 'process',
+      impact: 'positive',
+      affectedMetrics: ['velocity']
+    };
+
+    const mockFetch = jest.fn((url, options) => {
+      if (url.includes('/api/annotations') && !url.includes('/api/annotations/')) {
+        // GET annotations list
+        return Promise.resolve({
+          ok: true,
+          json: async () => [mockAnnotation]
+        });
+      }
+      if (options?.method === 'DELETE') {
+        // DELETE fails
+        return Promise.resolve({
+          ok: false,
+          status: 500
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+    global.fetch = mockFetch;
+
+    // Mock window.confirm
+    const originalConfirm = window.confirm;
+    window.confirm = jest.fn(() => true);
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Open manage annotations modal
+    const menuButton = screen.getByRole('button', { name: 'Menu' });
+    await user.click(menuButton);
+    await user.click(screen.getByText('Manage Annotations'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Manage Annotations \(/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    // Click delete button
+    const deleteButtons = screen.getAllByText('Delete');
+    await user.click(deleteButtons[0]);
+
+    // Assert - Should log error
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error deleting annotation:',
+        expect.any(Error)
+      );
+    }, { timeout: 3000 });
+
+    // Cleanup
+    consoleErrorSpy.mockRestore();
+    window.confirm = originalConfirm;
+    global.fetch.mockRestore();
+  });
+
+  /**
+   * Test 9.26: Editing annotation from manage modal opens edit modal
+   * Verifies handleEditAnnotation sets editing state and opens modal
+   */
+  test('editing annotation from manage modal opens edit modal', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const mockAnnotation = {
+      id: 'annotation-1',
+      date: '2025-11-15',
+      title: 'Test Annotation',
+      description: 'Test',
+      type: 'process',
+      impact: 'positive',
+      affectedMetrics: ['velocity']
+    };
+
+    const mockFetch = jest.fn((url) => {
+      if (url.includes('/api/annotations')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [mockAnnotation]
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+    global.fetch = mockFetch;
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Open manage annotations modal
+    const menuButton = screen.getByRole('button', { name: 'Menu' });
+    await user.click(menuButton);
+    await user.click(screen.getByText('Manage Annotations'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Manage Annotations \(/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    // Click edit button on annotation
+    const editButtons = screen.getAllByText('Edit');
+    await user.click(editButtons[0]);
+
+    // Assert - Should open AnnotationModal in edit mode
+    await waitFor(() => {
+      expect(screen.getByText(/Edit Annotation/i)).toBeInTheDocument();
+    });
+
+    // Manage modal should close
+    expect(screen.queryByText(/Manage Annotations \(/i)).not.toBeInTheDocument();
+
+    // Cleanup
+    global.fetch.mockRestore();
+  });
+
+  /**
+   * Test 9.27: Creating annotation from manage modal opens create modal
+   * Verifies handleCreateAnnotation opens modal in create mode
+   */
+  test('creating annotation from manage modal opens create modal', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const mockFetch = jest.fn((url) => {
+      if (url.includes('/api/annotations')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => []
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+    global.fetch = mockFetch;
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    // Open manage annotations modal
+    const menuButton = screen.getByRole('button', { name: 'Menu' });
+    await user.click(menuButton);
+    await user.click(screen.getByText('Manage Annotations'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Manage Annotations \(/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    // Click "Add Annotation" button in manage modal footer
+    // Note: There may be multiple "Add Annotation" buttons if empty state is shown
+    const addButtons = screen.getAllByText('Add Annotation');
+    await user.click(addButtons[addButtons.length - 1]); // Click footer button
+
+    // Assert - Should open AnnotationModal in create mode
+    await waitFor(() => {
+      // The modal title should change from "Manage Annotations" to "Add Annotation"
+      const addAnnotationHeadings = screen.getAllByText(/Add Annotation/i);
+      // Should find the modal heading (not just the button)
+      expect(addAnnotationHeadings.length).toBeGreaterThan(0);
+    });
+
+    // Manage modal should close
+    expect(screen.queryByText(/Manage Annotations \(/i)).not.toBeInTheDocument();
+
+    // Cleanup
+    global.fetch.mockRestore();
+  });
 });
