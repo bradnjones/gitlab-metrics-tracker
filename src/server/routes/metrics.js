@@ -6,8 +6,10 @@
 
 import express from 'express';
 import { ServiceFactory } from '../services/ServiceFactory.js';
+import { ConsoleLogger } from '../../lib/infrastructure/logging/ConsoleLogger.js';
 
 const router = express.Router();
+const logger = new ConsoleLogger({ serviceName: 'metrics-api' });
 
 /**
  * GET /api/metrics/velocity
@@ -70,10 +72,9 @@ router.get('/velocity', async (req, res) => {
 
   } catch (error) {
     // Log error for debugging (structured logging)
-    console.error('[API Error] Failed to calculate velocity metrics:', {
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+    logger.error('Failed to calculate velocity metrics', error, {
+      route: '/api/metrics/velocity',
+      iterations: req.query.iterations
     });
 
     // Return user-friendly error
@@ -106,17 +107,20 @@ router.get('/cycle-time', async (req, res) => {
   const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   try {
-    console.log(`[${requestId}] [ROUTE /cycle-time] Request received:`, {
+    logger.debug('Cycle time request received', {
+      requestId,
       query: req.query,
-      url: req.url,
-      timestamp: new Date().toISOString()
+      url: req.url
     });
 
     // Validate query params
     const { iterations } = req.query;
 
     if (!iterations) {
-      console.warn(`[${requestId}] [ROUTE /cycle-time] Missing iterations parameter`);
+      logger.warn('Missing iterations parameter', {
+        requestId,
+        route: '/api/metrics/cycle-time'
+      });
       return res.status(400).json({
         error: {
           message: 'Missing required parameter: iterations',
@@ -127,17 +131,24 @@ router.get('/cycle-time', async (req, res) => {
 
     // Parse comma-separated iteration IDs
     const iterationIds = iterations.split(',').map(id => id.trim());
-    console.log(`[${requestId}] [ROUTE /cycle-time] Parsed ${iterationIds.length} iteration IDs:`, iterationIds);
+    logger.debug('Parsed iteration IDs', {
+      requestId,
+      count: iterationIds.length,
+      iterationIds
+    });
 
     // Create service (will use environment variables)
-    console.log(`[${requestId}] [ROUTE /cycle-time] Creating MetricsService...`);
+    logger.debug('Creating MetricsService', { requestId });
     const metricsService = ServiceFactory.createMetricsService();
 
     // Calculate metrics for all iterations using BATCH method (performance optimization)
     // This fetches iteration metadata ONCE and parallelizes issue fetching
-    console.log(`[${requestId}] [ROUTE /cycle-time] Calling calculateMultipleMetrics...`);
+    logger.debug('Calling calculateMultipleMetrics', { requestId });
     const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
-    console.log(`[${requestId}] [ROUTE /cycle-time] Received ${allMetrics.length} metric results`);
+    logger.debug('Received metric results', {
+      requestId,
+      count: allMetrics.length
+    });
 
     // Transform results to response format
     // Note: Cycle time is already calculated in MetricsService.calculateMultipleMetrics()
@@ -151,7 +162,8 @@ router.get('/cycle-time', async (req, res) => {
       cycleTimeP90: metrics.cycleTimeP90
     }));
 
-    console.log(`[${requestId}] [ROUTE /cycle-time] Sending response:`, {
+    logger.debug('Sending cycle time response', {
+      requestId,
       count: metricsResults.length,
       sampleMetric: metricsResults[0]
     });
@@ -164,12 +176,10 @@ router.get('/cycle-time', async (req, res) => {
 
   } catch (error) {
     // Log error for debugging (structured logging)
-    console.error(`[${requestId}] [API Error] Failed to calculate cycle time metrics:`, {
-      message: error.message,
-      stack: error.stack,
-      errorName: error.name,
-      errorCode: error.code,
-      timestamp: new Date().toISOString()
+    logger.error('Failed to calculate cycle time metrics', error, {
+      requestId,
+      route: '/api/metrics/cycle-time',
+      iterations: req.query.iterations
     });
 
     // Return user-friendly error
@@ -239,10 +249,9 @@ router.get('/deployment-frequency', async (req, res) => {
 
   } catch (error) {
     // Log error for debugging
-    console.error('[API Error] Failed to calculate deployment frequency metrics:', {
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+    logger.error('Failed to calculate deployment frequency metrics', error, {
+      route: '/api/metrics/deployment-frequency',
+      iterations: req.query.iterations
     });
 
     // Return user-friendly error
@@ -314,10 +323,9 @@ router.get('/lead-time', async (req, res) => {
 
   } catch (error) {
     // Log error for debugging
-    console.error('[API Error] Failed to calculate lead time metrics:', {
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+    logger.error('Failed to calculate lead time metrics', error, {
+      route: '/api/metrics/lead-time',
+      iterations: req.query.iterations
     });
 
     // Return user-friendly error
@@ -388,10 +396,9 @@ router.get('/mttr', async (req, res) => {
 
   } catch (error) {
     // Log error for debugging
-    console.error('[API Error] Failed to calculate MTTR metrics:', {
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+    logger.error('Failed to calculate MTTR metrics', error, {
+      route: '/api/metrics/mttr',
+      iterations: req.query.iterations
     });
 
     // Return user-friendly error
@@ -470,10 +477,9 @@ router.get('/change-failure-rate', async (req, res) => {
 
   } catch (error) {
     // Log error for debugging
-    console.error('[API Error] Failed to calculate change failure rate metrics:', {
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+    logger.error('Failed to calculate change failure rate metrics', error, {
+      route: '/api/metrics/change-failure-rate',
+      iterations: req.query.iterations
     });
 
     // Return user-friendly error

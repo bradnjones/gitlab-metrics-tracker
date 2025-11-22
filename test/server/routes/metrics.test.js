@@ -106,7 +106,6 @@ describe('GET /health', () => {
 describe('Metrics Routes - GET endpoints', () => {
   let app;
   let mockMetricsService;
-  let consoleErrorSpy;
 
   const mockMetricsData = [
     {
@@ -140,11 +139,6 @@ describe('Metrics Routes - GET endpoints', () => {
   ];
 
   beforeEach(() => {
-    // Mock console.error to suppress error logs during tests
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
-
     // Create mock MetricsService
     mockMetricsService = {
       calculateMultipleMetrics: jest.fn().mockResolvedValue(mockMetricsData)
@@ -158,7 +152,6 @@ describe('Metrics Routes - GET endpoints', () => {
   });
 
   afterEach(() => {
-    consoleErrorSpy.mockRestore();
     jest.restoreAllMocks();
   });
 

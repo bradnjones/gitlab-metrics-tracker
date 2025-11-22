@@ -8,29 +8,22 @@
 
 ## Phase 1.1: Replace Console.log with Structured Logger
 
-**Status:** IN PROGRESS (50% complete)
+**Status:** IN PROGRESS (67% complete)
 **Estimated Total:** 4-6 hours
-**Time Spent:** ~3 hours
+**Time Spent:** ~4 hours
 
 ### Progress
 
 #### ✅ Completed
 
-1. **ILogger Interface** (PR #138 - MERGED)
+1. **Logging Infrastructure** (Included in PR #141)
    - Created `src/lib/core/interfaces/ILogger.js`
    - Created `src/lib/infrastructure/logging/ConsoleLogger.js`
-   - Added comprehensive tests (96% statement coverage)
-   - Updated ServiceFactory to inject loggers
-   - All 872 tests passing
+   - ILogger interface with info, warn, error, debug methods
+   - ConsoleLogger with structured logging and sensitive data sanitization
+   - All tests passing
 
-2. **GitLabClient.js** (PR #139 - MERGED)
-   - Replaced all 51 console.* calls with this.logger.*
-   - All logger calls wrapped in `if (this.logger)` checks
-   - Converted template literals to structured context objects
-   - Updated tests to remove console spy assertions
-   - All 872 tests passing
-
-3. **MetricsService.js** (READY FOR PR)
+2. **MetricsService.js** (PR #140 - MERGED)
    - File: `src/lib/core/services/MetricsService.js`
    - Replaced ~30 console.log calls with this.logger.debug
    - Added logger parameter to constructor
@@ -38,14 +31,17 @@
    - Converted template literals to structured context objects
    - Updated tests to remove console spy assertions
    - All 863 tests passing
-   - Branch: `feat/replace-console-metrics-service`
+
+3. **routes/metrics.js** (READY FOR PR)
+   - File: `src/server/routes/metrics.js`
+   - Replaced 13 console.* calls with logger.* calls
+   - Created module-level logger instance
+   - Updated error handlers to use structured logging
+   - Removed console spy assertions from tests
+   - All 863 tests passing
+   - Branch: `feat/replace-console-routes-metrics`
 
 #### 🚧 Next Steps
-
-4. **routes/metrics.js** (NOT STARTED)
-   - File: `src/server/routes/metrics.js`
-   - Console calls: ~13 occurrences (route handlers, error logging)
-   - Estimated time: 30-45 minutes
 
 5. **Remaining Files** (NOT STARTED)
    - 24 additional files with console calls
