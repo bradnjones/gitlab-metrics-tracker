@@ -41,9 +41,11 @@ export class MetricsService {
    * Create a MetricsService instance
    *
    * @param {Object} dataProvider - IIterationDataProvider implementation for data fetching
+   * @param {import('../interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional, falls back to console)
    */
-  constructor(dataProvider) {
+  constructor(dataProvider, logger = null) {
     this.dataProvider = dataProvider;
+    this.logger = logger;
   }
 
   /**
@@ -125,34 +127,49 @@ export class MetricsService {
     const iterationStartDate = new Date(iterationData.iteration.startDate);
     const iterationEndDate = new Date(iterationData.iteration.dueDate);
 
-    console.log(`\n=== INCIDENT FILTERING for ${iterationData.iteration.title} ===`);
-    console.log(`Iteration dates: ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
-    console.log(`Total incidents fetched: ${(iterationData.incidents || []).length}`);
+    if (this.logger) {
+      this.logger.debug('Incident filtering started', {
+        iterationTitle: iterationData.iteration.title,
+        startDate: iterationData.iteration.startDate,
+        dueDate: iterationData.iteration.dueDate,
+        totalIncidents: (iterationData.incidents || []).length
+      });
+    }
 
     // Log all raw incidents
-    (iterationData.incidents || []).forEach(incident => {
-      console.log(`  Incident #${incident.iid}:`);
-      console.log(`    - hasChangeLink: ${!!incident.changeLink}`);
-      if (incident.changeLink) {
-        console.log(`    - changeLink: ${incident.changeLink.type} ${incident.changeLink.url}`);
-      }
-      console.log(`    - hasChangeDate: ${!!incident.changeDate}`);
-      if (incident.changeDate) {
-        console.log(`    - changeDate: ${incident.changeDate}`);
-      }
-      console.log(`    - createdAt: ${incident.createdAt}`);
-    });
+    if (this.logger) {
+      (iterationData.incidents || []).forEach(incident => {
+        this.logger.debug('Raw incident data', {
+          iid: incident.iid,
+          hasChangeLink: !!incident.changeLink,
+          changeLink: incident.changeLink ? {
+            type: incident.changeLink.type,
+            url: incident.changeLink.url
+          } : null,
+          hasChangeDate: !!incident.changeDate,
+          changeDate: incident.changeDate || null,
+          createdAt: incident.createdAt
+        });
+      });
+    }
 
     const linkedIncidents = (iterationData.incidents || []).filter(incident => {
       // Must have a change link
       if (!incident.changeLink) {
-        console.log(`  ❌ Excluding Incident #${incident.iid}: NO changeLink`);
+        if (this.logger) {
+          this.logger.debug('Excluding incident: no changeLink', { iid: incident.iid });
+        }
         return false;
       }
 
       // Must have a change date
       if (!incident.changeDate) {
-        console.log(`  ❌ Excluding Incident #${incident.iid}: has changeLink but NO changeDate`);
+        if (this.logger) {
+          this.logger.debug('Excluding incident: no changeDate', {
+            iid: incident.iid,
+            hasChangeLink: true
+          });
+        }
         return false;
       }
 
@@ -160,19 +177,39 @@ export class MetricsService {
       const changeDate = new Date(incident.changeDate);
       const isWithinIteration = changeDate >= iterationStartDate && changeDate <= iterationEndDate;
 
-      if (!isWithinIteration) {
-        console.log(`  ❌ Excluding Incident #${incident.iid}: change date ${incident.changeDate} is OUTSIDE iteration ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
-      } else {
-        console.log(`  ✅ Including Incident #${incident.iid}: change date ${incident.changeDate} is WITHIN iteration`);
+      if (this.logger) {
+        if (!isWithinIteration) {
+          this.logger.debug('Excluding incident: change date outside iteration', {
+            iid: incident.iid,
+            changeDate: incident.changeDate,
+            iterationStart: iterationData.iteration.startDate,
+            iterationEnd: iterationData.iteration.dueDate
+          });
+        } else {
+          this.logger.debug('Including incident: change date within iteration', {
+            iid: incident.iid,
+            changeDate: incident.changeDate
+          });
+        }
       }
 
       return isWithinIteration;
     });
 
-    console.log(`Incident Filtering: ${linkedIncidents.length} incidents from this iteration's deployments out of ${(iterationData.incidents || []).length} total incidents`);
-    linkedIncidents.forEach(inc => {
-      console.log(`  - Incident #${inc.iid}: ${inc.changeLink.type} ${inc.changeLink.url} (deployed ${inc.changeDate})`);
-    });
+    if (this.logger) {
+      this.logger.debug('Incident filtering completed', {
+        linkedIncidents: linkedIncidents.length,
+        totalIncidents: (iterationData.incidents || []).length
+      });
+      linkedIncidents.forEach(inc => {
+        this.logger.debug('Linked incident', {
+          iid: inc.iid,
+          changeLinkType: inc.changeLink.type,
+          changeLinkUrl: inc.changeLink.url,
+          changeDate: inc.changeDate
+        });
+      });
+    }
 
     // Calculate MTTR from filtered incidents (only those caused by this iteration's deployments)
     const mttr = IncidentAnalyzer.calculateMTTR(linkedIncidents);
@@ -273,47 +310,82 @@ export class MetricsService {
       const iterationStartDate = new Date(iterationData.iteration.startDate);
       const iterationEndDate = new Date(iterationData.iteration.dueDate);
 
-      console.log(`\n=== INCIDENT FILTERING for ${iterationData.iteration.title} ===`);
-      console.log(`Iteration dates: ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
-      console.log(`Total incidents fetched: ${(iterationData.incidents || []).length}`);
+      if (this.logger) {
+        this.logger.debug('Incident filtering started', {
+          iterationTitle: iterationData.iteration.title,
+          startDate: iterationData.iteration.startDate,
+          dueDate: iterationData.iteration.dueDate,
+          totalIncidents: (iterationData.incidents || []).length
+        });
+      }
 
       // Log all raw incidents
-      (iterationData.incidents || []).forEach(incident => {
-        console.log(`  Incident #${incident.iid}:`);
-        console.log(`    - hasChangeLink: ${!!incident.changeLink}`);
-        if (incident.changeLink) {
-          console.log(`    - changeLink: ${incident.changeLink.type} ${incident.changeLink.url}`);
-        }
-        console.log(`    - hasChangeDate: ${!!incident.changeDate}`);
-        if (incident.changeDate) {
-          console.log(`    - changeDate: ${incident.changeDate}`);
-        }
-        console.log(`    - createdAt: ${incident.createdAt}`);
-      });
+      if (this.logger) {
+        (iterationData.incidents || []).forEach(incident => {
+          this.logger.debug('Raw incident data', {
+            iid: incident.iid,
+            hasChangeLink: !!incident.changeLink,
+            changeLink: incident.changeLink ? {
+              type: incident.changeLink.type,
+              url: incident.changeLink.url
+            } : null,
+            hasChangeDate: !!incident.changeDate,
+            changeDate: incident.changeDate || null,
+            createdAt: incident.createdAt
+          });
+        });
+      }
 
       const linkedIncidents = (iterationData.incidents || []).filter(incident => {
         if (!incident.changeLink) {
-          console.log(`  ❌ Excluding Incident #${incident.iid}: NO changeLink`);
+          if (this.logger) {
+            this.logger.debug('Excluding incident: no changeLink', { iid: incident.iid });
+          }
           return false;
         }
         if (!incident.changeDate) {
-          console.log(`  ❌ Excluding Incident #${incident.iid}: has changeLink but NO changeDate`);
+          if (this.logger) {
+            this.logger.debug('Excluding incident: no changeDate', {
+              iid: incident.iid,
+              hasChangeLink: true
+            });
+          }
           return false;
         }
         const changeDate = new Date(incident.changeDate);
         const isWithinIteration = changeDate >= iterationStartDate && changeDate <= iterationEndDate;
-        if (!isWithinIteration) {
-          console.log(`  ❌ Excluding Incident #${incident.iid}: change date ${incident.changeDate} is OUTSIDE iteration ${iterationData.iteration.startDate} to ${iterationData.iteration.dueDate}`);
-        } else {
-          console.log(`  ✅ Including Incident #${incident.iid}: change date ${incident.changeDate} is WITHIN iteration`);
+        if (this.logger) {
+          if (!isWithinIteration) {
+            this.logger.debug('Excluding incident: change date outside iteration', {
+              iid: incident.iid,
+              changeDate: incident.changeDate,
+              iterationStart: iterationData.iteration.startDate,
+              iterationEnd: iterationData.iteration.dueDate
+            });
+          } else {
+            this.logger.debug('Including incident: change date within iteration', {
+              iid: incident.iid,
+              changeDate: incident.changeDate
+            });
+          }
         }
         return isWithinIteration;
       });
 
-      console.log(`Result: ${linkedIncidents.length} incidents from this iteration's deployments out of ${(iterationData.incidents || []).length} total`);
-      linkedIncidents.forEach(inc => {
-        console.log(`  - Incident #${inc.iid}: ${inc.changeLink.type} ${inc.changeLink.url} (deployed ${inc.changeDate})`);
-      });
+      if (this.logger) {
+        this.logger.debug('Incident filtering completed', {
+          linkedIncidents: linkedIncidents.length,
+          totalIncidents: (iterationData.incidents || []).length
+        });
+        linkedIncidents.forEach(inc => {
+          this.logger.debug('Linked incident', {
+            iid: inc.iid,
+            changeLinkType: inc.changeLink.type,
+            changeLinkUrl: inc.changeLink.url,
+            changeDate: inc.changeDate
+          });
+        });
+      }
 
       // Calculate MTTR from filtered incidents (only those caused by this iteration's deployments)
       const mttr = IncidentAnalyzer.calculateMTTR(linkedIncidents);
