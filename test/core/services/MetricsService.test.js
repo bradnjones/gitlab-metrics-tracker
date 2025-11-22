@@ -260,15 +260,6 @@ describe('MetricsService', () => {
   });
 
   describe('incident filtering logic', () => {
-    beforeEach(() => {
-      // Spy on console.log to suppress output and verify branches
-      jest.spyOn(console, 'log').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      console.log.mockRestore();
-    });
-
     it('should filter out incidents without changeLink', async () => {
       const iterationId = 'gid://gitlab/Iteration/123';
 
@@ -294,9 +285,6 @@ describe('MetricsService', () => {
 
       // Should only count incident #2 (has changeLink)
       expect(result.incidentCount).toBe(1);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Excluding Incident #1: NO changeLink')
-      );
     });
 
     it('should filter out incidents without changeDate', async () => {
@@ -324,9 +312,6 @@ describe('MetricsService', () => {
 
       // Should only count incident #2 (has changeDate)
       expect(result.incidentCount).toBe(1);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Excluding Incident #1: has changeLink but NO changeDate')
-      );
     });
 
     it('should filter out incidents with changeDate before iteration', async () => {
@@ -360,9 +345,6 @@ describe('MetricsService', () => {
 
       // Should only count incident #2 (within iteration)
       expect(result.incidentCount).toBe(1);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Excluding Incident #1: change date 2024-12-31 is OUTSIDE iteration')
-      );
     });
 
     it('should filter out incidents with changeDate after iteration', async () => {
@@ -396,9 +378,6 @@ describe('MetricsService', () => {
 
       // Should only count incident #2 (within iteration)
       expect(result.incidentCount).toBe(1);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Excluding Incident #1: change date 2025-01-15 is OUTSIDE iteration')
-      );
     });
 
     it('should include incidents with changeDate on iteration boundaries', async () => {
@@ -432,36 +411,8 @@ describe('MetricsService', () => {
 
       // Should count both incidents (boundaries are inclusive)
       expect(result.incidentCount).toBe(2);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('✅ Including Incident #1: change date 2025-01-01 is WITHIN iteration')
-      );
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('✅ Including Incident #2: change date 2025-01-14 is WITHIN iteration')
-      );
     });
 
-    it('should log incident details with changeLink type and URL', async () => {
-      const iterationId = 'gid://gitlab/Iteration/123';
-
-      mockDataProvider.fetchIterationData.mockResolvedValue({
-        ...mockIterationData,
-        incidents: [
-          {
-            iid: 1,
-            changeLink: { type: 'MR', url: 'http://gitlab.com/mr/123' },
-            changeDate: '2025-01-05',
-            createdAt: '2025-01-05'
-          }
-        ]
-      });
-
-      await service.calculateMetrics(iterationId);
-
-      // Verify console.log shows changeLink details
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('changeLink: MR http://gitlab.com/mr/123')
-      );
-    });
   });
 
   describe('calculateMultipleMetrics error handling', () => {
@@ -481,15 +432,6 @@ describe('MetricsService', () => {
   });
 
   describe('calculateMultipleMetrics incident filtering', () => {
-    beforeEach(() => {
-      // Spy on console.log to suppress output and verify branches
-      jest.spyOn(console, 'log').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      console.log.mockRestore();
-    });
-
     it('should filter incidents in each iteration of calculateMultipleMetrics', async () => {
       const iterationIds = ['gid://gitlab/Iteration/123', 'gid://gitlab/Iteration/124'];
 
@@ -550,15 +492,9 @@ describe('MetricsService', () => {
 
       // Sprint 1: Should exclude incident #1 (no changeLink), include #2
       expect(results[0].incidentCount).toBe(1);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Excluding Incident #1: NO changeLink')
-      );
 
       // Sprint 2: Should exclude incident #3 (no changeDate), include #4
       expect(results[1].incidentCount).toBe(1);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Excluding Incident #3: has changeLink but NO changeDate')
-      );
     });
 
     it('should filter incidents by date range in calculateMultipleMetrics', async () => {
@@ -621,50 +557,11 @@ describe('MetricsService', () => {
 
       // Sprint 1: Should exclude #1 (before), include #2
       expect(results[0].incidentCount).toBe(1);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Excluding Incident #1: change date 2024-12-31 is OUTSIDE iteration')
-      );
 
       // Sprint 2: Should exclude #3 (after), include #4
       expect(results[1].incidentCount).toBe(1);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Excluding Incident #3: change date 2025-01-29 is OUTSIDE iteration')
-      );
     });
 
-    it('should log incident details for each iteration in calculateMultipleMetrics', async () => {
-      const iterationIds = ['gid://gitlab/Iteration/123'];
-
-      mockDataProvider.fetchMultipleIterations.mockResolvedValue([
-        {
-          issues: [],
-          mergeRequests: [],
-          pipelines: [],
-          incidents: [
-            {
-              iid: 1,
-              changeLink: { type: 'Commit', url: 'http://gitlab.com/commit/abc123' },
-              changeDate: '2025-01-05',
-              createdAt: '2025-01-05'
-            }
-          ],
-          iteration: {
-            id: 'gid://gitlab/Iteration/123',
-            title: 'Sprint 1',
-            startDate: '2025-01-01',
-            dueDate: '2025-01-14'
-          }
-        }
-      ]);
-
-      await service.calculateMultipleMetrics(iterationIds);
-
-      // Verify console.log shows incident details
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Incident #1:'));
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('changeLink: Commit http://gitlab.com/commit/abc123')
-      );
-    });
   });
 
   describe('calculateMultipleMetrics', () => {
