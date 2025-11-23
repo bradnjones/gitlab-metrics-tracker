@@ -14,9 +14,10 @@ export class GitLabClient {
    * @param {string} [config.url='https://gitlab.com'] - GitLab instance URL
    * @param {string} config.token - GitLab personal access token
    * @param {string} config.projectPath - GitLab project path (e.g., 'group/project')
+   * @param {import('../../core/interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional)
    * @throws {Error} If token or projectPath is missing
    */
-  constructor(config) {
+  constructor(config, logger = null) {
     // Validate required configuration
     if (!config.token) {
       throw new Error('GITLAB_TOKEN is required');
@@ -30,6 +31,7 @@ export class GitLabClient {
     this.url = config.url || 'https://gitlab.com';
     this.token = config.token;
     this.projectPath = config.projectPath;
+    this.logger = logger;
 
     // Initialize GraphQL client
     this.client = new GraphQLClient(`${this.url}/api/graphql`, {
@@ -128,7 +130,9 @@ export class GitLabClient {
           const segments = this.projectPath.split('/');
           if (segments.length > 1) {
             groupPath = segments.slice(0, -1).join('/');
-            console.log(`Trying parent group: ${groupPath}`);
+            if (this.logger) {
+              this.logger.debug('Trying parent group', { groupPath });
+            }
             continue; // Retry with parent group
           }
           throw new Error(`Group not found: ${groupPath}. Please check your GITLAB_PROJECT_PATH in .env`);
@@ -136,8 +140,12 @@ export class GitLabClient {
 
         // Check if iterations are available
         if (!data.group.iterations || !data.group.iterations.nodes) {
-          console.warn('This group does not have iterations configured in GitLab.');
-          console.warn('You may need to enable iterations: Group Settings > Iterations');
+          if (this.logger) {
+            this.logger.warn('Group does not have iterations configured', {
+              groupPath,
+              suggestion: 'Enable iterations in Group Settings > Iterations'
+            });
+          }
           return [];
         }
 
@@ -152,7 +160,12 @@ export class GitLabClient {
         }
       }
 
-      console.log(`Found ${allIterations.length} iterations from group: ${groupPath}`);
+      if (this.logger) {
+        this.logger.debug('Found iterations', {
+          count: allIterations.length,
+          groupPath
+        });
+      }
 
       return allIterations;
     } catch (error) {
@@ -221,7 +234,13 @@ export class GitLabClient {
         after = pageInfo.endCursor;
 
         // Log pagination progress
-        console.log(`      → Fetched page ${pagesFetched}: ${nodes.length} notes (hasNextPage: ${hasNextPage})`);
+        if (this.logger) {
+          this.logger.debug('Fetched notes page', {
+            page: pagesFetched,
+            notesCount: nodes.length,
+            hasNextPage
+          });
+        }
 
         // Small delay to avoid rate limiting
         if (hasNextPage) {
@@ -229,7 +248,13 @@ export class GitLabClient {
         }
       }
 
-      console.log(`      → Total: ${pagesFetched} pages, ${allNotes.length} notes (all notes exhausted)`);
+      if (this.logger) {
+        this.logger.debug('Completed fetching all notes', {
+          totalPages: pagesFetched,
+          totalNotes: allNotes.length,
+          status: 'all notes exhausted'
+        });
+      }
       return allNotes;
     } catch (error) {
       // Check if it's a GraphQL error
@@ -330,7 +355,12 @@ export class GitLabClient {
         }
       }
 
-      console.log(`✓ Fetched ${allIssues.length} issues for iteration ${iterationId}`);
+      if (this.logger) {
+        this.logger.debug('Fetched issues for iteration', {
+          issuesCount: allIssues.length,
+          iterationId
+        });
+      }
 
       // Enrich issues with inProgressAt timestamp from status change notes
       // Only fetch additional notes for CLOSED stories (open stories don't need InProgress for cycle time)
@@ -345,7 +375,12 @@ export class GitLabClient {
           const isClosed = issue.state === 'closed';
           if (!inProgressAt && issue.notes?.pageInfo?.hasNextPage && isClosed) {
             issuesRequiringAdditionalFetch++;
-            console.log(`  ⚠ CLOSED Issue #${issue.iid} missing InProgress in first 20 notes, fetching all notes...`);
+            if (this.logger) {
+              this.logger.warn('Closed issue missing InProgress in first batch, fetching all notes', {
+                issueIid: issue.iid,
+                notesInFirstBatch: 20
+              });
+            }
 
             try {
               const additionalNotes = await this.fetchAdditionalNotesForIssue(
@@ -360,10 +395,21 @@ export class GitLabClient {
               inProgressAt = this.extractInProgressTimestamp(allNotes);
 
               if (inProgressAt) {
-                console.log(`    ✅ FOUND InProgress date after fetching ALL notes: ${inProgressAt}`);
+                if (this.logger) {
+                  this.logger.debug('Found InProgress date after fetching all notes', {
+                    issueIid: issue.iid,
+                    inProgressAt
+                  });
+                }
               } else {
-                console.log(`    ❌ EXHAUSTED all ${allNotes.length} notes - NO InProgress status change found`);
-                console.log(`    → Falling back to createdAt: ${issue.createdAt}`);
+                if (this.logger) {
+                  this.logger.warn('Exhausted all notes without finding InProgress status change', {
+                    issueIid: issue.iid,
+                    totalNotes: allNotes.length,
+                    fallback: 'using createdAt',
+                    createdAt: issue.createdAt
+                  });
+                }
                 // Fallback: Use createdAt if no InProgress status change found
                 inProgressAt = issue.createdAt;
               }
@@ -383,10 +429,20 @@ export class GitLabClient {
                 inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : 'status_change', // Track source
               };
             } catch (error) {
-              console.warn(`    ✗ Failed to fetch additional notes for issue #${issue.iid}: ${error.message}`);
+              if (this.logger) {
+                this.logger.warn('Failed to fetch additional notes for issue', {
+                  issueIid: issue.iid,
+                  error: error.message
+                });
+              }
               // Fall back to using createdAt for closed stories
               if (isClosed && !inProgressAt) {
-                console.log(`    → Error recovery: Falling back to createdAt: ${issue.createdAt}`);
+                if (this.logger) {
+                  this.logger.debug('Error recovery: falling back to createdAt', {
+                    issueIid: issue.iid,
+                    createdAt: issue.createdAt
+                  });
+                }
                 inProgressAt = issue.createdAt;
               }
               return {
@@ -399,7 +455,13 @@ export class GitLabClient {
 
           // For closed stories without InProgress in first batch and no more notes to fetch
           if (isClosed && !inProgressAt && !issue.notes?.pageInfo?.hasNextPage) {
-            console.log(`  → Issue #${issue.iid}: No InProgress in ${initialNotes.length} notes, falling back to createdAt`);
+            if (this.logger) {
+              this.logger.debug('No InProgress status found, falling back to createdAt', {
+                issueIid: issue.iid,
+                notesChecked: initialNotes.length,
+                fallback: 'createdAt'
+              });
+            }
             inProgressAt = issue.createdAt;
           }
 
@@ -422,16 +484,26 @@ export class GitLabClient {
       );
 
       if (issuesRequiringAdditionalFetch > 0) {
-        console.log(`✓ Fetched additional notes for ${issuesRequiringAdditionalFetch} closed issues`);
+        if (this.logger) {
+          this.logger.debug('Fetched additional notes for closed issues', {
+            closedIssuesCount: issuesRequiringAdditionalFetch
+          });
+        }
       }
 
       // Fetch iteration metadata to get startDate and dueDate for MR fetching
-      console.log(`Fetching iteration metadata for MR date range...`);
+      if (this.logger) {
+        this.logger.debug('Fetching iteration metadata for MR date range');
+      }
       const iterations = await this.fetchIterations();
       const iterationMetadata = iterations.find(it => it.id === iterationId);
 
       if (!iterationMetadata) {
-        console.warn(`Iteration ${iterationId} not found in iteration list, skipping MR fetch`);
+        if (this.logger) {
+          this.logger.warn('Iteration not found in iteration list, skipping MR fetch', {
+            iterationId
+          });
+        }
         return {
           issues: enrichedIssues,
           mergeRequests: [],
@@ -439,7 +511,12 @@ export class GitLabClient {
       }
 
       // Fetch merge requests for the same date range as the iteration
-      console.log(`Fetching merge requests for iteration date range (${iterationMetadata.startDate} to ${iterationMetadata.dueDate})...`);
+      if (this.logger) {
+        this.logger.debug('Fetching merge requests for iteration date range', {
+          startDate: iterationMetadata.startDate,
+          dueDate: iterationMetadata.dueDate
+        });
+      }
       const mergeRequests = await this.fetchMergeRequestsForGroup(
         iterationMetadata.startDate,
         iterationMetadata.dueDate
@@ -522,7 +599,12 @@ export class GitLabClient {
       const mergedAfter = new Date(startDate).toISOString();
       const mergedBefore = new Date(endDate).toISOString();
 
-      console.log(`Querying merged MRs from group (${startDate} to ${endDate})...`);
+      if (this.logger) {
+        this.logger.debug('Querying merged MRs from group', {
+          startDate,
+          endDate
+        });
+      }
 
       while (hasNextPage) {
         const data = await this.client.request(query, {
@@ -550,7 +632,11 @@ export class GitLabClient {
         }
       }
 
-      console.log(`✓ Found ${allMRs.length} merged MRs in date range`);
+      if (this.logger) {
+        this.logger.debug('Found merged MRs in date range', {
+          count: allMRs.length
+        });
+      }
       return allMRs;
     } catch (error) {
       // Check if it's a GraphQL error
@@ -622,7 +708,9 @@ export class GitLabClient {
 
         // Only fetch first page if we have many results (performance optimization)
         if (nodes.length === 100 && hasNextPage) {
-          console.log(`  └─ Found 100+ pipelines, fetching more...`);
+          if (this.logger) {
+            this.logger.debug('Found 100+ pipelines, fetching more');
+          }
         }
 
         if (hasNextPage) {
@@ -641,7 +729,12 @@ export class GitLabClient {
 
       return allPipelines;
     } catch (error) {
-      console.warn(`Failed to fetch pipelines for ${projectPath}:`, error.message);
+      if (this.logger) {
+        this.logger.warn('Failed to fetch pipelines for project', {
+          projectPath,
+          error: error.message
+        });
+      }
       return [];
     }
   }
@@ -684,7 +777,11 @@ export class GitLabClient {
         });
 
         if (!data.group) {
-          console.warn(`Group not found: ${this.projectPath}`);
+          if (this.logger) {
+            this.logger.warn('Group not found', {
+              groupPath: this.projectPath
+            });
+          }
           return [];
         }
 
@@ -698,11 +795,20 @@ export class GitLabClient {
         }
       }
 
-      console.log(`Found ${allProjects.length} projects in group: ${this.projectPath}`);
+      if (this.logger) {
+        this.logger.debug('Found projects in group', {
+          count: allProjects.length,
+          groupPath: this.projectPath
+        });
+      }
 
       return allProjects;
     } catch (error) {
-      console.warn('Failed to fetch group projects:', error.message);
+      if (this.logger) {
+        this.logger.warn('Failed to fetch group projects', {
+          error: error.message
+        });
+      }
       return [];
     }
   }
@@ -768,9 +874,15 @@ export class GitLabClient {
       const createdAfter = fetchStart.toISOString();
       const createdBefore = iterationEnd.toISOString();
 
-      console.log(`Querying incidents from group (${fetchStart.toISOString().split('T')[0]} to ${endDate})...`);
-      console.log(`  Iteration range: ${startDate} to ${endDate}`);
-      console.log(`  Fetch range: ${fetchStart.toISOString().split('T')[0]} to ${endDate} (60-day lookback)`);
+      if (this.logger) {
+        this.logger.debug('Querying incidents from group', {
+          fetchStartDate: fetchStart.toISOString().split('T')[0],
+          fetchEndDate: endDate,
+          iterationStartDate: startDate,
+          iterationEndDate: endDate,
+          lookbackDays: 60
+        });
+      }
 
       while (hasNextPage) {
         const data = await this.client.request(query, {
@@ -798,11 +910,17 @@ export class GitLabClient {
         }
       }
 
-      console.log(`✓ Fetched ${allIncidents.length} incidents from broader date range`);
+      if (this.logger) {
+        this.logger.debug('Fetched incidents from broader date range', {
+          count: allIncidents.length
+        });
+      }
 
       // TIMELINE-BASED FILTERING: Fetch timeline events for each incident to get actual start times
       // This provides more accurate filtering for CFR and MTTR calculations
-      console.log('Fetching timeline events for incidents...');
+      if (this.logger) {
+        this.logger.debug('Fetching timeline events for incidents');
+      }
       const incidentsWithTimelines = await Promise.all(
         allIncidents.map(async (incident) => {
           const timelineEvents = await this.fetchIncidentTimelineEvents(incident);
@@ -810,7 +928,11 @@ export class GitLabClient {
         })
       );
 
-      console.log(`✓ Fetched timeline events for ${incidentsWithTimelines.length} incidents`);
+      if (this.logger) {
+        this.logger.debug('Fetched timeline events for incidents', {
+          count: incidentsWithTimelines.length
+        });
+      }
 
       // Filter to only include incidents with activity during iteration
       // Uses actual incident start time (from timeline events) when available
@@ -843,19 +965,34 @@ export class GitLabClient {
         return startedDuringIteration || closedDuringIteration || updatedDuringIteration;
       });
 
-      console.log(`✓ Filtered to ${relevantIncidents.length} incidents with activity during iteration`);
+      if (this.logger) {
+        this.logger.debug('Filtered to incidents with activity during iteration', {
+          count: relevantIncidents.length
+        });
+      }
 
       // Return raw data WITH timeline metadata for Data Explorer visibility
       // This enrichment helps users understand which fields are being used in calculations
       const relevantIncidentsData = relevantIncidents.map(({ incident, timelineEvents }) => {
         // DEBUG: Log timeline events for each incident
-        console.log(`[DEBUG] Incident #${incident.iid} (${incident.title}):`);
-        console.log(`  Timeline events count: ${timelineEvents?.length || 0}`);
-        if (timelineEvents && timelineEvents.length > 0) {
-          timelineEvents.forEach((event, idx) => {
-            const tags = event.timelineEventTags?.nodes?.map(t => t.name).join(', ') || 'no tags';
-            console.log(`  Event ${idx + 1}: ${event.occurredAt} - Tags: [${tags}]`);
+        if (this.logger) {
+          this.logger.debug('Processing incident timeline events', {
+            incidentIid: incident.iid,
+            incidentTitle: incident.title,
+            timelineEventsCount: timelineEvents?.length || 0
           });
+
+          if (timelineEvents && timelineEvents.length > 0) {
+            timelineEvents.forEach((event, idx) => {
+              const tags = event.timelineEventTags?.nodes?.map(t => t.name).join(', ') || 'no tags';
+              this.logger.debug('Timeline event', {
+                incidentIid: incident.iid,
+                eventIndex: idx + 1,
+                occurredAt: event.occurredAt,
+                tags
+              });
+            });
+          }
         }
 
         // Determine which timeline events are being used
@@ -864,10 +1001,15 @@ export class GitLabClient {
         const stopEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'stop time'); // GitLab also uses "stop time"
         const mitigatedEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'impact mitigated');
 
-        console.log(`  Found start event: ${startEvent ? 'YES' : 'NO'}`);
-        console.log(`  Found end event: ${endEvent ? 'YES' : 'NO'}`);
-        console.log(`  Found stop event: ${stopEvent ? 'YES' : 'NO'}`);
-        console.log(`  Found mitigated event: ${mitigatedEvent ? 'YES' : 'NO'}`);
+        if (this.logger) {
+          this.logger.debug('Timeline event analysis', {
+            incidentIid: incident.iid,
+            foundStartEvent: !!startEvent,
+            foundEndEvent: !!endEvent,
+            foundStopEvent: !!stopEvent,
+            foundMitigatedEvent: !!mitigatedEvent
+          });
+        }
 
         // Get actual times used in calculations
         const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
@@ -888,17 +1030,25 @@ export class GitLabClient {
           endTimeSource = 'closed';
         }
 
-        console.log(`  → startTimeSource: ${startTimeSource}`);
-        console.log(`  → endTimeSource: ${endTimeSource}`);
-        console.log(`  → actualStartTime: ${actualStartTime}`);
-        console.log(`  → actualEndTime: ${actualEndTime}`);
+        if (this.logger) {
+          this.logger.debug('Incident time sources', {
+            incidentIid: incident.iid,
+            startTimeSource,
+            endTimeSource,
+            actualStartTime,
+            actualEndTime
+          });
+        }
 
         // Extract change link (MR or commit) from timeline events for CFR calculation
         const changeLink = ChangeLinkExtractor.extractFromTimelineEvents(timelineEvents);
-        if (changeLink) {
-          console.log(`  → changeLink: ${changeLink.type} - ${changeLink.url}`);
+        if (changeLink && this.logger) {
+          this.logger.debug('Found change link for incident', {
+            incidentIid: incident.iid,
+            changeLinkType: changeLink.type,
+            changeLinkUrl: changeLink.url
+          });
         }
-        console.log('---');
 
         return {
           id: incident.id,
@@ -927,7 +1077,9 @@ export class GitLabClient {
 
       // Fetch change dates for incidents with change links
       // This is done AFTER mapping to batch the API calls
-      console.log('Fetching change dates for incidents with change links...');
+      if (this.logger) {
+        this.logger.debug('Fetching change dates for incidents with change links');
+      }
       const incidentsWithChangeDates = await Promise.all(
         relevantIncidentsData.map(async (incidentData) => {
           if (!incidentData.changeLink) {
@@ -944,7 +1096,13 @@ export class GitLabClient {
                 incidentData.changeLink.id
               );
               changeDate = mrDetails?.mergedAt || null;
-              console.log(`  Incident #${incidentData.iid}: MR #${incidentData.changeLink.id} merged at ${changeDate}`);
+              if (this.logger) {
+                this.logger.debug('Fetched MR merge date for incident', {
+                  incidentIid: incidentData.iid,
+                  mrId: incidentData.changeLink.id,
+                  mergedAt: changeDate
+                });
+              }
             } else if (incidentData.changeLink.type === 'commit') {
               // Fetch commit details to get commit date
               const commitDetails = await this.fetchCommitDetails(
@@ -952,7 +1110,13 @@ export class GitLabClient {
                 incidentData.changeLink.sha
               );
               changeDate = commitDetails?.committedDate || null;
-              console.log(`  Incident #${incidentData.iid}: Commit ${incidentData.changeLink.sha.substring(0, 8)} committed at ${changeDate}`);
+              if (this.logger) {
+                this.logger.debug('Fetched commit date for incident', {
+                  incidentIid: incidentData.iid,
+                  commitSha: incidentData.changeLink.sha.substring(0, 8),
+                  committedAt: changeDate
+                });
+              }
             }
 
             return {
@@ -960,13 +1124,20 @@ export class GitLabClient {
               changeDate,
             };
           } catch (error) {
-            console.warn(`  Warning: Could not fetch change date for incident #${incidentData.iid}: ${error.message}`);
+            if (this.logger) {
+              this.logger.warn('Could not fetch change date for incident', {
+                incidentIid: incidentData.iid,
+                error: error.message
+              });
+            }
             return incidentData;
           }
         })
       );
 
-      console.log(`✓ Fetched change dates for incidents with change links`);
+      if (this.logger) {
+        this.logger.debug('Fetched change dates for incidents with change links');
+      }
 
       return incidentsWithChangeDates;
     } catch (error) {
@@ -1058,7 +1229,12 @@ export class GitLabClient {
 
       return projectPath;
     } catch (error) {
-      console.error(`Error extracting project path from URL: ${webUrl}`);
+      if (this.logger) {
+        this.logger.error('Error extracting project path from URL', {
+          webUrl,
+          error: error.message
+        });
+      }
       return null;
     }
   }
@@ -1078,7 +1254,11 @@ export class GitLabClient {
     const projectPath = this.extractProjectPath(incident.webUrl);
 
     if (!projectPath) {
-      console.error(`  ⚠️  Could not extract project path from: ${incident.webUrl}`);
+      if (this.logger) {
+        this.logger.error('Could not extract project path from incident webUrl', {
+          incidentWebUrl: incident.webUrl
+        });
+      }
       return [];
     }
 
@@ -1121,11 +1301,18 @@ export class GitLabClient {
 
       return data.project.incidentManagementTimelineEvents.nodes;
     } catch (error) {
-      console.error(`  ⚠️  Error fetching timeline events: ${error.message}`);
-      if (error.response?.errors) {
-        error.response.errors.forEach(err => {
-          console.error(`     → ${err.message}`);
+      if (this.logger) {
+        this.logger.error('Error fetching timeline events', {
+          incidentId: incident.id,
+          error: error.message
         });
+        if (error.response?.errors) {
+          error.response.errors.forEach(err => {
+            this.logger.error('GraphQL error detail', {
+              message: err.message
+            });
+          });
+        }
       }
       // Return empty array instead of throwing - timeline events might not be available
       return [];

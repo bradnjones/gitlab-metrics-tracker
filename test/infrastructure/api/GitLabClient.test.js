@@ -1190,8 +1190,6 @@ describe('GitLabClient', () => {
       });
 
       it('should handle error fetching additional notes and fallback to createdAt', async () => {
-        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
         const mockIterationData = {
           group: {
             id: 'gid://gitlab/Group/1',
@@ -1232,11 +1230,6 @@ describe('GitLabClient', () => {
         // Should fallback to createdAt after error
         expect(result.issues[0].inProgressAt).toBe('2025-01-01T09:00:00Z');
         expect(result.issues[0].inProgressAtSource).toBe('created');
-        expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Failed to fetch additional notes')
-        );
-
-        consoleWarnSpy.mockRestore();
       });
 
       it('should fallback to createdAt for CLOSED issue without more notes to fetch', async () => {
@@ -1340,8 +1333,6 @@ describe('GitLabClient', () => {
       });
 
       it('should skip MR fetching when iteration metadata not found', async () => {
-        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
         const mockIterationData = {
           group: {
             id: 'gid://gitlab/Group/1',
@@ -1379,11 +1370,6 @@ describe('GitLabClient', () => {
 
         expect(result.issues).toHaveLength(1);
         expect(result.mergeRequests).toEqual([]);
-        expect(consoleWarnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Iteration gid://gitlab/Iteration/123 not found')
-        );
-
-        consoleWarnSpy.mockRestore();
       });
     });
   });
