@@ -102,7 +102,42 @@ All console.* calls have been replaced with structured logging:
 - Debug logs filtered in production environments
 
 **Next Steps:**
-- Phase 1.2: Additional architectural improvements (TBD)
+- Phase 1.2: Eliminate MetricsService Duplication → IN PROGRESS
+- Phase 1.3: Split GitLabClient God Object (4-6 hours) → PENDING
+
+---
+
+## Phase 1.2: Eliminate MetricsService Duplication
+
+**Status:** ✅ COMPLETE
+**Time Spent:** 1.5 hours
+
+### Problem
+
+Code duplication in `MetricsService.js`:
+- 142 lines of ~95% duplicate code between `calculateMetrics()` and `calculateMultipleMetrics()`
+- Bug fixes required changes in TWO places (caused issues in PRs #118, #125)
+- Violates DRY principle
+
+### Solution
+
+Extracted shared calculation logic into private `_calculateMetricsFromData()` method:
+
+**Results:**
+- ✅ File reduced from 439 lines to 297 lines (142 lines eliminated, 32% reduction)
+- ✅ `calculateMetrics()` refactored to ~10 lines (fetch data + delegate)
+- ✅ `calculateMultipleMetrics()` refactored to ~16 lines (fetch data + map)
+- ✅ All 863 tests passing
+- ✅ No behavioral changes - pure refactor
+
+**Files Changed:**
+- `src/lib/core/services/MetricsService.js` - Eliminated duplication
+
+**Benefits:**
+- Bug fixes now only need ONE change (in `_calculateMetricsFromData()`)
+- Easier to maintain and test
+- DRY principle satisfied
+- Single source of truth for metric calculations
 
 ---
 
