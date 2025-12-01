@@ -60,7 +60,7 @@ export function useAnnotations(metricKey, dateLabels = [], refreshKey = 0) {
         const chartAnnotations = transformToChartAnnotations(relevantAnnotations, dateLabels);
         setAnnotations(chartAnnotations);
       } catch (err) {
-        console.error('Error fetching annotations:', err);
+        // Error is captured in state for UI display
         setError(err.message);
         setAnnotations([]);
       } finally {

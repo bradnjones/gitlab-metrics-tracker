@@ -29,12 +29,14 @@ export class IterationCacheRepository extends IIterationCacheRepository {
    *
    * @param {string} [cacheDir='./src/data/cache/iterations'] - Base directory for cache files
    * @param {number} [cacheTTL=6] - Time-to-live for cache entries in hours (0 = disabled)
+   * @param {Object} [logger] - Optional logger instance (ILogger)
    * @throws {Error} If cacheTTL is negative
    */
-  constructor(cacheDir = './src/data/cache/iterations', cacheTTL = 6) {
+  constructor(cacheDir = './src/data/cache/iterations', cacheTTL = 6, logger = null) {
     super();
     this.cacheDir = path.resolve(cacheDir);
     this.cacheTTL = cacheTTL;
+    this.logger = logger;
   }
 
   /**
@@ -218,7 +220,12 @@ export class IterationCacheRepository extends IIterationCacheRepository {
             };
           } catch (err) {
             // Skip corrupted or invalid files
-            console.warn(`Skipping invalid cache file ${filename}:`, err.message);
+            if (this.logger) {
+              this.logger.warn('Skipping invalid cache file', {
+                filename,
+                error: err.message
+              });
+            }
             return null;
           }
         })
