@@ -82,21 +82,15 @@ export class MetricsService {
   }
 
   /**
-   * Calculate all metrics for a given iteration
+   * Calculate metrics from iteration data.
+   * Shared logic used by both single and batch calculations.
    *
+   * @private
+   * @param {Object} iterationData - Iteration data with issues, MRs, pipelines, incidents
    * @param {string} iterationId - Iteration identifier
-   * @returns {Promise<CalculatedMetrics>} Calculated metrics
-   * @throws {Error} If data fetching fails
+   * @returns {Object} Calculated metrics as plain object
    */
-  async calculateMetrics(iterationId) {
-    // Fetch iteration data via abstraction (not directly from Infrastructure)
-    let iterationData;
-    try {
-      iterationData = await this.dataProvider.fetchIterationData(iterationId);
-    } catch (error) {
-      throw new Error(`Failed to fetch iteration data for ${iterationId}: ${error.message}`);
-    }
-
+  _calculateMetricsFromData(iterationData, iterationId) {
     // Calculate velocity (points and stories)
     const velocity = VelocityCalculator.calculate(iterationData.issues);
 
@@ -252,9 +246,28 @@ export class MetricsService {
       }
     });
 
-    // Metrics calculated on-demand, not persisted (see ADR 001)
-    // Calculation is fast (~15ms), no need to cache
+    // Return plain object (not persisted per ADR 001)
     return metric.toJSON();
+  }
+
+  /**
+   * Calculate all metrics for a given iteration
+   *
+   * @param {string} iterationId - Iteration identifier
+   * @returns {Promise<CalculatedMetrics>} Calculated metrics
+   * @throws {Error} If data fetching fails
+   */
+  async calculateMetrics(iterationId) {
+    // Fetch iteration data via abstraction (not directly from Infrastructure)
+    let iterationData;
+    try {
+      iterationData = await this.dataProvider.fetchIterationData(iterationId);
+    } catch (error) {
+      throw new Error(`Failed to fetch iteration data for ${iterationId}: ${error.message}`);
+    }
+
+    // Delegate to shared calculation method
+    return this._calculateMetricsFromData(iterationData, iterationId);
   }
 
   /**
@@ -274,165 +287,11 @@ export class MetricsService {
       throw new Error(`Failed to fetch multiple iterations: ${error.message}`);
     }
 
-    // Calculate metrics for each iteration (calculations can be parallel, but saves must be sequential)
-    const metricsResults = [];
-
-    for (let i = 0; i < allIterationData.length; i++) {
-      const iterationData = allIterationData[i];
-      const iterationId = iterationIds[i];
-
-      // Calculate velocity (points and stories)
-      const velocity = VelocityCalculator.calculate(iterationData.issues);
-
-      // Calculate cycle time (avg, p50, p90)
-      const cycleTime = CycleTimeCalculator.calculate(iterationData.issues);
-
-      // Calculate sprint duration in days (for DORA metrics)
-      const sprintDays = this._calculateSprintDays(
-        iterationData.iteration.startDate,
-        iterationData.iteration.dueDate
-      );
-
-      // Calculate deployment frequency (DORA metric: deployments per day)
-      const deploymentFrequency = DeploymentFrequencyCalculator.calculate(
-        iterationData.mergeRequests,
-        sprintDays
-      );
-
-      // Calculate lead time (DORA metric: commit to production)
-      const leadTime = LeadTimeCalculator.calculate(iterationData.mergeRequests);
-
-      // Calculate deployment count (merged MRs to main/master)
-      const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
-
-      // Filter incidents to only those with change links (MR or commit)
-      // AND where the change was deployed during this iteration
-      const iterationStartDate = new Date(iterationData.iteration.startDate);
-      const iterationEndDate = new Date(iterationData.iteration.dueDate);
-
-      if (this.logger) {
-        this.logger.debug('Incident filtering started', {
-          iterationTitle: iterationData.iteration.title,
-          startDate: iterationData.iteration.startDate,
-          dueDate: iterationData.iteration.dueDate,
-          totalIncidents: (iterationData.incidents || []).length
-        });
-      }
-
-      // Log all raw incidents
-      if (this.logger) {
-        (iterationData.incidents || []).forEach(incident => {
-          this.logger.debug('Raw incident data', {
-            iid: incident.iid,
-            hasChangeLink: !!incident.changeLink,
-            changeLink: incident.changeLink ? {
-              type: incident.changeLink.type,
-              url: incident.changeLink.url
-            } : null,
-            hasChangeDate: !!incident.changeDate,
-            changeDate: incident.changeDate || null,
-            createdAt: incident.createdAt
-          });
-        });
-      }
-
-      const linkedIncidents = (iterationData.incidents || []).filter(incident => {
-        if (!incident.changeLink) {
-          if (this.logger) {
-            this.logger.debug('Excluding incident: no changeLink', { iid: incident.iid });
-          }
-          return false;
-        }
-        if (!incident.changeDate) {
-          if (this.logger) {
-            this.logger.debug('Excluding incident: no changeDate', {
-              iid: incident.iid,
-              hasChangeLink: true
-            });
-          }
-          return false;
-        }
-        const changeDate = new Date(incident.changeDate);
-        const isWithinIteration = changeDate >= iterationStartDate && changeDate <= iterationEndDate;
-        if (this.logger) {
-          if (!isWithinIteration) {
-            this.logger.debug('Excluding incident: change date outside iteration', {
-              iid: incident.iid,
-              changeDate: incident.changeDate,
-              iterationStart: iterationData.iteration.startDate,
-              iterationEnd: iterationData.iteration.dueDate
-            });
-          } else {
-            this.logger.debug('Including incident: change date within iteration', {
-              iid: incident.iid,
-              changeDate: incident.changeDate
-            });
-          }
-        }
-        return isWithinIteration;
-      });
-
-      if (this.logger) {
-        this.logger.debug('Incident filtering completed', {
-          linkedIncidents: linkedIncidents.length,
-          totalIncidents: (iterationData.incidents || []).length
-        });
-        linkedIncidents.forEach(inc => {
-          this.logger.debug('Linked incident', {
-            iid: inc.iid,
-            changeLinkType: inc.changeLink.type,
-            changeLinkUrl: inc.changeLink.url,
-            changeDate: inc.changeDate
-          });
-        });
-      }
-
-      // Calculate MTTR from filtered incidents (only those caused by this iteration's deployments)
-      const mttr = IncidentAnalyzer.calculateMTTR(linkedIncidents);
-
-      // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
-      // Uses same filtered incidents as MTTR for consistency
-      const changeFailureRate = ChangeFailureRateCalculator.calculate(
-        linkedIncidents,
-        deploymentCount
-      );
-
-      // Create Metric entity
-      const metric = new Metric({
-        iterationId,
-        iterationTitle: iterationData.iteration.title,
-        startDate: iterationData.iteration.startDate,
-        endDate: iterationData.iteration.dueDate,
-        velocityPoints: velocity.points,
-        velocityStories: velocity.stories,
-        cycleTimeAvg: cycleTime.avg,
-        cycleTimeP50: cycleTime.p50,
-        cycleTimeP90: cycleTime.p90,
-        deploymentFrequency,
-        leadTimeAvg: leadTime.avg,
-        leadTimeP50: leadTime.p50,
-        leadTimeP90: leadTime.p90,
-        mttrAvg: mttr,
-        changeFailureRate,
-        issueCount: iterationData.issues.length,
-        mrCount: (iterationData.mergeRequests || []).filter(mr => mr.state === 'merged').length,
-        deploymentCount,
-        incidentCount: linkedIncidents.length, // Only incidents from this iteration's deployments
-        linkedIncidentCount: linkedIncidents.length, // Same as incidentCount for consistency
-        rawData: {
-          issues: iterationData.issues,
-          mergeRequests: iterationData.mergeRequests || [],
-          incidents: linkedIncidents, // Only incidents from this iteration's deployments
-          pipelines: iterationData.pipelines || [],
-          iteration: iterationData.iteration
-        }
-      });
-
-      // Metrics calculated on-demand, not persisted (see ADR 001)
-      // Calculation is fast (~15ms), no need to cache
-      metricsResults.push(metric.toJSON());
-    }
-
-    return metricsResults;
+    // Calculate metrics for each iteration using shared method
+    // Map maintains same order as input iterationIds
+    return allIterationData.map((iterationData, index) => {
+      const iterationId = iterationIds[index];
+      return this._calculateMetricsFromData(iterationData, iterationId);
+    });
   }
 }
