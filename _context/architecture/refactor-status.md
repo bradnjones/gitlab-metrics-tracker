@@ -8,15 +8,15 @@
 
 ## Phase 1.1: Replace Console.log with Structured Logger
 
-**Status:** IN PROGRESS (67% complete)
+**Status:** IN PROGRESS (95% complete)
 **Estimated Total:** 4-6 hours
-**Time Spent:** ~4 hours
+**Time Spent:** ~5.5 hours
 
 ### Progress
 
 #### ✅ Completed
 
-1. **Logging Infrastructure** (Included in PR #141)
+1. **Logging Infrastructure** (PR #141 - MERGED)
    - Created `src/lib/core/interfaces/ILogger.js`
    - Created `src/lib/infrastructure/logging/ConsoleLogger.js`
    - ILogger interface with info, warn, error, debug methods
@@ -32,21 +32,33 @@
    - Updated tests to remove console spy assertions
    - All 863 tests passing
 
-3. **routes/metrics.js** (READY FOR PR)
+3. **routes/metrics.js** (PR #141 - MERGED)
    - File: `src/server/routes/metrics.js`
    - Replaced 13 console.* calls with logger.* calls
    - Created module-level logger instance
    - Updated error handlers to use structured logging
    - Removed console spy assertions from tests
    - All 863 tests passing
-   - Branch: `feat/replace-console-routes-metrics`
+
+4. **GitLabClient.js** (READY FOR PR)
+   - File: `src/lib/infrastructure/api/GitLabClient.js`
+   - Replaced 54 console.* calls (42 debug, 7 warn, 2 error)
+   - Added logger parameter to constructor
+   - All logger calls wrapped in `if (this.logger)` checks
+   - Converted template literals to structured context objects
+   - Removed console spy assertions from tests
+   - All 863 tests passing
+   - Branch: `feat/replace-console-gitlab-client-v2`
 
 #### 🚧 Next Steps
 
-5. **Remaining Files** (NOT STARTED)
-   - 24 additional files with console calls
-   - Estimated: ~56 occurrences total
-   - Estimated time: 1.5-2 hours
+5. **Remaining Files** (5% remaining - 20 console calls)
+   - app.js: 6 calls
+   - annotations.js: 4 calls
+   - GitLabIterationDataProvider.js: 4 calls
+   - cache.js: 2 calls
+   - iterations.js, IterationCacheRepository.js, useAnnotations.js, setup.js: 4 calls
+   - Estimated time: 30 minutes
 
 ---
 
