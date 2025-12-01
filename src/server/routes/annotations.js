@@ -8,8 +8,12 @@
 import express from 'express';
 import { ServiceFactory } from '../services/ServiceFactory.js';
 import { Annotation } from '../../lib/core/entities/Annotation.js';
+import { ConsoleLogger } from '../../lib/infrastructure/logging/ConsoleLogger.js';
 
 const router = express.Router();
+
+// Logger instance for annotations API
+const logger = new ConsoleLogger({ serviceName: 'annotations-api' });
 
 /**
  * Valid annotation types (lowercase to match prototype)
@@ -135,7 +139,9 @@ router.get('/', async (req, res) => {
 
     res.json(transformed);
   } catch (error) {
-    console.error('GET /api/annotations error:', error);
+    logger.error('Failed to fetch annotations', error, {
+      route: 'GET /api/annotations'
+    });
     res.status(500).json({
       error: 'Failed to fetch annotations',
       message: error.message,
@@ -167,7 +173,9 @@ router.post('/', async (req, res) => {
     const transformed = transformFromEntity(annotation);
     res.status(201).json(transformed);
   } catch (error) {
-    console.error('POST /api/annotations error:', error);
+    logger.error('Failed to create annotation', error, {
+      route: 'POST /api/annotations'
+    });
     res.status(500).json({
       error: 'Failed to create annotation',
       message: error.message,
@@ -221,7 +229,10 @@ router.put('/:id', async (req, res) => {
 
     res.json(transformed);
   } catch (error) {
-    console.error(`PUT /api/annotations/${req.params.id} error:`, error);
+    logger.error('Failed to update annotation', error, {
+      route: 'PUT /api/annotations/:id',
+      annotationId: req.params.id
+    });
     res.status(500).json({
       error: 'Failed to update annotation',
       message: error.message,
@@ -247,7 +258,10 @@ router.delete('/:id', async (req, res) => {
     // Return 204 No Content on successful deletion
     res.status(204).send();
   } catch (error) {
-    console.error(`DELETE /api/annotations/${req.params.id} error:`, error);
+    logger.error('Failed to delete annotation', error, {
+      route: 'DELETE /api/annotations/:id',
+      annotationId: req.params.id
+    });
     res.status(500).json({
       error: 'Failed to delete annotation',
       message: error.message,

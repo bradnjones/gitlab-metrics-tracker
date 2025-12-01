@@ -7,8 +7,12 @@
 
 import express from 'express';
 import { ServiceFactory } from '../services/ServiceFactory.js';
+import { ConsoleLogger } from '../../lib/infrastructure/logging/ConsoleLogger.js';
 
 const router = express.Router();
+
+// Logger instance for cache API
+const logger = new ConsoleLogger({ serviceName: 'cache-api' });
 
 /**
  * GET /api/cache/status
@@ -28,7 +32,9 @@ router.get('/status', async (req, res) => {
     // Return result (HTTP concern only)
     res.status(200).json(status);
   } catch (error) {
-    console.error('Failed to get cache status:', error.message);
+    logger.error('Failed to get cache status', error, {
+      route: 'GET /api/cache/status'
+    });
 
     res.status(500).json({
       error: 'Failed to get cache status',
@@ -55,7 +61,9 @@ router.delete('/', async (req, res) => {
     // Return 204 No Content (success, no body)
     res.status(204).end();
   } catch (error) {
-    console.error('Failed to clear cache:', error.message);
+    logger.error('Failed to clear cache', error, {
+      route: 'DELETE /api/cache'
+    });
 
     res.status(500).json({
       error: 'Failed to clear cache',

@@ -22,11 +22,13 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
    *
    * @param {Object} gitlabClient - GitLabClient instance for API calls
    * @param {Object} [cacheRepository] - Optional cache repository (IIterationCacheRepository)
+   * @param {Object} [logger] - Optional logger instance (ILogger)
    */
-  constructor(gitlabClient, cacheRepository) {
+  constructor(gitlabClient, cacheRepository, logger = null) {
     super();
     this.gitlabClient = gitlabClient;
     this.cacheRepository = cacheRepository;
+    this.logger = logger;
 
     // In-memory cache for iteration list (lightweight metadata only)
     // Prevents redundant fetchIterations() calls when fetching multiple iteration details
@@ -83,7 +85,12 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
         }
       } catch (cacheError) {
         // Log cache error but continue with fresh fetch
-        console.warn(`Cache read failed for iteration ${iterationId}:`, cacheError.message);
+        if (this.logger) {
+          this.logger.warn('Cache read failed', {
+            iterationId,
+            error: cacheError.message
+          });
+        }
       }
     }
 
@@ -119,7 +126,12 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
       // Cache the result (fire-and-forget)
       if (this.cacheRepository) {
         this.cacheRepository.set(iterationId, iterationData).catch(err => {
-          console.warn(`Cache write failed for iteration ${iterationId}:`, err.message);
+          if (this.logger) {
+            this.logger.warn('Cache write failed', {
+              iterationId,
+              error: err.message
+            });
+          }
         });
       }
 
@@ -161,7 +173,12 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
             }
             return { id, cached: false, data: null };
           } catch (cacheError) {
-            console.warn(`Cache read failed for iteration ${id}:`, cacheError.message);
+            if (this.logger) {
+              this.logger.warn('Cache read failed in batch fetch', {
+                iterationId: id,
+                error: cacheError.message
+              });
+            }
             return { id, cached: false, data: null };
           }
         })
@@ -226,7 +243,12 @@ export class GitLabIterationDataProvider extends IIterationDataProvider {
         // Cache the fresh data (fire-and-forget)
         if (this.cacheRepository) {
           this.cacheRepository.set(id, iterationData).catch(err => {
-            console.warn(`Cache write failed for iteration ${id}:`, err.message);
+            if (this.logger) {
+              this.logger.warn('Cache write failed in batch fetch', {
+                iterationId: id,
+                error: err.message
+              });
+            }
           });
         }
       }

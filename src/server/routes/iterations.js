@@ -7,8 +7,12 @@
 
 import express from 'express';
 import { ServiceFactory } from '../services/ServiceFactory.js';
+import { ConsoleLogger } from '../../lib/infrastructure/logging/ConsoleLogger.js';
 
 const router = express.Router();
+
+// Logger instance for iterations API
+const logger = new ConsoleLogger({ serviceName: 'iterations-api' });
 
 /**
  * GET /api/iterations
@@ -31,7 +35,9 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     // Log error for debugging
-    console.error('Failed to fetch iterations:', error.message);
+    logger.error('Failed to fetch iterations', error, {
+      route: 'GET /api/iterations'
+    });
 
     // Return user-friendly error
     res.status(500).json({

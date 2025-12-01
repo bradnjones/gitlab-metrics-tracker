@@ -14,9 +14,13 @@ import metricsRoutes from './routes/metrics.js';
 import iterationsRoutes from './routes/iterations.js';
 import cacheRoutes from './routes/cache.js';
 import annotationsRoutes from './routes/annotations.js';
+import { ConsoleLogger } from '../lib/infrastructure/logging/ConsoleLogger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Logger instance for server app
+const logger = new ConsoleLogger({ serviceName: 'express-app' });
 
 /**
  * Create and configure Express application
@@ -65,11 +69,9 @@ export function createApp() {
   // Error handler
   app.use((err, req, res, next) => {
     // Log sanitized error (no stack trace exposure)
-    console.error('Error occurred:', {
-      message: err.message,
+    logger.error('Error occurred', err, {
       path: req.path,
-      method: req.method,
-      timestamp: new Date().toISOString()
+      method: req.method
     });
 
     res.status(500).json({
@@ -112,13 +114,11 @@ export function startServer(port = 3000) {
   const server = app.listen(port, '0.0.0.0', () => {
     const localIP = getLocalIPAddress();
 
-    console.log(`\n✓ Server running on:`);
-    console.log(`  - Local:   http://localhost:${port}`);
-    if (localIP) {
-      console.log(`  - Network: http://${localIP}:${port}`);
-      console.log(`\n  Use the Network URL to access from other devices on your local network`);
-    }
-    console.log(`\n✓ Health check: http://localhost:${port}/health`);
+    logger.info('Server running', {
+      local: `http://localhost:${port}`,
+      network: localIP ? `http://${localIP}:${port}` : null,
+      health: `http://localhost:${port}/health`
+    });
   });
 
   return server;

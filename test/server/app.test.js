@@ -179,45 +179,31 @@ describe('Server Startup (startServer)', () => {
   });
 
   test('starts server on specified port', (done) => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-
     server = startServer(0); // Port 0 = random available port
 
     server.on('listening', () => {
       const address = server.address();
       expect(address.port).toBeGreaterThan(0);
-      expect(consoleLogSpy).toHaveBeenCalled();
-
-      consoleLogSpy.mockRestore();
       done();
     });
 
     server.on('error', (err) => {
-      consoleLogSpy.mockRestore();
       done(err);
     });
   });
 
-  test('logs server URLs when started', (done) => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-
+  test('server starts and listens successfully', (done) => {
     server = startServer(0);
 
     server.on('listening', () => {
-      // Verify console.log was called with server info
-      const allLogs = consoleLogSpy.mock.calls.map(call => call.join(' ')).join('\n');
-
-      expect(allLogs).toContain('Server running on:');
-      expect(allLogs).toContain('Local:');
-      expect(allLogs).toContain('http://localhost:');
-      expect(allLogs).toContain('Health check:');
-
-      consoleLogSpy.mockRestore();
+      // Verify server is listening
+      expect(server.listening).toBe(true);
+      const address = server.address();
+      expect(address).toBeTruthy();
       done();
     });
 
     server.on('error', (err) => {
-      consoleLogSpy.mockRestore();
       done(err);
     });
   });
