@@ -1,6 +1,7 @@
 import { GraphQLClient } from 'graphql-request';
 import { IncidentAnalyzer } from '../../core/services/IncidentAnalyzer.js';
 import { ChangeLinkExtractor } from '../../core/services/ChangeLinkExtractor.js';
+import { RateLimitManager } from './core/RateLimitManager.js';
 
 /**
  * GitLab GraphQL API client for fetching sprint metrics data.
@@ -32,6 +33,9 @@ export class GitLabClient {
     this.token = config.token;
     this.projectPath = config.projectPath;
     this.logger = logger;
+
+    // Initialize helpers
+    this.rateLimitManager = new RateLimitManager(logger);
 
     // Initialize GraphQL client
     this.client = new GraphQLClient(`${this.url}/api/graphql`, {
@@ -156,7 +160,7 @@ export class GitLabClient {
 
         // Small delay to avoid rate limiting
         if (hasNextPage) {
-          await this.delay(100);
+          await this.rateLimitManager.delay(100);
         }
       }
 
@@ -244,7 +248,7 @@ export class GitLabClient {
 
         // Small delay to avoid rate limiting
         if (hasNextPage) {
-          await this.delay(100);
+          await this.rateLimitManager.delay(100);
         }
       }
 
@@ -351,7 +355,7 @@ export class GitLabClient {
 
         // Small delay to avoid rate limiting
         if (hasNextPage) {
-          await this.delay(100);
+          await this.rateLimitManager.delay(100);
         }
       }
 
@@ -628,7 +632,7 @@ export class GitLabClient {
         after = pageInfo.endCursor;
 
         if (hasNextPage) {
-          await this.delay(100);
+          await this.rateLimitManager.delay(100);
         }
       }
 
@@ -714,7 +718,7 @@ export class GitLabClient {
         }
 
         if (hasNextPage) {
-          await this.delay(50); // Reduced delay
+          await this.rateLimitManager.delay(50); // Reduced delay
         }
       }
 
@@ -791,7 +795,7 @@ export class GitLabClient {
         after = pageInfo.endCursor;
 
         if (hasNextPage) {
-          await this.delay(100);
+          await this.rateLimitManager.delay(100);
         }
       }
 
@@ -906,7 +910,7 @@ export class GitLabClient {
         after = pageInfo.endCursor;
 
         if (hasNextPage) {
-          await this.delay(100);
+          await this.rateLimitManager.delay(100);
         }
       }
 
@@ -1413,13 +1417,4 @@ export class GitLabClient {
     }
   }
 
-  /**
-   * Helper method to delay execution (for rate limiting).
-   *
-   * @param {number} ms - Milliseconds to delay
-   * @returns {Promise<void>}
-   */
-  delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
 }
