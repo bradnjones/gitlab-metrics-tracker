@@ -28,6 +28,59 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## REFACTOR Phase 1.3a: Extract Core Helpers from GitLabClient
+
+**Completed:** 2025-12-02
+**GitHub Issue:** #145
+**Pull Request:** TBD
+
+**Goal:** Extract core helper classes from 1,230-line GitLabClient God Object to improve maintainability and testability. This is part 1 of Phase 1.3 (core helpers).
+
+**What Was Delivered:**
+1. **RateLimitManager** (3 unit tests)
+   - Extracted delay() method for rate limiting
+   - Centralized rate limiting configuration
+   - Used throughout GitLabClient pagination loops
+
+2. **ErrorTransformer** (13 unit tests)
+   - Transforms GraphQL errors to application errors
+   - Transforms HTTP errors (4xx, 5xx) to application errors
+   - Provides isRetryable() check for transient failures
+   - Consistent error handling across API layer
+
+3. **GraphQLExecutor** (9 unit tests)
+   - Abstracts graphql-request library (Dependency Inversion)
+   - Uses ErrorTransformer for consistent error handling
+   - Centralizes GraphQL client configuration
+   - Foundation for future client class extraction
+
+**Deferred:**
+- PaginationHandler (too complex, domain-specific logic, keep in clients)
+
+**Test Results:**
+- Added 25 new unit tests (all passing)
+- All 888 existing tests pass
+- Test coverage maintained ≥85%
+
+**Architecture Improvements:**
+- ✅ Single Responsibility Principle - Each helper has one job
+- ✅ Dependency Inversion Principle - GraphQLExecutor abstracts library
+- ✅ Open/Closed Principle - Can add new error types without modifying existing code
+- ✅ Backward Compatibility - GitLabClient public API unchanged
+
+**Next Steps (Phase 1.3b):**
+- Update GitLabClient to use GraphQLExecutor
+- Extract 6 client classes (Iteration, Issue, MR, Pipeline, Deployment, Incident)
+- Refactor GitLabClient to orchestrator (~150 lines)
+
+**Key Learnings:**
+- Small, incremental refactoring with tests is safer than large rewrites
+- Defer complex extractions (PaginationHandler) until clear patterns emerge
+- Helper classes should have clear names (Manager, Transformer, Executor) not "Helper"
+- Agent feedback (Clean Architecture, Test Coverage) provided valuable guidance
+
+---
+
 ## BUG-006: Fix Iteration Selector Modal Clearing Graphs on Open
 
 **Completed:** 2025-11-19
