@@ -140,7 +140,7 @@ describe('GitLabClient', () => {
         projectPath: 'group/project'
       });
       // Mock the delay method to avoid actual delays in tests
-      client.delay = jest.fn().mockResolvedValue(undefined);
+      client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
     });
 
     it('should fetch iterations with pagination (multiple pages)', async () => {
@@ -192,8 +192,8 @@ describe('GitLabClient', () => {
       );
 
       // Delay called once (between pages)
-      expect(client.delay).toHaveBeenCalledTimes(1);
-      expect(client.delay).toHaveBeenCalledWith(100);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledTimes(1);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledWith(100);
     });
 
     it('should handle single page response (no pagination needed)', async () => {
@@ -214,7 +214,7 @@ describe('GitLabClient', () => {
 
       expect(result).toHaveLength(1);
       expect(mockRequest).toHaveBeenCalledTimes(1);
-      expect(client.delay).not.toHaveBeenCalled();
+      expect(client.rateLimitManager.delay).not.toHaveBeenCalled();
     });
 
     it('should fallback to parent group if group not found', async () => {
@@ -278,7 +278,7 @@ describe('GitLabClient', () => {
         token: 'test-token',
         projectPath: 'single-group'
       });
-      clientSinglePath.delay = jest.fn().mockResolvedValue(undefined);
+      clientSinglePath.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
 
       await expect(clientSinglePath.fetchIterations()).rejects.toThrow(
         'Group not found: single-group'
@@ -309,7 +309,7 @@ describe('GitLabClient', () => {
         projectPath: 'group/project'
       });
       // Mock the delay method to avoid actual delays in tests
-      client.delay = jest.fn().mockResolvedValue(undefined);
+      client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
     });
 
     it('should fetch group projects', async () => {
@@ -390,8 +390,8 @@ describe('GitLabClient', () => {
       );
 
       // Delay called once (between pages)
-      expect(client.delay).toHaveBeenCalledTimes(1);
-      expect(client.delay).toHaveBeenCalledWith(100);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledTimes(1);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledWith(100);
     });
 
     it('should return empty array if group not found', async () => {
@@ -432,7 +432,7 @@ describe('GitLabClient', () => {
         projectPath: 'group/project'
       });
       // Mock the delay method to avoid actual delays in tests
-      client.delay = jest.fn().mockResolvedValue(undefined);
+      client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
     });
 
     it('should fetch additional notes with pagination', async () => {
@@ -502,8 +502,8 @@ describe('GitLabClient', () => {
       );
 
       // Delay called once (between pages)
-      expect(client.delay).toHaveBeenCalledTimes(1);
-      expect(client.delay).toHaveBeenCalledWith(100);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledTimes(1);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledWith(100);
     });
 
     it('should handle single page response (no pagination needed)', async () => {
@@ -530,7 +530,7 @@ describe('GitLabClient', () => {
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('note-50');
       expect(mockRequest).toHaveBeenCalledTimes(1);
-      expect(client.delay).not.toHaveBeenCalled();
+      expect(client.rateLimitManager.delay).not.toHaveBeenCalled();
     });
 
     it('should throw error if issue not found', async () => {
@@ -595,7 +595,7 @@ describe('GitLabClient', () => {
         projectPath: 'group/project'
       });
       // Mock the delay method to avoid actual delays in tests
-      client.delay = jest.fn().mockResolvedValue(undefined);
+      client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
     });
 
     it('should fetch issues for a specific iteration', async () => {
@@ -711,8 +711,8 @@ describe('GitLabClient', () => {
       );
 
       // Delay called once (between pages)
-      expect(client.delay).toHaveBeenCalledTimes(1);
-      expect(client.delay).toHaveBeenCalledWith(100);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledTimes(1);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledWith(100);
     });
 
     it('should throw error if group not found', async () => {
@@ -992,7 +992,7 @@ describe('GitLabClient', () => {
 
     describe('fetchIterationDetails with notes enrichment', () => {
       beforeEach(() => {
-        client.delay = jest.fn().mockResolvedValue(undefined);
+        client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
       });
 
       it('should enrich issues with inProgressAt timestamp', async () => {
@@ -1383,7 +1383,7 @@ describe('GitLabClient', () => {
         projectPath: 'group/project'
       });
       // Mock the delay method to avoid actual delays in tests
-      client.delay = jest.fn().mockResolvedValue(undefined);
+      client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
     });
 
     it('should fetch merged MRs within date range', async () => {
@@ -1517,8 +1517,8 @@ describe('GitLabClient', () => {
       );
 
       // Delay called once (between pages)
-      expect(client.delay).toHaveBeenCalledTimes(1);
-      expect(client.delay).toHaveBeenCalledWith(100);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledTimes(1);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledWith(100);
     });
 
     it('should throw error if group not found', async () => {
@@ -1580,7 +1580,7 @@ describe('GitLabClient', () => {
         projectPath: 'group/project'
       });
       // Mock the delay method to avoid actual delays in tests
-      client.delay = jest.fn().mockResolvedValue(undefined);
+      client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
     });
 
     it('should fetch pipelines for a specific project and ref', async () => {
@@ -1735,8 +1735,8 @@ describe('GitLabClient', () => {
       );
 
       // Delay called once (between pages) - reduced delay for pipelines
-      expect(client.delay).toHaveBeenCalledTimes(1);
-      expect(client.delay).toHaveBeenCalledWith(50);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledTimes(1);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledWith(50);
     });
 
     it('should return empty array if project not found', async () => {
@@ -1803,7 +1803,7 @@ describe('GitLabClient', () => {
           token: 'test-token',
           projectPath: 'group/project'
         });
-        client.delay = jest.fn().mockResolvedValue(undefined);
+        client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
       });
 
       it('should fetch issues with notes limited to 20 entries', async () => {
@@ -1870,7 +1870,7 @@ describe('GitLabClient', () => {
         projectPath: 'group/project'
       });
       // Mock the delay method to avoid actual delays in tests
-      client.delay = jest.fn().mockResolvedValue(undefined);
+      client.rateLimitManager.delay = jest.fn().mockResolvedValue(undefined);
     });
 
     it('should fetch incidents within date range and calculate downtime', async () => {
@@ -2029,8 +2029,8 @@ describe('GitLabClient', () => {
       expect(mockRequest).toHaveBeenCalledTimes(4);
 
       // Delay called once (between pages)
-      expect(client.delay).toHaveBeenCalledTimes(1);
-      expect(client.delay).toHaveBeenCalledWith(100);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledTimes(1);
+      expect(client.rateLimitManager.delay).toHaveBeenCalledWith(100);
     });
 
     it('should throw error if group not found', async () => {
