@@ -2,6 +2,8 @@ import { GraphQLClient } from 'graphql-request';
 import { IncidentAnalyzer } from '../../core/services/IncidentAnalyzer.js';
 import { ChangeLinkExtractor } from '../../core/services/ChangeLinkExtractor.js';
 import { RateLimitManager } from './core/RateLimitManager.js';
+import { GraphQLExecutor } from './core/GraphQLExecutor.js';
+import { DeploymentClient } from './clients/DeploymentClient.js';
 
 /**
  * GitLab GraphQL API client for fetching sprint metrics data.
@@ -36,8 +38,17 @@ export class GitLabClient {
 
     // Initialize helpers
     this.rateLimitManager = new RateLimitManager(logger);
+    this.executor = new GraphQLExecutor(config, logger);
 
-    // Initialize GraphQL client
+    // Initialize specialized clients
+    this.deploymentClient = new DeploymentClient(
+      this.executor,
+      this.rateLimitManager,
+      this.projectPath,
+      logger
+    );
+
+    // Initialize GraphQL client (legacy - will be replaced by executor)
     this.client = new GraphQLClient(`${this.url}/api/graphql`, {
       headers: {
         Authorization: `Bearer ${this.token}`
@@ -749,72 +760,7 @@ export class GitLabClient {
    * @returns {Promise<Array>} Array of project objects
    */
   async fetchGroupProjects() {
-    const query = `
-      query getGroupProjects($fullPath: ID!, $after: String) {
-        group(fullPath: $fullPath) {
-          id
-          name
-          projects(first: 100, after: $after, includeSubgroups: true) {
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-            nodes {
-              id
-              fullPath
-              name
-            }
-          }
-        }
-      }
-    `;
-
-    let allProjects = [];
-    let hasNextPage = true;
-    let after = null;
-
-    try {
-      while (hasNextPage) {
-        const data = await this.client.request(query, {
-          fullPath: this.projectPath,
-          after,
-        });
-
-        if (!data.group) {
-          if (this.logger) {
-            this.logger.warn('Group not found', {
-              groupPath: this.projectPath
-            });
-          }
-          return [];
-        }
-
-        const { nodes, pageInfo } = data.group.projects;
-        allProjects = allProjects.concat(nodes);
-        hasNextPage = pageInfo.hasNextPage;
-        after = pageInfo.endCursor;
-
-        if (hasNextPage) {
-          await this.rateLimitManager.delay(100);
-        }
-      }
-
-      if (this.logger) {
-        this.logger.debug('Found projects in group', {
-          count: allProjects.length,
-          groupPath: this.projectPath
-        });
-      }
-
-      return allProjects;
-    } catch (error) {
-      if (this.logger) {
-        this.logger.warn('Failed to fetch group projects', {
-          error: error.message
-        });
-      }
-      return [];
-    }
+    return this.deploymentClient.fetchGroupProjects();
   }
 
   /**
