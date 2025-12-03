@@ -28,6 +28,40 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## REFACTOR Phase 1.3b-1: Extract DeploymentClient (First Client Pattern)
+
+**Completed:** 2025-12-03
+**GitHub Issue:** #145
+**Pull Request:** TBD
+
+**Goal:** Extract first client class from GitLabClient to establish the pattern for remaining extractions. Integrate GraphQLExecutor into GitLabClient.
+
+**What Was Delivered:**
+1. **DeploymentClient** (5 unit tests)
+   - Extracted `fetchGroupProjects()` method
+   - Uses GraphQLExecutor (Dependency Inversion)
+   - Uses RateLimitManager for pagination delays
+   - Proper error handling with logging
+
+2. **GraphQLExecutor Integration**
+   - Added GraphQLExecutor instance to GitLabClient constructor
+   - GitLabClient now has both legacy client and new executor
+   - Establishes migration pattern for remaining methods
+
+**Test Results:**
+- Added 5 new unit tests for DeploymentClient (all passing)
+- All 893 existing tests pass
+- GitLabClient tests verify backward compatibility
+
+**Architecture:**
+- ✅ Established client extraction pattern
+- ✅ Single Responsibility - DeploymentClient has one job
+- ✅ Backward Compatibility - GitLabClient public API unchanged
+
+**Next Steps:** Extract remaining 5 clients (Pipeline, Iteration, MR, Issue, Incident)
+
+---
+
 ## REFACTOR Phase 1.3a: Extract Core Helpers from GitLabClient
 
 **Completed:** 2025-12-02
