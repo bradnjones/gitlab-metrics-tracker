@@ -4,6 +4,7 @@ import { ChangeLinkExtractor } from '../../core/services/ChangeLinkExtractor.js'
 import { RateLimitManager } from './core/RateLimitManager.js';
 import { GraphQLExecutor } from './core/GraphQLExecutor.js';
 import { DeploymentClient } from './clients/DeploymentClient.js';
+import { PipelineClient } from './clients/PipelineClient.js';
 
 /**
  * GitLab GraphQL API client for fetching sprint metrics data.
@@ -45,6 +46,11 @@ export class GitLabClient {
       this.executor,
       this.rateLimitManager,
       this.projectPath,
+      logger
+    );
+    this.pipelineClient = new PipelineClient(
+      this.executor,
+      this.rateLimitManager,
       logger
     );
 
@@ -673,85 +679,7 @@ export class GitLabClient {
    * @returns {Promise<Array>} Array of pipeline objects
    */
   async fetchPipelinesForProject(projectPath, ref = 'master', startDate, endDate) {
-    // Use updatedAfter to filter at the API level for better performance
-    const updatedAfter = startDate ? new Date(startDate).toISOString() : null;
-
-    const query = `
-      query getPipelines($fullPath: ID!, $ref: String, $after: String, $updatedAfter: Time) {
-        project(fullPath: $fullPath) {
-          pipelines(first: 100, ref: $ref, after: $after, updatedAfter: $updatedAfter) {
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-            nodes {
-              id
-              iid
-              status
-              ref
-              createdAt
-              updatedAt
-              finishedAt
-              sha
-            }
-          }
-        }
-      }
-    `;
-
-    let allPipelines = [];
-    let hasNextPage = true;
-    let after = null;
-
-    try {
-      while (hasNextPage) {
-        const data = await this.client.request(query, {
-          fullPath: projectPath,
-          ref,
-          after,
-          updatedAfter,
-        });
-
-        if (!data.project || !data.project.pipelines) {
-          break;
-        }
-
-        const { nodes, pageInfo } = data.project.pipelines;
-        allPipelines = allPipelines.concat(nodes);
-        hasNextPage = pageInfo.hasNextPage;
-        after = pageInfo.endCursor;
-
-        // Only fetch first page if we have many results (performance optimization)
-        if (nodes.length === 100 && hasNextPage) {
-          if (this.logger) {
-            this.logger.debug('Found 100+ pipelines, fetching more');
-          }
-        }
-
-        if (hasNextPage) {
-          await this.rateLimitManager.delay(50); // Reduced delay
-        }
-      }
-
-      // Additional client-side filtering by end date
-      if (endDate) {
-        const end = new Date(endDate);
-        allPipelines = allPipelines.filter((pipeline) => {
-          const pipelineDate = new Date(pipeline.createdAt);
-          return pipelineDate <= end;
-        });
-      }
-
-      return allPipelines;
-    } catch (error) {
-      if (this.logger) {
-        this.logger.warn('Failed to fetch pipelines for project', {
-          projectPath,
-          error: error.message
-        });
-      }
-      return [];
-    }
+    return this.pipelineClient.fetchPipelinesForProject(projectPath, ref, startDate, endDate);
   }
 
   /**
