@@ -1557,7 +1557,7 @@ describe('GitLabClient', () => {
       mockRequest.mockRejectedValue(mockError);
 
       await expect(client.fetchMergeRequestsForGroup('2025-01-01', '2025-01-10')).rejects.toThrow(
-        'Failed to fetch merge requests: Insufficient permissions'
+        'Failed to fetch merge requests: GitLab API Error (fetching merge requests): Insufficient permissions'
       );
     });
 
@@ -1566,7 +1566,7 @@ describe('GitLabClient', () => {
       mockRequest.mockRejectedValue(networkError);
 
       await expect(client.fetchMergeRequestsForGroup('2025-01-01', '2025-01-10')).rejects.toThrow(
-        'Failed to fetch merge requests: Connection timeout'
+        'Failed to fetch merge requests: Failed fetching merge requests: Connection timeout'
       );
     });
   });
@@ -2958,7 +2958,7 @@ describe('GitLabClient', () => {
 
       await expect(
         client.fetchMergeRequestDetails('group/project', '10')
-      ).rejects.toThrow('Failed to fetch MR details: Insufficient permissions to access merge request');
+      ).rejects.toThrow('Failed to fetch MR details: GitLab API Error (fetching MR !10): Insufficient permissions to access merge request');
     });
 
     it('should handle network errors', async () => {
@@ -2967,7 +2967,7 @@ describe('GitLabClient', () => {
 
       await expect(
         client.fetchMergeRequestDetails('group/project', '10')
-      ).rejects.toThrow('Failed to fetch MR details: Connection timeout');
+      ).rejects.toThrow('Failed to fetch MR details: Failed fetching MR !10: Connection timeout');
     });
   });
 
@@ -3042,7 +3042,7 @@ describe('GitLabClient', () => {
 
       await expect(
         client.fetchCommitDetails('group/project', 'abc123')
-      ).rejects.toThrow('Failed to fetch commit details: Repository not accessible');
+      ).rejects.toThrow('Failed to fetch commit details: GitLab API Error (fetching commit abc123): Repository not accessible');
     });
 
     it('should handle network errors', async () => {
@@ -3051,7 +3051,7 @@ describe('GitLabClient', () => {
 
       await expect(
         client.fetchCommitDetails('group/project', 'abc123')
-      ).rejects.toThrow('Failed to fetch commit details: Network failure');
+      ).rejects.toThrow('Failed to fetch commit details: Failed fetching commit abc123: Network failure');
     });
   });
 });

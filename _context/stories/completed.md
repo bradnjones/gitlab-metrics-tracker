@@ -28,6 +28,49 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## REFACTOR Phase 1.3b-2: Extract PipelineClient and MergeRequestClient
+
+**Completed:** 2025-12-04
+**GitHub Issue:** #145
+**Pull Request:** TBD
+
+**Goal:** Continue client extraction from GitLabClient. Extract PipelineClient (1 method) and MergeRequestClient (3 methods) with comprehensive test coverage.
+
+**What Was Delivered:**
+1. **PipelineClient** (7 unit tests)
+   - Extracted `fetchPipelinesForProject()` method
+   - Handles pagination with reduced 50ms delay (optimized for pipelines)
+   - Client-side filtering by endDate (GitLab API limitation workaround)
+   - Returns empty array on errors (non-blocking behavior)
+
+2. **MergeRequestClient** (7 unit tests)
+   - Extracted `fetchMergeRequestsForGroup()` - fetches merged MRs with date range
+   - Extracted `fetchMergeRequestDetails()` - fetches single MR by IID
+   - Extracted `fetchCommitDetails()` - fetches commit details for CFR calculation
+   - All methods use GraphQLExecutor for consistent error handling
+   - Proper error transformation with contextual messages
+
+**Test Results:**
+- Added 14 new unit tests (all passing)
+- All 907 existing tests pass
+- Updated 6 test assertions to match new error message format from ErrorTransformer
+- Backward compatibility maintained
+
+**Architecture:**
+- ✅ Single Responsibility - Each client has focused domain
+- ✅ Dependency Inversion - All clients use GraphQLExecutor interface
+- ✅ Consistent Error Handling - ErrorTransformer provides context in all errors
+- ✅ Backward Compatibility - GitLabClient public API unchanged (delegation pattern)
+
+**Error Handling Improvements:**
+- Error messages now include context (e.g., "Failed to fetch merge requests: GitLab API Error (fetching merge requests): Insufficient permissions")
+- More informative errors help with debugging and monitoring
+- Consistent format across all client methods
+
+**Next Steps:** Extract remaining 3 clients (Iteration, Issue, Incident) in next session
+
+---
+
 ## REFACTOR Phase 1.3b-1: Extract DeploymentClient (First Client Pattern)
 
 **Completed:** 2025-12-03

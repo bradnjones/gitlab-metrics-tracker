@@ -4,6 +4,8 @@ import { ChangeLinkExtractor } from '../../core/services/ChangeLinkExtractor.js'
 import { RateLimitManager } from './core/RateLimitManager.js';
 import { GraphQLExecutor } from './core/GraphQLExecutor.js';
 import { DeploymentClient } from './clients/DeploymentClient.js';
+import { PipelineClient } from './clients/PipelineClient.js';
+import { MergeRequestClient } from './clients/MergeRequestClient.js';
 
 /**
  * GitLab GraphQL API client for fetching sprint metrics data.
@@ -42,6 +44,17 @@ export class GitLabClient {
 
     // Initialize specialized clients
     this.deploymentClient = new DeploymentClient(
+      this.executor,
+      this.rateLimitManager,
+      this.projectPath,
+      logger
+    );
+    this.pipelineClient = new PipelineClient(
+      this.executor,
+      this.rateLimitManager,
+      logger
+    );
+    this.mergeRequestClient = new MergeRequestClient(
       this.executor,
       this.rateLimitManager,
       this.projectPath,
@@ -560,106 +573,7 @@ export class GitLabClient {
    * @throws {Error} If the group is not found or request fails
    */
   async fetchMergeRequestsForGroup(startDate, endDate) {
-    const query = `
-      query getGroupMergeRequests($fullPath: ID!, $after: String, $mergedAfter: Time, $mergedBefore: Time) {
-        group(fullPath: $fullPath) {
-          id
-          mergeRequests(
-            state: merged
-            first: 100
-            after: $after
-            mergedAfter: $mergedAfter
-            mergedBefore: $mergedBefore
-          ) {
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-            nodes {
-              id
-              iid
-              title
-              state
-              createdAt
-              mergedAt
-              targetBranch
-              sourceBranch
-              webUrl
-              author {
-                username
-                name
-              }
-              project {
-                fullPath
-                name
-              }
-              commits {
-                nodes {
-                  id
-                  sha
-                  committedDate
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    let allMRs = [];
-    let hasNextPage = true;
-    let after = null;
-
-    try {
-      const mergedAfter = new Date(startDate).toISOString();
-      const mergedBefore = new Date(endDate).toISOString();
-
-      if (this.logger) {
-        this.logger.debug('Querying merged MRs from group', {
-          startDate,
-          endDate
-        });
-      }
-
-      while (hasNextPage) {
-        const data = await this.client.request(query, {
-          fullPath: this.projectPath,
-          after,
-          mergedAfter,
-          mergedBefore,
-        });
-
-        if (!data.group) {
-          throw new Error(`Group not found: ${this.projectPath}`);
-        }
-
-        if (!data.group.mergeRequests) {
-          break;
-        }
-
-        const { nodes, pageInfo } = data.group.mergeRequests;
-        allMRs = allMRs.concat(nodes);
-        hasNextPage = pageInfo.hasNextPage;
-        after = pageInfo.endCursor;
-
-        if (hasNextPage) {
-          await this.rateLimitManager.delay(100);
-        }
-      }
-
-      if (this.logger) {
-        this.logger.debug('Found merged MRs in date range', {
-          count: allMRs.length
-        });
-      }
-      return allMRs;
-    } catch (error) {
-      // Check if it's a GraphQL error
-      if (error.response?.errors) {
-        throw new Error(`Failed to fetch merge requests: ${error.response.errors[0].message}`);
-      }
-      throw new Error(`Failed to fetch merge requests: ${error.message}`);
-    }
+    return this.mergeRequestClient.fetchMergeRequestsForGroup(startDate, endDate);
   }
 
   /**
@@ -673,85 +587,7 @@ export class GitLabClient {
    * @returns {Promise<Array>} Array of pipeline objects
    */
   async fetchPipelinesForProject(projectPath, ref = 'master', startDate, endDate) {
-    // Use updatedAfter to filter at the API level for better performance
-    const updatedAfter = startDate ? new Date(startDate).toISOString() : null;
-
-    const query = `
-      query getPipelines($fullPath: ID!, $ref: String, $after: String, $updatedAfter: Time) {
-        project(fullPath: $fullPath) {
-          pipelines(first: 100, ref: $ref, after: $after, updatedAfter: $updatedAfter) {
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-            nodes {
-              id
-              iid
-              status
-              ref
-              createdAt
-              updatedAt
-              finishedAt
-              sha
-            }
-          }
-        }
-      }
-    `;
-
-    let allPipelines = [];
-    let hasNextPage = true;
-    let after = null;
-
-    try {
-      while (hasNextPage) {
-        const data = await this.client.request(query, {
-          fullPath: projectPath,
-          ref,
-          after,
-          updatedAfter,
-        });
-
-        if (!data.project || !data.project.pipelines) {
-          break;
-        }
-
-        const { nodes, pageInfo } = data.project.pipelines;
-        allPipelines = allPipelines.concat(nodes);
-        hasNextPage = pageInfo.hasNextPage;
-        after = pageInfo.endCursor;
-
-        // Only fetch first page if we have many results (performance optimization)
-        if (nodes.length === 100 && hasNextPage) {
-          if (this.logger) {
-            this.logger.debug('Found 100+ pipelines, fetching more');
-          }
-        }
-
-        if (hasNextPage) {
-          await this.rateLimitManager.delay(50); // Reduced delay
-        }
-      }
-
-      // Additional client-side filtering by end date
-      if (endDate) {
-        const end = new Date(endDate);
-        allPipelines = allPipelines.filter((pipeline) => {
-          const pipelineDate = new Date(pipeline.createdAt);
-          return pipelineDate <= end;
-        });
-      }
-
-      return allPipelines;
-    } catch (error) {
-      if (this.logger) {
-        this.logger.warn('Failed to fetch pipelines for project', {
-          projectPath,
-          error: error.message
-        });
-      }
-      return [];
-    }
+    return this.pipelineClient.fetchPipelinesForProject(projectPath, ref, startDate, endDate);
   }
 
   /**
@@ -1279,41 +1115,7 @@ export class GitLabClient {
    * @throws {Error} If the request fails
    */
   async fetchMergeRequestDetails(projectPath, mrId) {
-    const query = `
-      query getMergeRequest($fullPath: ID!, $iid: String!) {
-        project(fullPath: $fullPath) {
-          mergeRequest(iid: $iid) {
-            id
-            iid
-            title
-            state
-            mergedAt
-            createdAt
-            targetBranch
-            sourceBranch
-            webUrl
-          }
-        }
-      }
-    `;
-
-    try {
-      const data = await this.client.request(query, {
-        fullPath: projectPath,
-        iid: mrId
-      });
-
-      if (!data.project || !data.project.mergeRequest) {
-        throw new Error(`Merge request !${mrId} not found in project ${projectPath}`);
-      }
-
-      return data.project.mergeRequest;
-    } catch (error) {
-      if (error.response?.errors) {
-        throw new Error(`Failed to fetch MR details: ${error.response.errors[0].message}`);
-      }
-      throw new Error(`Failed to fetch MR details: ${error.message}`);
-    }
+    return this.mergeRequestClient.fetchMergeRequestDetails(projectPath, mrId);
   }
 
   /**
@@ -1326,41 +1128,7 @@ export class GitLabClient {
    * @throws {Error} If the request fails
    */
   async fetchCommitDetails(projectPath, sha) {
-    const query = `
-      query getCommit($fullPath: ID!, $sha: String!) {
-        project(fullPath: $fullPath) {
-          repository {
-            commit(ref: $sha) {
-              id
-              sha
-              title
-              message
-              committedDate
-              createdAt
-              webUrl
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const data = await this.client.request(query, {
-        fullPath: projectPath,
-        sha
-      });
-
-      if (!data.project || !data.project.repository || !data.project.repository.commit) {
-        throw new Error(`Commit ${sha} not found in project ${projectPath}`);
-      }
-
-      return data.project.repository.commit;
-    } catch (error) {
-      if (error.response?.errors) {
-        throw new Error(`Failed to fetch commit details: ${error.response.errors[0].message}`);
-      }
-      throw new Error(`Failed to fetch commit details: ${error.message}`);
-    }
+    return this.mergeRequestClient.fetchCommitDetails(projectPath, sha);
   }
 
 }
