@@ -28,6 +28,62 @@ Stories are prepended to this file (most recent at top).
 
 ## Stories
 
+## REFACTOR Phase 1.3b-3: Extract IterationClient, IssueClient, and IncidentClient
+
+**Completed:** 2025-12-14
+**GitHub Issue:** #145
+**Pull Request:** TBD
+
+**Goal:** Complete the GitLabClient refactoring by extracting the final 3 clients. Reduce GitLabClient from "God Object" to orchestrator/facade.
+
+**What Was Delivered:**
+1. **IterationClient** (7 unit tests)
+   - Extracted `fetchIterations()` method
+   - Handles pagination and parent group fallback
+   - Uses GraphQLExecutor for consistent error handling
+
+2. **IssueClient** (17 unit tests)
+   - Extracted `fetchAdditionalNotesForIssue()` - paginated note fetching
+   - Extracted `extractInProgressTimestamp()` - status change extraction
+   - Extracted `parseStatusChanges()` - note parsing helper
+   - Extracted `isInProgressStatus()` - status pattern matching
+
+3. **IncidentClient** (15 unit tests)
+   - Extracted `fetchIncidents()` - complex incident fetching with timeline enrichment
+   - Extracted `fetchIncidentTimelineEvents()` - timeline event fetching
+   - Extracted `extractProjectPath()` - URL parsing helper
+   - Includes timeline-based filtering and change link extraction
+   - Dependencies: IncidentAnalyzer, ChangeLinkExtractor, MergeRequestClient
+
+**Results:**
+- **GitLabClient reduced from 1,134 lines to 548 lines** (-586 lines, 52% reduction!)
+- Added 39 new unit tests (total now 946 tests)
+- All tests passing
+- Backward compatibility maintained - public API unchanged
+
+**Architecture:**
+- ✅ Single Responsibility - Each client has focused domain
+- ✅ Dependency Inversion - All clients use GraphQLExecutor
+- ✅ IncidentClient receives MergeRequestClient as dependency (for change date fetching)
+- ✅ Clean separation of concerns with private helper methods
+
+**Phase 1.3 Summary:**
+| Phase | Client | Methods | Tests | Lines Moved |
+|-------|--------|---------|-------|-------------|
+| 1.3a | Core Helpers | 3 (RateLimitManager, ErrorTransformer, GraphQLExecutor) | 10 | ~150 |
+| 1.3b-1 | DeploymentClient | 1 | 5 | ~50 |
+| 1.3b-2 | PipelineClient + MergeRequestClient | 4 | 14 | ~100 |
+| 1.3b-3 | IterationClient + IssueClient + IncidentClient | 7 | 39 | ~400 |
+
+**Total:** GitLabClient reduced from ~1,230 lines to 548 lines (55% reduction)
+
+**Note:** The target was ~150 lines, but 548 is acceptable because:
+- `fetchIterationDetails()` remains complex orchestration logic (~250 lines)
+- Removing this would require deeper restructuring
+- The extracted clients follow SRP and are well-tested
+
+---
+
 ## REFACTOR Phase 1.3b-2: Extract PipelineClient and MergeRequestClient
 
 **Completed:** 2025-12-04

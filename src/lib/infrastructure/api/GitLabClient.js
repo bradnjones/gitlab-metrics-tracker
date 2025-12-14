@@ -1,11 +1,12 @@
 import { GraphQLClient } from 'graphql-request';
-import { IncidentAnalyzer } from '../../core/services/IncidentAnalyzer.js';
-import { ChangeLinkExtractor } from '../../core/services/ChangeLinkExtractor.js';
 import { RateLimitManager } from './core/RateLimitManager.js';
 import { GraphQLExecutor } from './core/GraphQLExecutor.js';
 import { DeploymentClient } from './clients/DeploymentClient.js';
 import { PipelineClient } from './clients/PipelineClient.js';
 import { MergeRequestClient } from './clients/MergeRequestClient.js';
+import { IterationClient } from './clients/IterationClient.js';
+import { IssueClient } from './clients/IssueClient.js';
+import { IncidentClient } from './clients/IncidentClient.js';
 
 /**
  * GitLab GraphQL API client for fetching sprint metrics data.
@@ -60,6 +61,24 @@ export class GitLabClient {
       this.projectPath,
       logger
     );
+    this.iterationClient = new IterationClient(
+      this.executor,
+      this.rateLimitManager,
+      this.projectPath,
+      logger
+    );
+    this.issueClient = new IssueClient(
+      this.executor,
+      this.rateLimitManager,
+      logger
+    );
+    this.incidentClient = new IncidentClient(
+      this.executor,
+      this.rateLimitManager,
+      this.projectPath,
+      this.mergeRequestClient,
+      logger
+    );
 
     // Initialize GraphQL client (legacy - will be replaced by executor)
     this.client = new GraphQLClient(`${this.url}/api/graphql`, {
@@ -108,102 +127,7 @@ export class GitLabClient {
    * @throws {Error} If the group is not found or request fails
    */
   async fetchIterations() {
-    let groupPath = this.projectPath;
-
-    const query = `
-      query getIterations($fullPath: ID!, $after: String) {
-        group(fullPath: $fullPath) {
-          id
-          name
-          iterations(first: 100, after: $after, includeAncestors: false) {
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-            nodes {
-              id
-              iid
-              title
-              description
-              state
-              startDate
-              dueDate
-              createdAt
-              updatedAt
-              webUrl
-              iterationCadence {
-                id
-                title
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    let allIterations = [];
-    let hasNextPage = true;
-    let after = null;
-
-    try {
-      while (hasNextPage) {
-        const data = await this.client.request(query, {
-          fullPath: groupPath,
-          after,
-        });
-
-        // Check if group exists
-        if (!data.group) {
-          // Try removing last segment (might be a project path)
-          const segments = this.projectPath.split('/');
-          if (segments.length > 1) {
-            groupPath = segments.slice(0, -1).join('/');
-            if (this.logger) {
-              this.logger.debug('Trying parent group', { groupPath });
-            }
-            continue; // Retry with parent group
-          }
-          throw new Error(`Group not found: ${groupPath}. Please check your GITLAB_PROJECT_PATH in .env`);
-        }
-
-        // Check if iterations are available
-        if (!data.group.iterations || !data.group.iterations.nodes) {
-          if (this.logger) {
-            this.logger.warn('Group does not have iterations configured', {
-              groupPath,
-              suggestion: 'Enable iterations in Group Settings > Iterations'
-            });
-          }
-          return [];
-        }
-
-        const { nodes, pageInfo } = data.group.iterations;
-        allIterations = allIterations.concat(nodes);
-        hasNextPage = pageInfo.hasNextPage;
-        after = pageInfo.endCursor;
-
-        // Small delay to avoid rate limiting
-        if (hasNextPage) {
-          await this.rateLimitManager.delay(100);
-        }
-      }
-
-      if (this.logger) {
-        this.logger.debug('Found iterations', {
-          count: allIterations.length,
-          groupPath
-        });
-      }
-
-      return allIterations;
-    } catch (error) {
-      // Check if it's a GraphQL error
-      if (error.response?.errors) {
-        const errorMessages = error.response.errors.map(e => e.message).join(', ');
-        throw new Error(`GitLab API Error: ${errorMessages}`);
-      }
-      throw error;
-    }
+    return this.iterationClient.fetchIterations();
   }
 
   /**
@@ -216,81 +140,7 @@ export class GitLabClient {
    * @throws {Error} If the request fails
    */
   async fetchAdditionalNotesForIssue(issueId, startCursor) {
-    const query = `
-      query getIssueNotes($issueId: IssueID!, $after: String) {
-        issue(id: $issueId) {
-          id
-          notes(first: 100, after: $after) {
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-            nodes {
-              id
-              body
-              system
-              systemNoteMetadata {
-                action
-              }
-              createdAt
-            }
-          }
-        }
-      }
-    `;
-
-    let allNotes = [];
-    let hasNextPage = true;
-    let after = startCursor;
-    let pagesFetched = 0;
-
-    try {
-      while (hasNextPage) {
-        const data = await this.client.request(query, {
-          issueId,
-          after,
-        });
-
-        if (!data.issue) {
-          throw new Error(`Issue not found: ${issueId}`);
-        }
-
-        const { nodes, pageInfo } = data.issue.notes;
-        allNotes = allNotes.concat(nodes);
-        pagesFetched++;
-        hasNextPage = pageInfo.hasNextPage;
-        after = pageInfo.endCursor;
-
-        // Log pagination progress
-        if (this.logger) {
-          this.logger.debug('Fetched notes page', {
-            page: pagesFetched,
-            notesCount: nodes.length,
-            hasNextPage
-          });
-        }
-
-        // Small delay to avoid rate limiting
-        if (hasNextPage) {
-          await this.rateLimitManager.delay(100);
-        }
-      }
-
-      if (this.logger) {
-        this.logger.debug('Completed fetching all notes', {
-          totalPages: pagesFetched,
-          totalNotes: allNotes.length,
-          status: 'all notes exhausted'
-        });
-      }
-      return allNotes;
-    } catch (error) {
-      // Check if it's a GraphQL error
-      if (error.response?.errors) {
-        throw new Error(`Failed to fetch additional notes: ${error.response.errors[0].message}`);
-      }
-      throw new Error(`Failed to fetch additional notes: ${error.message}`);
-    }
+    return this.issueClient.fetchAdditionalNotesForIssue(issueId, startCursor);
   }
 
   /**
@@ -601,338 +451,15 @@ export class GitLabClient {
 
   /**
    * Fetches incidents (issues with type=INCIDENT) within a date range.
-   * Returns raw incident data. Use IncidentAnalyzer for downtime calculations.
+   * Returns enriched incident data with timeline metadata.
    *
    * @param {string} startDate - Start date (ISO format or parseable string)
    * @param {string} endDate - End date (ISO format or parseable string)
-   * @returns {Promise<Array>} Array of raw incident objects
+   * @returns {Promise<Array>} Array of enriched incident objects
    * @throws {Error} If the group is not found or request fails
    */
   async fetchIncidents(startDate, endDate) {
-    const query = `
-      query getIncidents($fullPath: ID!, $after: String, $createdAfter: Time, $createdBefore: Time) {
-        group(fullPath: $fullPath) {
-          id
-          issues(
-            types: [INCIDENT]
-            includeSubgroups: true
-            createdAfter: $createdAfter
-            createdBefore: $createdBefore
-            first: 100
-            after: $after
-          ) {
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-            nodes {
-              id
-              iid
-              title
-              state
-              createdAt
-              closedAt
-              updatedAt
-              webUrl
-              labels {
-                nodes {
-                  title
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    let allIncidents = [];
-    let hasNextPage = true;
-    let after = null;
-
-    try {
-      // BUG FIX: Fetch broader date range (60 days before iteration start)
-      // to catch incidents created before iteration but active during it
-      const iterationStart = new Date(startDate);
-      const iterationEnd = new Date(endDate);
-      const fetchStart = new Date(iterationStart);
-      fetchStart.setDate(fetchStart.getDate() - 60); // 60 days before iteration
-
-      const createdAfter = fetchStart.toISOString();
-      const createdBefore = iterationEnd.toISOString();
-
-      if (this.logger) {
-        this.logger.debug('Querying incidents from group', {
-          fetchStartDate: fetchStart.toISOString().split('T')[0],
-          fetchEndDate: endDate,
-          iterationStartDate: startDate,
-          iterationEndDate: endDate,
-          lookbackDays: 60
-        });
-      }
-
-      while (hasNextPage) {
-        const data = await this.client.request(query, {
-          fullPath: this.projectPath,
-          after,
-          createdAfter,
-          createdBefore,
-        });
-
-        if (!data.group) {
-          throw new Error(`Group not found: ${this.projectPath}`);
-        }
-
-        if (!data.group.issues) {
-          break;
-        }
-
-        const { nodes, pageInfo } = data.group.issues;
-        allIncidents = allIncidents.concat(nodes);
-        hasNextPage = pageInfo.hasNextPage;
-        after = pageInfo.endCursor;
-
-        if (hasNextPage) {
-          await this.rateLimitManager.delay(100);
-        }
-      }
-
-      if (this.logger) {
-        this.logger.debug('Fetched incidents from broader date range', {
-          count: allIncidents.length
-        });
-      }
-
-      // TIMELINE-BASED FILTERING: Fetch timeline events for each incident to get actual start times
-      // This provides more accurate filtering for CFR and MTTR calculations
-      if (this.logger) {
-        this.logger.debug('Fetching timeline events for incidents');
-      }
-      const incidentsWithTimelines = await Promise.all(
-        allIncidents.map(async (incident) => {
-          const timelineEvents = await this.fetchIncidentTimelineEvents(incident);
-          return { incident, timelineEvents };
-        })
-      );
-
-      if (this.logger) {
-        this.logger.debug('Fetched timeline events for incidents', {
-          count: incidentsWithTimelines.length
-        });
-      }
-
-      // Filter to only include incidents with activity during iteration
-      // Uses actual incident start time (from timeline events) when available
-      const relevantIncidents = incidentsWithTimelines.filter(({ incident, timelineEvents }) => {
-        // Get actual start time using IncidentAnalyzer (cascading fallback: timeline → createdAt)
-        const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
-        const startTimeDate = new Date(actualStartTime);
-
-        // Check if we have a timeline start time event (more authoritative than createdAt)
-        const hasTimelineStartTime = timelineEvents && timelineEvents.length > 0 &&
-          IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time') !== null;
-
-        // Check various activity dates
-        const startedDuringIteration = startTimeDate >= iterationStart && startTimeDate <= iterationEnd;
-
-        // If we have a timeline start time event, ONLY use that for filtering
-        // This is the most authoritative source and should take precedence
-        if (hasTimelineStartTime) {
-          return startedDuringIteration;
-        }
-
-        // Fallback: If no timeline events, use any activity (closed/updated) for backward compatibility
-        const updated = incident.updatedAt ? new Date(incident.updatedAt) : null;
-        const closed = incident.closedAt ? new Date(incident.closedAt) : null;
-
-        const closedDuringIteration = closed && closed >= iterationStart && closed <= iterationEnd;
-        const updatedDuringIteration = updated && updated >= iterationStart && updated <= iterationEnd;
-
-        // Include incident if it has ANY activity during iteration (backward compatibility)
-        return startedDuringIteration || closedDuringIteration || updatedDuringIteration;
-      });
-
-      if (this.logger) {
-        this.logger.debug('Filtered to incidents with activity during iteration', {
-          count: relevantIncidents.length
-        });
-      }
-
-      // Return raw data WITH timeline metadata for Data Explorer visibility
-      // This enrichment helps users understand which fields are being used in calculations
-      const relevantIncidentsData = relevantIncidents.map(({ incident, timelineEvents }) => {
-        // DEBUG: Log timeline events for each incident
-        if (this.logger) {
-          this.logger.debug('Processing incident timeline events', {
-            incidentIid: incident.iid,
-            incidentTitle: incident.title,
-            timelineEventsCount: timelineEvents?.length || 0
-          });
-
-          if (timelineEvents && timelineEvents.length > 0) {
-            timelineEvents.forEach((event, idx) => {
-              const tags = event.timelineEventTags?.nodes?.map(t => t.name).join(', ') || 'no tags';
-              this.logger.debug('Timeline event', {
-                incidentIid: incident.iid,
-                eventIndex: idx + 1,
-                occurredAt: event.occurredAt,
-                tags
-              });
-            });
-          }
-        }
-
-        // Determine which timeline events are being used
-        const startEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time');
-        const endEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'end time');
-        const stopEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'stop time'); // GitLab also uses "stop time"
-        const mitigatedEvent = IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'impact mitigated');
-
-        if (this.logger) {
-          this.logger.debug('Timeline event analysis', {
-            incidentIid: incident.iid,
-            foundStartEvent: !!startEvent,
-            foundEndEvent: !!endEvent,
-            foundStopEvent: !!stopEvent,
-            foundMitigatedEvent: !!mitigatedEvent
-          });
-        }
-
-        // Get actual times used in calculations
-        const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
-
-        // Determine end time using same cascading logic as calculateDowntime
-        const actualEndTime = endEvent?.occurredAt || stopEvent?.occurredAt || mitigatedEvent?.occurredAt || incident.closedAt;
-
-        // Determine sources for Data Explorer display
-        const startTimeSource = startEvent ? 'timeline' : 'created';
-        let endTimeSource = null;
-        if (endEvent) {
-          endTimeSource = 'timeline_end';
-        } else if (stopEvent) {
-          endTimeSource = 'timeline_stop';
-        } else if (mitigatedEvent) {
-          endTimeSource = 'timeline_mitigated';
-        } else if (incident.closedAt) {
-          endTimeSource = 'closed';
-        }
-
-        if (this.logger) {
-          this.logger.debug('Incident time sources', {
-            incidentIid: incident.iid,
-            startTimeSource,
-            endTimeSource,
-            actualStartTime,
-            actualEndTime
-          });
-        }
-
-        // Extract change link (MR or commit) from timeline events for CFR calculation
-        const changeLink = ChangeLinkExtractor.extractFromTimelineEvents(timelineEvents);
-        if (changeLink && this.logger) {
-          this.logger.debug('Found change link for incident', {
-            incidentIid: incident.iid,
-            changeLinkType: changeLink.type,
-            changeLinkUrl: changeLink.url
-          });
-        }
-
-        return {
-          id: incident.id,
-          iid: incident.iid,
-          title: incident.title,
-          state: incident.state,
-          createdAt: incident.createdAt,
-          closedAt: incident.closedAt,
-          updatedAt: incident.updatedAt,
-          labels: incident.labels,
-          webUrl: incident.webUrl,
-          // Timeline metadata for Data Explorer
-          actualStartTime,
-          actualEndTime,
-          startTimeSource, // 'timeline' or 'created'
-          endTimeSource, // 'timeline_end', 'timeline_mitigated', 'closed', or null
-          hasTimelineEvents: timelineEvents && timelineEvents.length > 0,
-          // Timeline events (full data for CFR calculation)
-          timelineEvents: timelineEvents || [],
-          // Extracted change link (MR or commit) for CFR correlation
-          changeLink, // { type, url, project, id/sha } or null
-          // Change date placeholder (will be populated after mapping)
-          changeDate: null,
-        };
-      });
-
-      // Fetch change dates for incidents with change links
-      // This is done AFTER mapping to batch the API calls
-      if (this.logger) {
-        this.logger.debug('Fetching change dates for incidents with change links');
-      }
-      const incidentsWithChangeDates = await Promise.all(
-        relevantIncidentsData.map(async (incidentData) => {
-          if (!incidentData.changeLink) {
-            return incidentData;
-          }
-
-          try {
-            let changeDate = null;
-
-            if (incidentData.changeLink.type === 'merge_request') {
-              // Fetch MR details to get merge date
-              const mrDetails = await this.fetchMergeRequestDetails(
-                incidentData.changeLink.project,
-                incidentData.changeLink.id
-              );
-              changeDate = mrDetails?.mergedAt || null;
-              if (this.logger) {
-                this.logger.debug('Fetched MR merge date for incident', {
-                  incidentIid: incidentData.iid,
-                  mrId: incidentData.changeLink.id,
-                  mergedAt: changeDate
-                });
-              }
-            } else if (incidentData.changeLink.type === 'commit') {
-              // Fetch commit details to get commit date
-              const commitDetails = await this.fetchCommitDetails(
-                incidentData.changeLink.project,
-                incidentData.changeLink.sha
-              );
-              changeDate = commitDetails?.committedDate || null;
-              if (this.logger) {
-                this.logger.debug('Fetched commit date for incident', {
-                  incidentIid: incidentData.iid,
-                  commitSha: incidentData.changeLink.sha.substring(0, 8),
-                  committedAt: changeDate
-                });
-              }
-            }
-
-            return {
-              ...incidentData,
-              changeDate,
-            };
-          } catch (error) {
-            if (this.logger) {
-              this.logger.warn('Could not fetch change date for incident', {
-                incidentIid: incidentData.iid,
-                error: error.message
-              });
-            }
-            return incidentData;
-          }
-        })
-      );
-
-      if (this.logger) {
-        this.logger.debug('Fetched change dates for incidents with change links');
-      }
-
-      return incidentsWithChangeDates;
-    } catch (error) {
-      // Check if it's a GraphQL error
-      if (error.response?.errors) {
-        throw new Error(`Failed to fetch incidents: ${error.response.errors[0].message}`);
-      }
-      throw new Error(`Failed to fetch incidents: ${error.message}`);
-    }
+    return this.incidentClient.fetchIncidents(startDate, endDate);
   }
 
   /**
@@ -943,11 +470,7 @@ export class GitLabClient {
    * @returns {string|null} ISO timestamp when issue first moved to "In Progress", or null
    */
   extractInProgressTimestamp(notes) {
-    const statusChanges = this.parseStatusChanges(notes);
-    const inProgressChange = statusChanges.find((change) =>
-      this.isInProgressStatus(change.status)
-    );
-    return inProgressChange?.timestamp || null;
+    return this.issueClient.extractInProgressTimestamp(notes);
   }
 
   /**
@@ -958,24 +481,7 @@ export class GitLabClient {
    * @returns {Array<{status: string, timestamp: string}>} Status transitions in chronological order
    */
   parseStatusChanges(notes) {
-    return notes
-      .filter(
-        (note) =>
-          note.system && note.systemNoteMetadata?.action === 'work_item_status'
-      )
-      .map((note) => {
-        // Extract status from body text: "set status to **In progress**"
-        const match = note.body.match(/set status to \*\*(.+?)\*\*/);
-        const status = match ? match[1] : null;
-
-        return {
-          status,
-          timestamp: note.createdAt,
-          body: note.body,
-        };
-      })
-      .filter((change) => change.status !== null)
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    return this.issueClient.parseStatusChanges(notes);
   }
 
   /**
@@ -986,13 +492,7 @@ export class GitLabClient {
    * @returns {boolean} True if status indicates in-progress state
    */
   isInProgressStatus(status) {
-    const patterns = [
-      /in progress/i,
-      /in-progress/i,
-      /wip/i,
-      /working/i,
-    ];
-    return patterns.some((pattern) => pattern.test(status));
+    return this.issueClient.isInProgressStatus(status);
   }
 
   /**
@@ -1003,26 +503,7 @@ export class GitLabClient {
    * @returns {string|null} Project path or null if extraction fails
    */
   extractProjectPath(webUrl) {
-    try {
-      const url = new URL(webUrl);
-      const pathParts = url.pathname.split('/-/')[0]; // Get everything before /-/
-      const projectPath = pathParts.substring(1); // Remove leading /
-
-      // Validate that we got a meaningful path
-      if (!projectPath || projectPath.length === 0) {
-        return null;
-      }
-
-      return projectPath;
-    } catch (error) {
-      if (this.logger) {
-        this.logger.error('Error extracting project path from URL', {
-          webUrl,
-          error: error.message
-        });
-      }
-      return null;
-    }
+    return this.incidentClient.extractProjectPath(webUrl);
   }
 
   /**
@@ -1033,76 +514,9 @@ export class GitLabClient {
    * @param {string} incident.id - GitLab incident ID (e.g., 'gid://gitlab/Issue/123')
    * @param {string} incident.webUrl - Incident web URL (used to extract project path)
    * @returns {Promise<Array>} Array of timeline event objects
-   * @throws {Error} If the request fails
    */
   async fetchIncidentTimelineEvents(incident) {
-    // Extract project path from incident's webUrl
-    const projectPath = this.extractProjectPath(incident.webUrl);
-
-    if (!projectPath) {
-      if (this.logger) {
-        this.logger.error('Could not extract project path from incident webUrl', {
-          incidentWebUrl: incident.webUrl
-        });
-      }
-      return [];
-    }
-
-    const query = `
-      query getIncidentTimelineEvents($fullPath: ID!, $incidentId: IssueID!) {
-        project(fullPath: $fullPath) {
-          incidentManagementTimelineEvents(incidentId: $incidentId) {
-            nodes {
-              id
-              occurredAt
-              createdAt
-              note
-              noteHtml
-              editable
-              action
-              timelineEventTags {
-                nodes {
-                  name
-                }
-              }
-              author {
-                username
-                name
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const data = await this.client.request(query, {
-        fullPath: projectPath,
-        incidentId: incident.id,
-      });
-
-      if (!data.project || !data.project.incidentManagementTimelineEvents) {
-        return [];
-      }
-
-      return data.project.incidentManagementTimelineEvents.nodes;
-    } catch (error) {
-      if (this.logger) {
-        this.logger.error('Error fetching timeline events', {
-          incidentId: incident.id,
-          error: error.message
-        });
-        if (error.response?.errors) {
-          error.response.errors.forEach(err => {
-            this.logger.error('GraphQL error detail', {
-              message: err.message
-            });
-          });
-        }
-      }
-      // Return empty array instead of throwing - timeline events might not be available
-      return [];
-    }
+    return this.incidentClient.fetchIncidentTimelineEvents(incident);
   }
 
   /**
