@@ -296,7 +296,7 @@ describe('GitLabClient', () => {
 
       mockRequest.mockRejectedValue(mockError);
 
-      await expect(client.fetchIterations()).rejects.toThrow('GitLab API Error: Unauthorized');
+      await expect(client.fetchIterations()).rejects.toThrow('GitLab API Error (fetching iterations): Unauthorized');
     });
   });
 
@@ -555,7 +555,7 @@ describe('GitLabClient', () => {
       mockRequest.mockRejectedValue(mockError);
 
       await expect(client.fetchAdditionalNotesForIssue('gid://gitlab/Issue/123', 'cursor1')).rejects.toThrow(
-        'Failed to fetch additional notes: Insufficient permissions'
+        'Failed to fetch additional notes: GitLab API Error (fetching issue notes): Insufficient permissions'
       );
     });
 
@@ -564,7 +564,7 @@ describe('GitLabClient', () => {
       mockRequest.mockRejectedValue(networkError);
 
       await expect(client.fetchAdditionalNotesForIssue('gid://gitlab/Issue/123', 'cursor1')).rejects.toThrow(
-        'Failed to fetch additional notes: Connection timeout'
+        'Failed to fetch additional notes: Failed fetching issue notes: Connection timeout'
       );
     });
 
@@ -2069,7 +2069,7 @@ describe('GitLabClient', () => {
       mockRequest.mockRejectedValue(mockError);
 
       await expect(client.fetchIncidents('2025-01-01', '2025-01-10')).rejects.toThrow(
-        'Failed to fetch incidents: Insufficient permissions to query incidents'
+        'Failed to fetch incidents: GitLab API Error (fetching incidents): Insufficient permissions to query incidents'
       );
     });
 
@@ -2078,7 +2078,7 @@ describe('GitLabClient', () => {
       mockRequest.mockRejectedValue(networkError);
 
       await expect(client.fetchIncidents('2025-01-01', '2025-01-10')).rejects.toThrow(
-        'Failed to fetch incidents: Connection timeout'
+        'Failed to fetch incidents: Failed fetching incidents: Connection timeout'
       );
     });
 
