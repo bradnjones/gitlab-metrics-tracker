@@ -14,8 +14,10 @@ import {
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
 import { useAnnotations } from '../hooks/useAnnotations.js';
+import { useChartFilters } from '../hooks/useChartFilters.js';
 import ChartFilterDropdown from './ChartFilterDropdown';
 import ChartEnlargementModal from './ChartEnlargementModal';
+import { FilterContainer } from './chart-shared.jsx';
 
 
 // Register Chart.js components
@@ -41,12 +43,6 @@ const Container = styled.div`
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
   }
-`;
-
-const FilterContainer = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
 `;
 
 const LoadingMessage = styled.div`
@@ -101,36 +97,8 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) =
   const [controlLimits, setControlLimits] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [excludedIterationIds, setExcludedIterationIds] = useState([]);
+  const [excludedIterationIds, setExcludedIterationIds] = useChartFilters(FILTER_STORAGE_KEY);
   const [isEnlarged, setIsEnlarged] = useState(false);
-
-  // Load excluded iterations from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(FILTER_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setExcludedIterationIds(parsed);
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load chart filters from localStorage:', error);
-    }
-  }, []);
-
-  // Save excluded iterations to localStorage whenever they change
-  useEffect(() => {
-    try {
-      if (excludedIterationIds.length > 0) {
-        localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(excludedIterationIds));
-      } else {
-        localStorage.removeItem(FILTER_STORAGE_KEY);
-      }
-    } catch (error) {
-      console.warn('Failed to save chart filters to localStorage:', error);
-    }
-  }, [excludedIterationIds]);
 
   // Clean up excluded iterations that are no longer in selectedIterations
   useEffect(() => {
