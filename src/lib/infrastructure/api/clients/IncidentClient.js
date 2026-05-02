@@ -16,8 +16,8 @@ export class IncidentClient {
   /**
    * Creates a new IncidentClient instance.
    *
-   * @param {import('../core/GraphQLExecutor.js').GraphQLExecutor} executor - GraphQL executor
-   * @param {import('../core/RateLimitManager.js').RateLimitManager} rateLimitManager - Rate limit manager
+   * @param {import('../http/GraphQLExecutor.js').GraphQLExecutor} executor - GraphQL executor
+   * @param {import('../http/RateLimitManager.js').RateLimitManager} rateLimitManager - Rate limit manager
    * @param {string} projectPath - GitLab project path (e.g., 'group/project')
    * @param {import('./MergeRequestClient.js').MergeRequestClient} mergeRequestClient - MR client for change dates
    * @param {import('../../../../core/interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional)

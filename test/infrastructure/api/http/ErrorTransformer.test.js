@@ -1,4 +1,4 @@
-import { ErrorTransformer } from '../../../../src/lib/infrastructure/api/core/ErrorTransformer.js';
+import { ErrorTransformer } from '../../../../src/lib/infrastructure/api/http/ErrorTransformer.js';
 
 describe('ErrorTransformer', () => {
   describe('transform', () => {

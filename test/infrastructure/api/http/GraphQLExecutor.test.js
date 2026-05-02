@@ -11,7 +11,7 @@ jest.unstable_mockModule('graphql-request', () => ({
 }));
 
 // Import after mocking
-const { GraphQLExecutor } = await import('../../../../src/lib/infrastructure/api/core/GraphQLExecutor.js');
+const { GraphQLExecutor } = await import('../../../../src/lib/infrastructure/api/http/GraphQLExecutor.js');
 
 describe('GraphQLExecutor', () => {
   let executor;

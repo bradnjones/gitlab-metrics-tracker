@@ -13,8 +13,8 @@ export class IssueClient {
   /**
    * Creates a new IssueClient instance.
    *
-   * @param {import('../core/GraphQLExecutor.js').GraphQLExecutor} executor - GraphQL executor
-   * @param {import('../core/RateLimitManager.js').RateLimitManager} rateLimitManager - Rate limit manager
+   * @param {import('../http/GraphQLExecutor.js').GraphQLExecutor} executor - GraphQL executor
+   * @param {import('../http/RateLimitManager.js').RateLimitManager} rateLimitManager - Rate limit manager
    * @param {import('../../../../core/interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional)
    */
   constructor(executor, rateLimitManager, logger = null) {

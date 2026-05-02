@@ -1,4 +1,4 @@
-import { RateLimitManager } from '../../../../src/lib/infrastructure/api/core/RateLimitManager.js';
+import { RateLimitManager } from '../../../../src/lib/infrastructure/api/http/RateLimitManager.js';
 
 describe('RateLimitManager', () => {
   describe('delay', () => {

@@ -13,8 +13,8 @@ export class MergeRequestClient {
   /**
    * Creates a MergeRequestClient instance.
    *
-   * @param {import('../core/GraphQLExecutor.js').GraphQLExecutor} executor - GraphQL query executor
-   * @param {import('../core/RateLimitManager.js').RateLimitManager} rateLimitManager - Rate limit manager
+   * @param {import('../http/GraphQLExecutor.js').GraphQLExecutor} executor - GraphQL query executor
+   * @param {import('../http/RateLimitManager.js').RateLimitManager} rateLimitManager - Rate limit manager
    * @param {string} projectPath - GitLab project path
    * @param {import('../../../core/interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional)
    */

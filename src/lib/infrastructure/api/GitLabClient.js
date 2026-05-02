@@ -1,6 +1,6 @@
 import { GraphQLClient } from 'graphql-request';
-import { RateLimitManager } from './core/RateLimitManager.js';
-import { GraphQLExecutor } from './core/GraphQLExecutor.js';
+import { RateLimitManager } from './http/RateLimitManager.js';
+import { GraphQLExecutor } from './http/GraphQLExecutor.js';
 import { ProjectClient } from './clients/ProjectClient.js';
 import { PipelineClient } from './clients/PipelineClient.js';
 import { MergeRequestClient } from './clients/MergeRequestClient.js';
