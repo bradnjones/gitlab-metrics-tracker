@@ -304,32 +304,20 @@ export class IncidentClient {
    * @private
    */
   _filterIncidentsByDateRange(incidentsWithTimelines, iterationStart, iterationEnd) {
-    return incidentsWithTimelines.filter(({ incident, timelineEvents }) => {
-      // Get actual start time using IncidentAnalyzer (cascading fallback: timeline → createdAt)
-      const actualStartTime = IncidentAnalyzer.getActualStartTime(incident, timelineEvents);
-      const startTimeDate = new Date(actualStartTime);
-
-      // Check if we have a timeline start time event (more authoritative than createdAt)
-      const hasTimelineStartTime = timelineEvents && timelineEvents.length > 0 &&
-        IncidentAnalyzer.findTimelineEventByTag(timelineEvents, 'start time') !== null;
-
-      // Check various activity dates
-      const startedDuringIteration = startTimeDate >= iterationStart && startTimeDate <= iterationEnd;
-
-      // If we have a timeline start time event, ONLY use that for filtering
-      if (hasTimelineStartTime) {
-        return startedDuringIteration;
-      }
-
-      // Fallback: If no timeline events, use any activity (closed/updated) for backward compatibility
-      const updated = incident.updatedAt ? new Date(incident.updatedAt) : null;
+    return incidentsWithTimelines.filter(({ incident }) => {
+      // Use issue lifecycle dates for sprint attribution.
+      // Timeline start/end times are used only for MTTR duration calculations, not filtering —
+      // teams often set timeline "Start time" retroactively to when the outage actually began,
+      // which predates the sprint the issue was filed in, causing false exclusions.
+      const created = incident.createdAt ? new Date(incident.createdAt) : null;
       const closed = incident.closedAt ? new Date(incident.closedAt) : null;
+      const updated = incident.updatedAt ? new Date(incident.updatedAt) : null;
 
+      const createdDuringIteration = created && created >= iterationStart && created <= iterationEnd;
       const closedDuringIteration = closed && closed >= iterationStart && closed <= iterationEnd;
       const updatedDuringIteration = updated && updated >= iterationStart && updated <= iterationEnd;
 
-      // Include incident if it has ANY activity during iteration (backward compatibility)
-      return startedDuringIteration || closedDuringIteration || updatedDuringIteration;
+      return createdDuringIteration || closedDuringIteration || updatedDuringIteration;
     });
   }
 

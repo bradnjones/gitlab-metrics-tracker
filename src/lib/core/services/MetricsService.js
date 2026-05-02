@@ -115,103 +115,21 @@ export class MetricsService {
     // Calculate deployment count (merged MRs to main/master)
     const deploymentCount = this._calculateDeploymentCount(iterationData.mergeRequests);
 
-    // Filter incidents to only those with change links (MR or commit)
-    // AND where the change was deployed during this iteration
-    // This ensures ALL incident-related metrics (CFR, MTTR, incident count) are consistent
-    const iterationStartDate = new Date(iterationData.iteration.startDate);
-    const iterationEndDate = new Date(iterationData.iteration.dueDate);
+    const iterationIncidents = iterationData.incidents || [];
 
     if (this.logger) {
-      this.logger.debug('Incident filtering started', {
+      this.logger.debug('Incidents for iteration', {
         iterationTitle: iterationData.iteration.title,
-        startDate: iterationData.iteration.startDate,
-        dueDate: iterationData.iteration.dueDate,
-        totalIncidents: (iterationData.incidents || []).length
+        count: iterationIncidents.length
       });
     }
 
-    // Log all raw incidents
-    if (this.logger) {
-      (iterationData.incidents || []).forEach(incident => {
-        this.logger.debug('Raw incident data', {
-          iid: incident.iid,
-          hasChangeLink: !!incident.changeLink,
-          changeLink: incident.changeLink ? {
-            type: incident.changeLink.type,
-            url: incident.changeLink.url
-          } : null,
-          hasChangeDate: !!incident.changeDate,
-          changeDate: incident.changeDate || null,
-          createdAt: incident.createdAt
-        });
-      });
-    }
+    // MTTR: mean resolution time across all closed incidents in the iteration window
+    const mttr = IncidentAnalyzer.calculateMTTR(iterationIncidents);
 
-    const linkedIncidents = (iterationData.incidents || []).filter(incident => {
-      // Must have a change link
-      if (!incident.changeLink) {
-        if (this.logger) {
-          this.logger.debug('Excluding incident: no changeLink', { iid: incident.iid });
-        }
-        return false;
-      }
-
-      // Must have a change date
-      if (!incident.changeDate) {
-        if (this.logger) {
-          this.logger.debug('Excluding incident: no changeDate', {
-            iid: incident.iid,
-            hasChangeLink: true
-          });
-        }
-        return false;
-      }
-
-      // Change must have been deployed during this iteration
-      const changeDate = new Date(incident.changeDate);
-      const isWithinIteration = changeDate >= iterationStartDate && changeDate <= iterationEndDate;
-
-      if (this.logger) {
-        if (!isWithinIteration) {
-          this.logger.debug('Excluding incident: change date outside iteration', {
-            iid: incident.iid,
-            changeDate: incident.changeDate,
-            iterationStart: iterationData.iteration.startDate,
-            iterationEnd: iterationData.iteration.dueDate
-          });
-        } else {
-          this.logger.debug('Including incident: change date within iteration', {
-            iid: incident.iid,
-            changeDate: incident.changeDate
-          });
-        }
-      }
-
-      return isWithinIteration;
-    });
-
-    if (this.logger) {
-      this.logger.debug('Incident filtering completed', {
-        linkedIncidents: linkedIncidents.length,
-        totalIncidents: (iterationData.incidents || []).length
-      });
-      linkedIncidents.forEach(inc => {
-        this.logger.debug('Linked incident', {
-          iid: inc.iid,
-          changeLinkType: inc.changeLink.type,
-          changeLinkUrl: inc.changeLink.url,
-          changeDate: inc.changeDate
-        });
-      });
-    }
-
-    // Calculate MTTR from filtered incidents (only those caused by this iteration's deployments)
-    const mttr = IncidentAnalyzer.calculateMTTR(linkedIncidents);
-
-    // Calculate change failure rate (DORA metric: % of deployments that cause incidents)
-    // Uses same filtered incidents as MTTR for consistency
+    // CFR: incidents / deployments over the same period (standard DORA definition)
     const changeFailureRate = ChangeFailureRateCalculator.calculate(
-      linkedIncidents,
+      iterationIncidents,
       deploymentCount
     );
 
@@ -235,12 +153,11 @@ export class MetricsService {
       issueCount: iterationData.issues.length,
       mrCount: (iterationData.mergeRequests || []).filter(mr => mr.state === 'merged').length,
       deploymentCount,
-      incidentCount: linkedIncidents.length, // Only incidents from this iteration's deployments
-      linkedIncidentCount: linkedIncidents.length, // Same as incidentCount for consistency
+      incidentCount: iterationIncidents.length,
       rawData: {
         issues: iterationData.issues,
         mergeRequests: iterationData.mergeRequests || [],
-        incidents: linkedIncidents, // Only incidents from this iteration's deployments
+        incidents: iterationIncidents,
         pipelines: iterationData.pipelines || [],
         iteration: iterationData.iteration
       }

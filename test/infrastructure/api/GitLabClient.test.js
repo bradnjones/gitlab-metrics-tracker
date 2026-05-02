@@ -2053,60 +2053,7 @@ describe('GitLabClient', () => {
         expect(result[0].title).toBe('Incident detected late');
       });
 
-      it('should include incident with "Start time" during iteration even if createdAt is after', async () => {
-        // Edge case: incident issue created after iteration but actual start time during iteration
-        const mockIncidentData = {
-          group: {
-            id: 'gid://gitlab/Group/1',
-            issues: {
-              nodes: [
-                {
-                  id: 'gid://gitlab/Issue/2',
-                  iid: '2',
-                  title: 'Incident documented late',
-                  state: 'closed',
-                  createdAt: '2025-01-15T00:00:00Z', // Created AFTER iteration (Jan 15)
-                  closedAt: '2025-01-16T00:00:00Z',
-                  updatedAt: '2025-01-16T00:00:00Z',
-                  webUrl: 'https://gitlab.com/group/project/-/issues/2',
-                  labels: { nodes: [] }
-                }
-              ],
-              pageInfo: { hasNextPage: false, endCursor: null }
-            }
-          }
-        };
-
-        // Mock timeline events showing actual start time during iteration
-        const mockTimelineEvents = {
-          project: {
-            incidentManagementTimelineEvents: {
-              nodes: [
-                {
-                  id: 'gid://gitlab/IncidentManagement::TimelineEvent/2',
-                  occurredAt: '2025-01-08T14:30:00Z', // Actual start DURING iteration (Jan 8)
-                  timelineEventTags: {
-                    nodes: [{ name: 'Start time' }]
-                  }
-                }
-              ]
-            }
-          }
-        };
-
-        mockRequest
-          .mockResolvedValueOnce(mockIncidentData)
-          .mockResolvedValueOnce(mockTimelineEvents);
-
-        // Iteration: 2025-01-01 to 2025-01-10
-        const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
-
-        // Should be INCLUDED because actual start time (Jan 8) is during iteration
-        expect(result).toHaveLength(1);
-        expect(result[0].title).toBe('Incident documented late');
-      });
-
-      it('should exclude incident with "Start time" before iteration', async () => {
+      it('should include incident closed during iteration even if timeline start was before iteration', async () => {
         const mockIncidentData = {
           group: {
             id: 'gid://gitlab/Group/1',
@@ -2153,12 +2100,12 @@ describe('GitLabClient', () => {
         // Iteration: 2025-01-01 to 2025-01-10
         const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
 
-        // Should be EXCLUDED - actual start (Dec 22) is before iteration
-        // Even though closedAt is during iteration, we prioritize start time
-        expect(result).toHaveLength(0);
+        // closedAt is during iteration → included regardless of timeline start time
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Old incident');
       });
 
-      it('should exclude incident with "Start time" after iteration', async () => {
+      it('should include incident created during iteration even if timeline start is after iteration', async () => {
         const mockIncidentData = {
           group: {
             id: 'gid://gitlab/Group/1',
@@ -2205,8 +2152,9 @@ describe('GitLabClient', () => {
         // Iteration: 2025-01-01 to 2025-01-10
         const result = await client.fetchIncidents('2025-01-01', '2025-01-10');
 
-        // Should be EXCLUDED - actual start (Jan 12) is after iteration
-        expect(result).toHaveLength(0);
+        // createdAt (Jan 5) and updatedAt (Jan 6) are during iteration → included
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Future incident');
       });
 
       it('should include incident without timeline events using createdAt (backward compatibility)', async () => {
