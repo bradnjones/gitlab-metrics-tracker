@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { ProjectClient } from '../../../../src/lib/infrastructure/api/clients/ProjectClient.js';
 
 describe('ProjectClient', () => {
@@ -134,6 +134,57 @@ describe('ProjectClient', () => {
       const result = await clientWithoutLogger.fetchGroupProjects();
 
       expect(result).toHaveLength(1);
+    });
+
+    it('should return empty array if group not found without logger', async () => {
+      const clientWithoutLogger = new ProjectClient(mockExecutor, mockRateLimitManager, 'group/project');
+      mockExecutor.execute = async () => ({ group: null });
+
+      const result = await clientWithoutLogger.fetchGroupProjects();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array on error without logger', async () => {
+      const clientWithoutLogger = new ProjectClient(mockExecutor, mockRateLimitManager, 'group/project');
+      mockExecutor.execute = async () => { throw new Error('Network error'); };
+
+      const result = await clientWithoutLogger.fetchGroupProjects();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('fetchProject', () => {
+    it('should fetch project successfully and return project data', async () => {
+      mockExecutor.execute = jest.fn().mockResolvedValue({
+        project: { id: '1', name: 'Test' }
+      });
+
+      const result = await client.fetchProject();
+
+      expect(result).toEqual({ id: '1', name: 'Test' });
+    });
+
+    it('should call execute with query containing getProject and correct variables', async () => {
+      mockExecutor.execute = jest.fn().mockResolvedValue({
+        project: { id: '1', name: 'Test' }
+      });
+
+      await client.fetchProject();
+
+      expect(mockExecutor.execute).toHaveBeenCalledWith(
+        expect.stringContaining('getProject'),
+        { fullPath: 'group/project' }
+      );
+    });
+
+    it('should throw with context message when executor throws', async () => {
+      mockExecutor.execute = jest.fn().mockRejectedValue(new Error('Network error'));
+
+      await expect(client.fetchProject()).rejects.toThrow(
+        'Failed to fetch project: Network error'
+      );
     });
   });
 });

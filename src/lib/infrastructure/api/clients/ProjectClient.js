@@ -24,6 +24,32 @@ export class ProjectClient {
   }
 
   /**
+   * Fetches project metadata from GitLab.
+   *
+   * @returns {Promise<Object>} Project metadata including id, name, nameWithNamespace, description, webUrl
+   * @throws {Error} If the request fails
+   */
+  async fetchProject() {
+    const query = `
+      query getProject($fullPath: ID!) {
+        project(fullPath: $fullPath) {
+          id
+          name
+          nameWithNamespace
+          description
+          webUrl
+        }
+      }
+    `;
+    try {
+      const data = await this.executor.execute(query, { fullPath: this.projectPath });
+      return data.project;
+    } catch (error) {
+      throw new Error(`Failed to fetch project: ${error.message}`);
+    }
+  }
+
+  /**
    * Fetches all projects in the group (including subgroups).
    * Used for deployment frequency calculations.
    *
