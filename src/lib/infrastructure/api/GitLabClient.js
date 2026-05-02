@@ -80,7 +80,7 @@ export class GitLabClient {
       logger
     );
 
-    // Initialize GraphQL client (legacy - will be replaced by executor)
+    // TODO: remove this.client once fetchIterationDetails is migrated
     this.client = new GraphQLClient(`${this.url}/api/graphql`, {
       headers: {
         Authorization: `Bearer ${this.token}`
@@ -95,28 +95,7 @@ export class GitLabClient {
    * @throws {Error} If the request fails
    */
   async fetchProject() {
-    const query = `
-      query getProject($fullPath: ID!) {
-        project(fullPath: $fullPath) {
-          id
-          name
-          nameWithNamespace
-          description
-          webUrl
-        }
-      }
-    `;
-
-    try {
-      const data = await this.client.request(query, { fullPath: this.projectPath });
-      return data.project;
-    } catch (error) {
-      // Check for GraphQL errors
-      if (error.response?.errors) {
-        throw new Error(error.response.errors[0].message);
-      }
-      throw error;
-    }
+    return this.projectClient.fetchProject();
   }
 
   /**
@@ -246,7 +225,7 @@ export class GitLabClient {
       const enrichedIssues = await Promise.all(
         allIssues.map(async (issue) => {
           const initialNotes = issue.notes?.nodes || [];
-          let inProgressAt = this.extractInProgressTimestamp(initialNotes);
+          let inProgressAt = this.issueClient.extractInProgressTimestamp(initialNotes);
 
           // Only fetch additional notes for CLOSED stories missing InProgress
           // Open stories don't need InProgress date (not used in cycle time calculations)
@@ -460,50 +439,6 @@ export class GitLabClient {
    */
   async fetchIncidents(startDate, endDate) {
     return this.incidentClient.fetchIncidents(startDate, endDate);
-  }
-
-  /**
-   * Extracts the first "In Progress" timestamp from issue notes.
-   * Parses system notes with work_item_status action.
-   *
-   * @param {Array<Object>} notes - Array of note objects from GitLab
-   * @returns {string|null} ISO timestamp when issue first moved to "In Progress", or null
-   */
-  extractInProgressTimestamp(notes) {
-    return this.issueClient.extractInProgressTimestamp(notes);
-  }
-
-  /**
-   * Parses status change events from issue notes.
-   * Filters for system notes with work_item_status action.
-   *
-   * @param {Array<Object>} notes - Array of note objects from GitLab
-   * @returns {Array<{status: string, timestamp: string}>} Status transitions in chronological order
-   */
-  parseStatusChanges(notes) {
-    return this.issueClient.parseStatusChanges(notes);
-  }
-
-  /**
-   * Checks if a status string indicates "In Progress" state.
-   * Supports variations like "In progress", "in progress", "In-Progress", "WIP", etc.
-   *
-   * @param {string} status - Status string from note
-   * @returns {boolean} True if status indicates in-progress state
-   */
-  isInProgressStatus(status) {
-    return this.issueClient.isInProgressStatus(status);
-  }
-
-  /**
-   * Extracts project path from incident webUrl.
-   * Example: https://gitlab.com/group/project/-/issues/123 → group/project
-   *
-   * @param {string} webUrl - Incident web URL
-   * @returns {string|null} Project path or null if extraction fails
-   */
-  extractProjectPath(webUrl) {
-    return this.incidentClient.extractProjectPath(webUrl);
   }
 
   /**
