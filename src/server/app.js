@@ -33,8 +33,10 @@ export function createApp() {
   // Middleware
   app.use(express.json());
 
-  // Serve static files from public directory
-  const publicPath = path.join(__dirname, '..', 'public');
+  // In production serve the Vite-built bundle; in dev Vite runs separately on port 5173
+  const publicPath = process.env.NODE_ENV === 'production'
+    ? path.join(__dirname, '..', '..', 'dist')
+    : path.join(__dirname, '..', 'public');
   app.use(express.static(publicPath));
 
   // Routes
