@@ -25,7 +25,7 @@ export class GraphQLExecutor {
    * @param {import('../../../core/interfaces/ILogger.js').ILogger} [logger] - Logger instance (optional)
    */
   constructor(config, logger = null) {
-    this.url = config.url;
+    this.url = config.url || 'https://gitlab.com';
     this.token = config.token;
     this.projectPath = config.projectPath;
     this.logger = logger;

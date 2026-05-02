@@ -1,4 +1,3 @@
-import { GraphQLClient } from 'graphql-request';
 import { RateLimitManager } from './http/RateLimitManager.js';
 import { GraphQLExecutor } from './http/GraphQLExecutor.js';
 import { ProjectClient } from './clients/ProjectClient.js';
@@ -34,8 +33,6 @@ export class GitLabClient {
     }
 
     // Store configuration
-    this.url = config.url || 'https://gitlab.com';
-    this.token = config.token;
     this.projectPath = config.projectPath;
     this.logger = logger;
 
@@ -81,12 +78,6 @@ export class GitLabClient {
       logger
     );
 
-    // TODO: remove this.client once fetchIterationDetails is migrated
-    this.client = new GraphQLClient(`${this.url}/api/graphql`, {
-      headers: {
-        Authorization: `Bearer ${this.token}`
-      }
-    });
   }
 
   /**
