@@ -1,4 +1,4 @@
-import { ChangeLinkExtractor } from '../../../src/lib/core/services/ChangeLinkExtractor.js';
+import { ChangeLinkExtractor } from '../../../src/lib/infrastructure/api/ChangeLinkExtractor.js';
 
 describe('ChangeLinkExtractor', () => {
   describe('extractFromTimelineEvents', () => {

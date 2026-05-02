@@ -2,7 +2,7 @@
  * ChangeLinkExtractor - Extracts MR or commit links from incident timeline events
  * Used for correlating incidents with specific changes for accurate CFR calculation
  *
- * @module core/services/ChangeLinkExtractor
+ * @module infrastructure/api/ChangeLinkExtractor
  */
 
 /**

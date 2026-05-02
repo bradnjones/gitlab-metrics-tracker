@@ -6,7 +6,7 @@
  */
 
 import { IncidentAnalyzer } from '../../../core/services/IncidentAnalyzer.js';
-import { ChangeLinkExtractor } from '../../../core/services/ChangeLinkExtractor.js';
+import { ChangeLinkExtractor } from '../ChangeLinkExtractor.js';
 
 /**
  * Client responsible for fetching incident-related data from GitLab.
