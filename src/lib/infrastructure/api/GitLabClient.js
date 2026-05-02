@@ -1,7 +1,7 @@
 import { GraphQLClient } from 'graphql-request';
 import { RateLimitManager } from './core/RateLimitManager.js';
 import { GraphQLExecutor } from './core/GraphQLExecutor.js';
-import { DeploymentClient } from './clients/DeploymentClient.js';
+import { ProjectClient } from './clients/ProjectClient.js';
 import { PipelineClient } from './clients/PipelineClient.js';
 import { MergeRequestClient } from './clients/MergeRequestClient.js';
 import { IterationClient } from './clients/IterationClient.js';
@@ -44,7 +44,7 @@ export class GitLabClient {
     this.executor = new GraphQLExecutor(config, logger);
 
     // Initialize specialized clients
-    this.deploymentClient = new DeploymentClient(
+    this.projectClient = new ProjectClient(
       this.executor,
       this.rateLimitManager,
       this.projectPath,
@@ -446,7 +446,7 @@ export class GitLabClient {
    * @returns {Promise<Array>} Array of project objects
    */
   async fetchGroupProjects() {
-    return this.deploymentClient.fetchGroupProjects();
+    return this.projectClient.fetchGroupProjects();
   }
 
   /**

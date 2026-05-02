@@ -1,15 +1,15 @@
 /**
- * DeploymentClient
- * Handles GitLab deployment-related queries.
+ * ProjectClient
+ * Handles GitLab project-related queries.
  *
  * Responsibilities:
  * - Fetch group projects (used for deployment frequency calculations)
  *
- * @class DeploymentClient
+ * @class ProjectClient
  */
-export class DeploymentClient {
+export class ProjectClient {
   /**
-   * Creates a DeploymentClient instance.
+   * Creates a ProjectClient instance.
    *
    * @param {import('../core/GraphQLExecutor.js').GraphQLExecutor} executor - GraphQL query executor
    * @param {import('../core/RateLimitManager.js').RateLimitManager} rateLimitManager - Rate limit manager

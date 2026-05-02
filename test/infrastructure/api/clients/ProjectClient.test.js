@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { DeploymentClient } from '../../../../src/lib/infrastructure/api/clients/DeploymentClient.js';
+import { ProjectClient } from '../../../../src/lib/infrastructure/api/clients/ProjectClient.js';
 
-describe('DeploymentClient', () => {
+describe('ProjectClient', () => {
   let client;
   let mockExecutor;
   let mockRateLimitManager;
@@ -21,7 +21,7 @@ describe('DeploymentClient', () => {
       warn: () => {}
     };
 
-    client = new DeploymentClient(
+    client = new ProjectClient(
       mockExecutor,
       mockRateLimitManager,
       'group/project',
@@ -116,7 +116,7 @@ describe('DeploymentClient', () => {
     });
 
     it('should work without logger', async () => {
-      const clientWithoutLogger = new DeploymentClient(
+      const clientWithoutLogger = new ProjectClient(
         mockExecutor,
         mockRateLimitManager,
         'group/project'
