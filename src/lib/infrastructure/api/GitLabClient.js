@@ -249,7 +249,7 @@ export class GitLabClient {
               const allNotes = [...initialNotes, ...additionalNotes];
 
               // Try to extract InProgress date from all notes
-              inProgressAt = this.extractInProgressTimestamp(allNotes);
+              inProgressAt = this.issueClient.extractInProgressTimestamp(allNotes);
 
               if (inProgressAt) {
                 if (this.logger) {
