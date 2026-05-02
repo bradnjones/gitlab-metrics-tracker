@@ -25,6 +25,7 @@ describe('IssueClient', () => {
     client = new IssueClient(
       mockExecutor,
       mockRateLimitManager,
+      'group/project',
       mockLogger
     );
   });
@@ -270,6 +271,137 @@ describe('IssueClient', () => {
 
     it('should not recognize "Closed" as in-progress', () => {
       expect(client.isInProgressStatus('Closed')).toBe(false);
+    });
+  });
+
+  describe('fetchIterationDetails', () => {
+    const ITERATION_ID = 'gid://gitlab/Iteration/123';
+
+    function makeIssue(overrides = {}) {
+      return {
+        id: 'gid://gitlab/Issue/1',
+        iid: '1',
+        title: 'Issue 1',
+        state: 'closed',
+        createdAt: '2025-01-01T00:00:00Z',
+        closedAt: '2025-01-10T00:00:00Z',
+        weight: 3,
+        webUrl: 'https://gitlab.com/group/project/-/issues/1',
+        labels: { nodes: [] },
+        assignees: { nodes: [] },
+        notes: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: []
+        },
+        ...overrides
+      };
+    }
+
+    function makeGroupResponse(issues, pageInfo = { hasNextPage: false, endCursor: null }) {
+      return {
+        group: {
+          id: 'gid://gitlab/Group/1',
+          issues: { nodes: issues, pageInfo }
+        }
+      };
+    }
+
+    it('returns issues and mergeRequests on success', async () => {
+      const issue = makeIssue({
+        notes: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [{
+            id: 'n1',
+            body: 'set status to **In progress**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-01-02T00:00:00Z'
+          }]
+        }
+      });
+
+      mockExecutor.execute = async () => makeGroupResponse([issue]);
+
+      const mockFetchIterations = async () => [
+        { id: ITERATION_ID, startDate: '2025-01-01', dueDate: '2025-01-14' }
+      ];
+      const mockFetchMRs = async () => [
+        { id: 'gid://gitlab/MergeRequest/1', title: 'MR 1' }
+      ];
+
+      const result = await client.fetchIterationDetails(ITERATION_ID, mockFetchIterations, mockFetchMRs);
+
+      expect(result.issues).toHaveLength(1);
+      expect(result.mergeRequests).toHaveLength(1);
+      expect(result.issues[0].inProgressAt).toBe('2025-01-02T00:00:00Z');
+      expect(result.issues[0].inProgressAtSource).toBe('status_change');
+    });
+
+    it('throws when group is not found', async () => {
+      mockExecutor.execute = async () => ({ group: null });
+
+      await expect(
+        client.fetchIterationDetails(ITERATION_ID, async () => [], async () => [])
+      ).rejects.toThrow('Group not found: group/project');
+    });
+
+    it('enriches closed issues with inProgressAt from status change notes', async () => {
+      const issue = makeIssue({
+        state: 'closed',
+        notes: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [
+            {
+              id: 'n1',
+              body: 'set status to **Open**',
+              system: true,
+              systemNoteMetadata: { action: 'work_item_status' },
+              createdAt: '2025-01-01T08:00:00Z'
+            },
+            {
+              id: 'n2',
+              body: 'set status to **In progress**',
+              system: true,
+              systemNoteMetadata: { action: 'work_item_status' },
+              createdAt: '2025-01-03T09:00:00Z'
+            }
+          ]
+        }
+      });
+
+      mockExecutor.execute = async () => makeGroupResponse([issue]);
+
+      const result = await client.fetchIterationDetails(
+        ITERATION_ID,
+        async () => [{ id: ITERATION_ID, startDate: '2025-01-01', dueDate: '2025-01-14' }],
+        async () => []
+      );
+
+      expect(result.issues[0].inProgressAt).toBe('2025-01-03T09:00:00Z');
+      expect(result.issues[0].inProgressAtSource).toBe('status_change');
+    });
+
+    it('falls back to empty mergeRequests when iteration metadata not found', async () => {
+      mockExecutor.execute = async () => makeGroupResponse([makeIssue()]);
+
+      const result = await client.fetchIterationDetails(
+        ITERATION_ID,
+        async () => [{ id: 'gid://gitlab/Iteration/999', startDate: '2025-02-01', dueDate: '2025-02-14' }],
+        async () => { throw new Error('should not be called'); }
+      );
+
+      expect(result.issues).toHaveLength(1);
+      expect(result.mergeRequests).toEqual([]);
+    });
+
+    it('wraps executor errors with context', async () => {
+      mockExecutor.execute = async () => {
+        throw new Error('connection refused');
+      };
+
+      await expect(
+        client.fetchIterationDetails(ITERATION_ID, async () => [], async () => [])
+      ).rejects.toThrow('Failed to fetch iteration details: connection refused');
     });
   });
 });

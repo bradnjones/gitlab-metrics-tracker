@@ -707,7 +707,7 @@ describe('GitLabClient', () => {
       mockRequest.mockRejectedValue(mockError);
 
       await expect(client.fetchIterationDetails('invalid-id')).rejects.toThrow(
-        'Failed to fetch iteration details: Invalid iteration ID'
+        'Failed to fetch iteration details: GitLab API Error (fetching iteration details): Invalid iteration ID'
       );
     });
 
@@ -716,7 +716,7 @@ describe('GitLabClient', () => {
       mockRequest.mockRejectedValue(networkError);
 
       await expect(client.fetchIterationDetails('gid://gitlab/Iteration/123')).rejects.toThrow(
-        'Failed to fetch iteration details: Network timeout'
+        'Failed to fetch iteration details: Failed fetching iteration details: Network timeout'
       );
     });
   });
@@ -853,7 +853,7 @@ describe('GitLabClient', () => {
           { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
         ]);
         jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
-        jest.spyOn(client, 'fetchAdditionalNotesForIssue').mockResolvedValue(additionalNotes);
+        jest.spyOn(client.issueClient, 'fetchAdditionalNotesForIssue').mockResolvedValue(additionalNotes);
 
         mockRequest.mockResolvedValueOnce(mockIterationData);
 
@@ -862,7 +862,7 @@ describe('GitLabClient', () => {
         expect(result.issues).toHaveLength(1);
         expect(result.issues[0].inProgressAt).toBe('2025-01-02T14:00:00Z');
         expect(result.issues[0].inProgressAtSource).toBe('status_change');
-        expect(client.fetchAdditionalNotesForIssue).toHaveBeenCalledWith(
+        expect(client.issueClient.fetchAdditionalNotesForIssue).toHaveBeenCalledWith(
           'gid://gitlab/Issue/1',
           'cursor1'
         );
@@ -918,7 +918,7 @@ describe('GitLabClient', () => {
           { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
         ]);
         jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
-        jest.spyOn(client, 'fetchAdditionalNotesForIssue').mockResolvedValue(additionalNotes);
+        jest.spyOn(client.issueClient, 'fetchAdditionalNotesForIssue').mockResolvedValue(additionalNotes);
 
         mockRequest.mockResolvedValueOnce(mockIterationData);
 
@@ -961,7 +961,7 @@ describe('GitLabClient', () => {
           { id: 'gid://gitlab/Iteration/123', title: 'Sprint 1', startDate: '2025-01-01', dueDate: '2025-01-14' }
         ]);
         jest.spyOn(client, 'fetchMergeRequestsForGroup').mockResolvedValue([]);
-        jest.spyOn(client, 'fetchAdditionalNotesForIssue').mockRejectedValue(new Error('Network error'));
+        jest.spyOn(client.issueClient, 'fetchAdditionalNotesForIssue').mockRejectedValue(new Error('Network error'));
 
         mockRequest.mockResolvedValueOnce(mockIterationData);
 
