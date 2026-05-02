@@ -133,6 +133,7 @@ export default function VelocityApp() {
   const [isManageAnnotationsModalOpen, setIsManageAnnotationsModalOpen] = useState(false);
   const [editingAnnotation, setEditingAnnotation] = useState(null);
   const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
+  const [annotationError, setAnnotationError] = useState(null);
 
   // Load selected iterations from localStorage on mount
   useEffect(() => {
@@ -246,6 +247,7 @@ export default function VelocityApp() {
    * @param {Object} annotationData - Annotation data to save
    */
   const handleSaveAnnotation = async (annotationData) => {
+    setAnnotationError(null);
     try {
       const isEditing = editingAnnotation !== null;
       const url = isEditing ? `/api/annotations/${editingAnnotation.id}` : '/api/annotations';
@@ -271,7 +273,7 @@ export default function VelocityApp() {
       setAnnotationRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Error saving annotation:', error);
-      // TODO: Show error message to user
+      setAnnotationError(`Failed to save annotation: ${error.message}`);
     }
   };
 
@@ -280,6 +282,7 @@ export default function VelocityApp() {
    * @param {string} annotationId - ID of annotation to delete
    */
   const handleDeleteAnnotation = async (annotationId) => {
+    setAnnotationError(null);
     try {
       const response = await fetch(`/api/annotations/${annotationId}`, {
         method: 'DELETE',
@@ -297,7 +300,7 @@ export default function VelocityApp() {
       setAnnotationRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Error deleting annotation:', error);
-      // TODO: Show error message to user
+      setAnnotationError(`Failed to delete annotation: ${error.message}`);
     }
   };
 
@@ -447,6 +450,29 @@ export default function VelocityApp() {
           onApply={handleApplyIterations}
           selectedIterationIds={selectedIterations.map(iter => iter.id)}
         />
+
+        {annotationError && (
+          <div
+            role="alert"
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: '#ef4444',
+              color: '#fff',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              zIndex: 9999,
+              maxWidth: '480px',
+              cursor: 'pointer',
+            }}
+            onClick={() => setAnnotationError(null)}
+          >
+            {annotationError}
+          </div>
+        )}
 
         <AnnotationModal
           isOpen={isAnnotationModalOpen}

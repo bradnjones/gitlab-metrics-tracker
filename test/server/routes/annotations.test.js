@@ -222,8 +222,7 @@ describe('Annotations API', () => {
     });
 
     // Test 9: Creates annotation with optional description as null
-    // TODO: Fix Annotation entity validation to make description truly optional (see Product Owner agent feedback)
-    it.skip('should create annotation with null description', async () => {
+    it('should create annotation with null description', async () => {
       const newAnnotation = {
         date: '2025-11-14',
         title: 'Test',
