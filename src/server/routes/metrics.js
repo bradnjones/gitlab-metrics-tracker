@@ -12,6 +12,53 @@ const router = express.Router();
 const logger = new ConsoleLogger({ serviceName: 'metrics-api' });
 
 /**
+ * Shared handler wrapper for all GET metric routes.
+ *
+ * Validates the `iterations` query param, fetches metrics via
+ * MetricsService, passes the result to `transformFn`, and sends
+ * `{ metrics, count }`. Catches errors and returns a consistent 500.
+ *
+ * @param {string} metricName - Human-readable name used in error messages (e.g. 'velocity')
+ * @param {function(Object[]): Object[]} transformFn - Maps allMetrics → the response array
+ * @returns {function} Express async route handler
+ */
+function withMetricsHandler(metricName, transformFn) {
+  return async (req, res) => {
+    try {
+      const { iterations } = req.query;
+
+      if (!iterations) {
+        return res.status(400).json({
+          error: {
+            message: 'Missing required parameter: iterations',
+            details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
+          }
+        });
+      }
+
+      const iterationIds = iterations.split(',').map(id => id.trim());
+      const metricsService = ServiceFactory.createMetricsService();
+      const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
+      const result = transformFn(allMetrics);
+
+      res.json({ metrics: result, count: result.length });
+    } catch (error) {
+      logger.error(`Failed to calculate ${metricName} metrics`, error, {
+        route: `/api/metrics/${metricName.toLowerCase().replace(/ /g, '-')}`,
+        iterations: req.query.iterations
+      });
+
+      res.status(500).json({
+        error: {
+          message: `Failed to calculate ${metricName} metrics`,
+          details: error.message
+        }
+      });
+    }
+  };
+}
+
+/**
  * GET /api/metrics/velocity
  * Calculate velocity metrics for one or more iterations
  *
@@ -27,65 +74,19 @@ const logger = new ConsoleLogger({ serviceName: 'metrics-api' });
  *   "count": 2
  * }
  */
-router.get('/velocity', async (req, res) => {
-  try {
-    // Validate query params
-    const { iterations } = req.query;
-
-    if (!iterations) {
-      return res.status(400).json({
-        error: {
-          message: 'Missing required parameter: iterations',
-          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
-        }
-      });
-    }
-
-    // Parse comma-separated iteration IDs
-    const iterationIds = iterations.split(',').map(id => id.trim());
-
-    // Create service (will use environment variables)
-    const metricsService = ServiceFactory.createMetricsService();
-
-    // Calculate metrics for all iterations using BATCH method (performance optimization)
-    // This fetches iteration metadata ONCE and parallelizes issue fetching
-    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
-
-    // Transform results to response format
-    const metricsResults = allMetrics.map(metrics => ({
-      iterationId: metrics.iterationId,
-      iterationTitle: metrics.iterationTitle,
-      startDate: metrics.startDate,
-      dueDate: metrics.endDate,
-      totalPoints: metrics.velocityPoints + (metrics.rawData?.issues.filter(i => i.state !== 'closed').reduce((sum, i) => sum + (i.weight || 1), 0) || 0),
-      completedPoints: metrics.velocityPoints,
-      totalStories: metrics.issueCount,
-      completedStories: metrics.velocityStories,
-      rawData: metrics.rawData  // Include raw data for Data Explorer
-    }));
-
-    // Return results
-    res.json({
-      metrics: metricsResults,
-      count: metricsResults.length
-    });
-
-  } catch (error) {
-    // Log error for debugging (structured logging)
-    logger.error('Failed to calculate velocity metrics', error, {
-      route: '/api/metrics/velocity',
-      iterations: req.query.iterations
-    });
-
-    // Return user-friendly error
-    res.status(500).json({
-      error: {
-        message: 'Failed to calculate velocity metrics',
-        details: error.message
-      }
-    });
-  }
-});
+router.get('/velocity', withMetricsHandler('velocity', allMetrics =>
+  allMetrics.map(metrics => ({
+    iterationId: metrics.iterationId,
+    iterationTitle: metrics.iterationTitle,
+    startDate: metrics.startDate,
+    dueDate: metrics.endDate,
+    totalPoints: metrics.velocityPoints + (metrics.rawData?.issues.filter(i => i.state !== 'closed').reduce((sum, i) => sum + (i.weight || 1), 0) || 0),
+    completedPoints: metrics.velocityPoints,
+    totalStories: metrics.issueCount,
+    completedStories: metrics.velocityStories,
+    rawData: metrics.rawData  // Include raw data for Data Explorer
+  }))
+));
 
 /**
  * GET /api/metrics/cycle-time
@@ -103,94 +104,17 @@ router.get('/velocity', async (req, res) => {
  *   "count": 2
  * }
  */
-router.get('/cycle-time', async (req, res) => {
-  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-  try {
-    logger.debug('Cycle time request received', {
-      requestId,
-      query: req.query,
-      url: req.url
-    });
-
-    // Validate query params
-    const { iterations } = req.query;
-
-    if (!iterations) {
-      logger.warn('Missing iterations parameter', {
-        requestId,
-        route: '/api/metrics/cycle-time'
-      });
-      return res.status(400).json({
-        error: {
-          message: 'Missing required parameter: iterations',
-          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
-        }
-      });
-    }
-
-    // Parse comma-separated iteration IDs
-    const iterationIds = iterations.split(',').map(id => id.trim());
-    logger.debug('Parsed iteration IDs', {
-      requestId,
-      count: iterationIds.length,
-      iterationIds
-    });
-
-    // Create service (will use environment variables)
-    logger.debug('Creating MetricsService', { requestId });
-    const metricsService = ServiceFactory.createMetricsService();
-
-    // Calculate metrics for all iterations using BATCH method (performance optimization)
-    // This fetches iteration metadata ONCE and parallelizes issue fetching
-    logger.debug('Calling calculateMultipleMetrics', { requestId });
-    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
-    logger.debug('Received metric results', {
-      requestId,
-      count: allMetrics.length
-    });
-
-    // Transform results to response format
-    // Note: Cycle time is already calculated in MetricsService.calculateMultipleMetrics()
-    const metricsResults = allMetrics.map(metrics => ({
-      iterationId: metrics.iterationId,
-      iterationTitle: metrics.iterationTitle,
-      startDate: metrics.startDate,
-      dueDate: metrics.endDate,
-      cycleTimeAvg: metrics.cycleTimeAvg,
-      cycleTimeP50: metrics.cycleTimeP50,
-      cycleTimeP90: metrics.cycleTimeP90
-    }));
-
-    logger.debug('Sending cycle time response', {
-      requestId,
-      count: metricsResults.length,
-      sampleMetric: metricsResults[0]
-    });
-
-    // Return results
-    res.json({
-      metrics: metricsResults,
-      count: metricsResults.length
-    });
-
-  } catch (error) {
-    // Log error for debugging (structured logging)
-    logger.error('Failed to calculate cycle time metrics', error, {
-      requestId,
-      route: '/api/metrics/cycle-time',
-      iterations: req.query.iterations
-    });
-
-    // Return user-friendly error
-    res.status(500).json({
-      error: {
-        message: 'Failed to calculate cycle time metrics',
-        details: error.message
-      }
-    });
-  }
-});
+router.get('/cycle-time', withMetricsHandler('cycle time', allMetrics =>
+  allMetrics.map(metrics => ({
+    iterationId: metrics.iterationId,
+    iterationTitle: metrics.iterationTitle,
+    startDate: metrics.startDate,
+    dueDate: metrics.endDate,
+    cycleTimeAvg: metrics.cycleTimeAvg,
+    cycleTimeP50: metrics.cycleTimeP50,
+    cycleTimeP90: metrics.cycleTimeP90
+  }))
+));
 
 /**
  * GET /api/metrics/deployment-frequency
@@ -208,61 +132,16 @@ router.get('/cycle-time', async (req, res) => {
  *   "count": 2
  * }
  */
-router.get('/deployment-frequency', async (req, res) => {
-  try {
-    // Validate query params
-    const { iterations } = req.query;
-
-    if (!iterations) {
-      return res.status(400).json({
-        error: {
-          message: 'Missing required parameter: iterations',
-          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
-        }
-      });
-    }
-
-    // Parse comma-separated iteration IDs
-    const iterationIds = iterations.split(',').map(id => id.trim());
-
-    // Create service
-    const metricsService = ServiceFactory.createMetricsService();
-
-    // Calculate metrics for all iterations using BATCH method
-    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
-
-    // Transform results to response format
-    const metricsResults = allMetrics.map(metrics => ({
-      iterationId: metrics.iterationId,
-      iterationTitle: metrics.iterationTitle,
-      startDate: metrics.startDate,
-      dueDate: metrics.endDate,
-      deploymentFrequency: metrics.deploymentFrequency,
-      rawData: metrics.rawData  // Include raw data for Data Explorer
-    }));
-
-    // Return results
-    res.json({
-      metrics: metricsResults,
-      count: metricsResults.length
-    });
-
-  } catch (error) {
-    // Log error for debugging
-    logger.error('Failed to calculate deployment frequency metrics', error, {
-      route: '/api/metrics/deployment-frequency',
-      iterations: req.query.iterations
-    });
-
-    // Return user-friendly error
-    res.status(500).json({
-      error: {
-        message: 'Failed to calculate deployment frequency metrics',
-        details: error.message
-      }
-    });
-  }
-});
+router.get('/deployment-frequency', withMetricsHandler('deployment frequency', allMetrics =>
+  allMetrics.map(metrics => ({
+    iterationId: metrics.iterationId,
+    iterationTitle: metrics.iterationTitle,
+    startDate: metrics.startDate,
+    dueDate: metrics.endDate,
+    deploymentFrequency: metrics.deploymentFrequency,
+    rawData: metrics.rawData  // Include raw data for Data Explorer
+  }))
+));
 
 /**
  * GET /api/metrics/lead-time
@@ -280,63 +159,18 @@ router.get('/deployment-frequency', async (req, res) => {
  *   "count": 2
  * }
  */
-router.get('/lead-time', async (req, res) => {
-  try {
-    // Validate query params
-    const { iterations } = req.query;
-
-    if (!iterations) {
-      return res.status(400).json({
-        error: {
-          message: 'Missing required parameter: iterations',
-          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
-        }
-      });
-    }
-
-    // Parse comma-separated iteration IDs
-    const iterationIds = iterations.split(',').map(id => id.trim());
-
-    // Create service
-    const metricsService = ServiceFactory.createMetricsService();
-
-    // Calculate metrics for all iterations using BATCH method
-    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
-
-    // Transform results to response format
-    const metricsResults = allMetrics.map(metrics => ({
-      iterationId: metrics.iterationId,
-      iterationTitle: metrics.iterationTitle,
-      startDate: metrics.startDate,
-      dueDate: metrics.endDate,
-      leadTimeAvg: metrics.leadTimeAvg,
-      leadTimeP50: metrics.leadTimeP50,
-      leadTimeP90: metrics.leadTimeP90,
-      rawData: metrics.rawData  // Include raw data for Data Explorer
-    }));
-
-    // Return results
-    res.json({
-      metrics: metricsResults,
-      count: metricsResults.length
-    });
-
-  } catch (error) {
-    // Log error for debugging
-    logger.error('Failed to calculate lead time metrics', error, {
-      route: '/api/metrics/lead-time',
-      iterations: req.query.iterations
-    });
-
-    // Return user-friendly error
-    res.status(500).json({
-      error: {
-        message: 'Failed to calculate lead time metrics',
-        details: error.message
-      }
-    });
-  }
-});
+router.get('/lead-time', withMetricsHandler('lead time', allMetrics =>
+  allMetrics.map(metrics => ({
+    iterationId: metrics.iterationId,
+    iterationTitle: metrics.iterationTitle,
+    startDate: metrics.startDate,
+    dueDate: metrics.endDate,
+    leadTimeAvg: metrics.leadTimeAvg,
+    leadTimeP50: metrics.leadTimeP50,
+    leadTimeP90: metrics.leadTimeP90,
+    rawData: metrics.rawData  // Include raw data for Data Explorer
+  }))
+));
 
 /**
  * GET /api/metrics/mttr
@@ -354,62 +188,17 @@ router.get('/lead-time', async (req, res) => {
  *   "count": 2
  * }
  */
-router.get('/mttr', async (req, res) => {
-  try {
-    // Validate query params
-    const { iterations } = req.query;
-
-    if (!iterations) {
-      return res.status(400).json({
-        error: {
-          message: 'Missing required parameter: iterations',
-          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
-        }
-      });
-    }
-
-    // Parse comma-separated iteration IDs
-    const iterationIds = iterations.split(',').map(id => id.trim());
-
-    // Create service
-    const metricsService = ServiceFactory.createMetricsService();
-
-    // Calculate metrics for all iterations using BATCH method
-    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
-
-    // Transform results to response format
-    const metricsResults = allMetrics.map(metrics => ({
-      iterationId: metrics.iterationId,
-      iterationTitle: metrics.iterationTitle,
-      startDate: metrics.startDate,
-      dueDate: metrics.endDate,
-      mttrAvg: metrics.mttrAvg,
-      incidentCount: metrics.incidentCount,
-      rawData: metrics.rawData  // Include raw data for Data Explorer
-    }));
-
-    // Return results
-    res.json({
-      metrics: metricsResults,
-      count: metricsResults.length
-    });
-
-  } catch (error) {
-    // Log error for debugging
-    logger.error('Failed to calculate MTTR metrics', error, {
-      route: '/api/metrics/mttr',
-      iterations: req.query.iterations
-    });
-
-    // Return user-friendly error
-    res.status(500).json({
-      error: {
-        message: 'Failed to calculate MTTR metrics',
-        details: error.message
-      }
-    });
-  }
-});
+router.get('/mttr', withMetricsHandler('MTTR', allMetrics =>
+  allMetrics.map(metrics => ({
+    iterationId: metrics.iterationId,
+    iterationTitle: metrics.iterationTitle,
+    startDate: metrics.startDate,
+    dueDate: metrics.endDate,
+    mttrAvg: metrics.mttrAvg,
+    incidentCount: metrics.incidentCount,
+    rawData: metrics.rawData  // Include raw data for Data Explorer
+  }))
+));
 
 /**
  * GET /api/metrics/change-failure-rate
@@ -435,62 +224,17 @@ router.get('/mttr', async (req, res) => {
  *   "count": 2
  * }
  */
-router.get('/change-failure-rate', async (req, res) => {
-  try {
-    // Validate query params
-    const { iterations } = req.query;
-
-    if (!iterations) {
-      return res.status(400).json({
-        error: {
-          message: 'Missing required parameter: iterations',
-          details: 'Provide comma-separated iteration IDs in query string (e.g., ?iterations=id1,id2)'
-        }
-      });
-    }
-
-    // Parse comma-separated iteration IDs
-    const iterationIds = iterations.split(',').map(id => id.trim());
-
-    // Create service (will use environment variables)
-    const metricsService = ServiceFactory.createMetricsService();
-
-    // Calculate metrics for all iterations using BATCH method
-    const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
-
-    // Transform results to response format
-    const metricsResults = allMetrics.map(metrics => ({
-      iterationId: metrics.iterationId,
-      iterationTitle: metrics.iterationTitle,
-      startDate: metrics.startDate,
-      dueDate: metrics.endDate,
-      changeFailureRate: metrics.changeFailureRate,
-      deploymentCount: metrics.deploymentCount,
-      incidentCount: metrics.incidentCount
-    }));
-
-    // Return results
-    res.json({
-      metrics: metricsResults,
-      count: metricsResults.length
-    });
-
-  } catch (error) {
-    // Log error for debugging
-    logger.error('Failed to calculate change failure rate metrics', error, {
-      route: '/api/metrics/change-failure-rate',
-      iterations: req.query.iterations
-    });
-
-    // Return user-friendly error
-    res.status(500).json({
-      error: {
-        message: 'Failed to calculate change failure rate metrics',
-        details: error.message
-      }
-    });
-  }
-});
+router.get('/change-failure-rate', withMetricsHandler('change failure rate', allMetrics =>
+  allMetrics.map(metrics => ({
+    iterationId: metrics.iterationId,
+    iterationTitle: metrics.iterationTitle,
+    startDate: metrics.startDate,
+    dueDate: metrics.endDate,
+    changeFailureRate: metrics.changeFailureRate,
+    deploymentCount: metrics.deploymentCount,
+    incidentCount: metrics.incidentCount
+  }))
+));
 
 /**
  * POST /api/metrics/calculate
