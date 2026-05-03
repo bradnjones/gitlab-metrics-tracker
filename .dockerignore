@@ -7,3 +7,9 @@ _context
 _performance-investigation
 docs
 test
+
+# Logs and backup files
+*.log
+server-debug.log
+*.backup
+src/data/*.backup
