@@ -113,9 +113,9 @@ describe('Express Application (createApp)', () => {
     });
 
     test('returns 429 when general /api rate limit is exceeded', async () => {
-      // Make 61 rapid requests to exceed the 60/min limit
+      // Make 501 rapid requests to exceed the 500/min limit
       const responses = [];
-      for (let i = 0; i < 61; i++) {
+      for (let i = 0; i < 501; i++) {
         responses.push(await request(app).get('/api/iterations'));
       }
       const last = responses[responses.length - 1];
@@ -363,6 +363,8 @@ describe('validateEnv', () => {
   test('does not exit when both required vars are set', () => {
     process.env.GITLAB_TOKEN = 'test-token';
     process.env.GITLAB_PROJECT_PATH = 'test/group';
+    process.env.BASIC_AUTH_USER = 'test-user';
+    process.env.BASIC_AUTH_PASS = 'test-pass';
 
     validateEnv();
 
@@ -550,6 +552,8 @@ describe('Server Startup (startServer)', () => {
     // Provide required env vars so validateEnv does not exit
     process.env.GITLAB_TOKEN = process.env.GITLAB_TOKEN || 'test-token';
     process.env.GITLAB_PROJECT_PATH = process.env.GITLAB_PROJECT_PATH || 'test/group';
+    process.env.BASIC_AUTH_USER = process.env.BASIC_AUTH_USER || 'test-user';
+    process.env.BASIC_AUTH_PASS = process.env.BASIC_AUTH_PASS || 'test-pass';
   });
 
   afterEach((done) => {

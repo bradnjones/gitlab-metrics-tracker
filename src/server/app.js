@@ -5,7 +5,8 @@
  * @module server/app
  */
 
-import 'dotenv/config';
+import dotenv from 'dotenv';
+if (process.env.NODE_ENV !== 'test') dotenv.config();
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -36,7 +37,7 @@ const logger = new ConsoleLogger({ serviceName: 'express-app' });
  * @returns {void}
  */
 export function validateEnv() {
-  const required = ['GITLAB_TOKEN', 'GITLAB_PROJECT_PATH'];
+  const required = ['GITLAB_TOKEN', 'GITLAB_PROJECT_PATH', 'BASIC_AUTH_USER', 'BASIC_AUTH_PASS'];
   const missing = required.filter(key => !process.env[key]);
 
   if (missing.length > 0) {
