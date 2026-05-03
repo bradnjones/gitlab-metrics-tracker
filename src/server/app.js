@@ -23,6 +23,28 @@ const __dirname = path.dirname(__filename);
 const logger = new ConsoleLogger({ serviceName: 'express-app' });
 
 /**
+ * Validate required environment variables.
+ * Logs a clear error and exits with code 1 if any required variables are missing.
+ * Must be called before the server begins listening so orchestrators observe
+ * a failed start rather than a running-but-broken service.
+ *
+ * @returns {void}
+ */
+export function validateEnv() {
+  const required = ['GITLAB_TOKEN', 'GITLAB_PROJECT_PATH'];
+  const missing = required.filter(key => !process.env[key]);
+
+  if (missing.length > 0) {
+    logger.error(
+      'Missing required environment variables — server cannot start',
+      null,
+      { missing, hint: 'Set these variables in your .env file or environment before starting the server' }
+    );
+    process.exit(1);
+  }
+}
+
+/**
  * Create and configure Express application
  *
  * @returns {express.Application} Configured Express app
@@ -110,6 +132,7 @@ function getLocalIPAddress() {
  * @returns {http.Server} HTTP server instance
  */
 export function startServer(port = 3000) {
+  validateEnv();
   const app = createApp();
 
   // Listen on all network interfaces (0.0.0.0) to allow access from other devices

@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import request from 'supertest';
-import { createApp, startServer } from '../../src/server/app.js';
+import { createApp, startServer, validateEnv } from '../../src/server/app.js';
 import { ServiceFactory } from '../../src/server/services/ServiceFactory.js';
 
 describe('Express Application (createApp)', () => {
@@ -167,8 +167,99 @@ describe('Express Application (createApp)', () => {
   });
 });
 
+describe('validateEnv', () => {
+  let originalToken;
+  let originalProjectPath;
+
+  beforeEach(() => {
+    originalToken = process.env.GITLAB_TOKEN;
+    originalProjectPath = process.env.GITLAB_PROJECT_PATH;
+    jest.spyOn(process, 'exit').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    // Restore original values (undefined means delete)
+    if (originalToken === undefined) {
+      delete process.env.GITLAB_TOKEN;
+    } else {
+      process.env.GITLAB_TOKEN = originalToken;
+    }
+    if (originalProjectPath === undefined) {
+      delete process.env.GITLAB_PROJECT_PATH;
+    } else {
+      process.env.GITLAB_PROJECT_PATH = originalProjectPath;
+    }
+    jest.restoreAllMocks();
+  });
+
+  test('does not exit when both required vars are set', () => {
+    process.env.GITLAB_TOKEN = 'test-token';
+    process.env.GITLAB_PROJECT_PATH = 'test/group';
+
+    validateEnv();
+
+    expect(process.exit).not.toHaveBeenCalled();
+  });
+
+  test('exits with code 1 when GITLAB_TOKEN is missing', () => {
+    delete process.env.GITLAB_TOKEN;
+    process.env.GITLAB_PROJECT_PATH = 'test/group';
+
+    validateEnv();
+
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  test('exits with code 1 when GITLAB_PROJECT_PATH is missing', () => {
+    process.env.GITLAB_TOKEN = 'test-token';
+    delete process.env.GITLAB_PROJECT_PATH;
+
+    validateEnv();
+
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  test('exits with code 1 when both required vars are missing', () => {
+    delete process.env.GITLAB_TOKEN;
+    delete process.env.GITLAB_PROJECT_PATH;
+
+    validateEnv();
+
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  test('logs error naming each missing variable', () => {
+    delete process.env.GITLAB_TOKEN;
+    process.env.GITLAB_PROJECT_PATH = 'test/group';
+
+    validateEnv();
+
+    expect(console.error).toHaveBeenCalled();
+    const logOutput = console.error.mock.calls[0][0];
+    expect(logOutput).toContain('GITLAB_TOKEN');
+  });
+
+  test('logs error naming GITLAB_PROJECT_PATH when missing', () => {
+    process.env.GITLAB_TOKEN = 'test-token';
+    delete process.env.GITLAB_PROJECT_PATH;
+
+    validateEnv();
+
+    expect(console.error).toHaveBeenCalled();
+    const logOutput = console.error.mock.calls[0][0];
+    expect(logOutput).toContain('GITLAB_PROJECT_PATH');
+  });
+});
+
 describe('Server Startup (startServer)', () => {
   let server;
+
+  beforeEach(() => {
+    // Provide required env vars so validateEnv does not exit
+    process.env.GITLAB_TOKEN = process.env.GITLAB_TOKEN || 'test-token';
+    process.env.GITLAB_PROJECT_PATH = process.env.GITLAB_PROJECT_PATH || 'test/group';
+  });
 
   afterEach((done) => {
     if (server && server.listening) {
