@@ -38,6 +38,32 @@ describe('Express Application (createApp)', () => {
     });
   });
 
+  describe('CORS', () => {
+    test('no CORS headers when ALLOWED_ORIGIN is not set', async () => {
+      delete process.env.ALLOWED_ORIGIN;
+      const response = await request(createApp()).get('/health');
+      expect(response.headers['access-control-allow-origin']).toBeUndefined();
+    });
+
+    test('sets Access-Control-Allow-Origin when ALLOWED_ORIGIN is set', async () => {
+      process.env.ALLOWED_ORIGIN = 'https://dashboard.example.com';
+      const response = await request(createApp())
+        .get('/health')
+        .set('Origin', 'https://dashboard.example.com');
+      delete process.env.ALLOWED_ORIGIN;
+      expect(response.headers['access-control-allow-origin']).toBe('https://dashboard.example.com');
+    });
+
+    test('rejects unlisted origins when ALLOWED_ORIGIN is set', async () => {
+      process.env.ALLOWED_ORIGIN = 'https://dashboard.example.com';
+      const response = await request(createApp())
+        .get('/health')
+        .set('Origin', 'https://evil.com');
+      delete process.env.ALLOWED_ORIGIN;
+      expect(response.headers['access-control-allow-origin']).toBeUndefined();
+    });
+  });
+
   describe('Security Headers (helmet)', () => {
     test('sets X-Content-Type-Options: nosniff', async () => {
       const response = await request(app).get('/health');

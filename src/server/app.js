@@ -8,6 +8,7 @@
 import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
+import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
@@ -84,6 +85,21 @@ export function registerShutdownHandlers(server) {
  */
 export function createApp() {
   const app = express();
+
+  // CORS — allow configurable origin; default is same-origin only.
+  // Use callback form so unlisted origins receive no ACAO header at all.
+  const allowedOrigin = process.env.ALLOWED_ORIGIN;
+  if (allowedOrigin) {
+    app.use(cors({
+      origin(requestOrigin, callback) {
+        if (requestOrigin === allowedOrigin) {
+          callback(null, requestOrigin);
+        } else {
+          callback(null, false);
+        }
+      }
+    }));
+  }
 
   // Security headers — must be first middleware
   app.use(helmet({
