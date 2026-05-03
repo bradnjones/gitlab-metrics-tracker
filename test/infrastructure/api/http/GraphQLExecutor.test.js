@@ -142,4 +142,134 @@ describe('GraphQLExecutor', () => {
       ).rejects.toThrow('Failed executing query');
     });
   });
+
+  describe('retry behavior', () => {
+    const testQuery = 'query { test }';
+    const testVariables = { id: '123' };
+
+    beforeEach(() => {
+      // Suppress delays in all retry tests
+      jest.spyOn(executor, '_sleep').mockResolvedValue(undefined);
+    });
+
+    it('should not retry non-retryable errors (e.g. 401)', async () => {
+      const authError = { response: { status: 401, statusText: 'Unauthorized' } };
+      mockRequest.mockRejectedValueOnce(authError);
+
+      await expect(
+        executor.execute(testQuery, testVariables, 'authenticating')
+      ).rejects.toThrow('HTTP 401 (authenticating): Unauthorized');
+
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(executor._sleep).not.toHaveBeenCalled();
+    });
+
+    it('should not retry non-retryable GraphQL errors', async () => {
+      const graphQLError = { response: { errors: [{ message: 'Field not found' }] } };
+      mockRequest.mockRejectedValueOnce(graphQLError);
+
+      await expect(
+        executor.execute(testQuery, testVariables, 'fetching')
+      ).rejects.toThrow('GitLab API Error');
+
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry a 5xx error and succeed on second attempt', async () => {
+      const serverError = { response: { status: 500, statusText: 'Internal Server Error' } };
+      const expectedData = { project: { name: 'Test' } };
+      mockRequest
+        .mockRejectedValueOnce(serverError)
+        .mockResolvedValueOnce(expectedData);
+
+      const result = await executor.execute(testQuery, testVariables, 'fetching');
+
+      expect(result).toEqual(expectedData);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+      expect(executor._sleep).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry up to 3 attempts total then throw transformed error', async () => {
+      const serverError = { response: { status: 503, statusText: 'Service Unavailable' } };
+      mockRequest
+        .mockRejectedValueOnce(serverError)
+        .mockRejectedValueOnce(serverError)
+        .mockRejectedValueOnce(serverError);
+
+      await expect(
+        executor.execute(testQuery, testVariables, 'retrying')
+      ).rejects.toThrow('HTTP 503 (retrying): Service Unavailable');
+
+      expect(mockRequest).toHaveBeenCalledTimes(3);
+    });
+
+    it('should not make a 4th attempt after 3 failures', async () => {
+      const serverError = { response: { status: 503, statusText: 'Service Unavailable' } };
+      mockRequest.mockRejectedValue(serverError);
+
+      await expect(executor.execute(testQuery, testVariables)).rejects.toThrow();
+
+      expect(mockRequest).toHaveBeenCalledTimes(3);
+    });
+
+    it('should use exponential backoff delays of 1s then 2s', async () => {
+      const serverError = { response: { status: 503, statusText: 'Service Unavailable' } };
+      mockRequest
+        .mockRejectedValueOnce(serverError)
+        .mockRejectedValueOnce(serverError)
+        .mockRejectedValueOnce(serverError);
+
+      await expect(executor.execute(testQuery, testVariables)).rejects.toThrow();
+
+      expect(executor._sleep).toHaveBeenCalledTimes(2);
+      expect(executor._sleep).toHaveBeenNthCalledWith(1, 1000);
+      expect(executor._sleep).toHaveBeenNthCalledWith(2, 2000);
+    });
+
+    it('should retry on ECONNRESET network errors', async () => {
+      const networkError = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
+      const expectedData = { project: { name: 'Recovered' } };
+      mockRequest
+        .mockRejectedValueOnce(networkError)
+        .mockResolvedValueOnce(expectedData);
+
+      const result = await executor.execute(testQuery, testVariables, 'connecting');
+
+      expect(result).toEqual(expectedData);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it('should use Retry-After header duration on 429 responses', async () => {
+      const rateLimitError = {
+        response: {
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: { 'retry-after': '30' }
+        }
+      };
+      const expectedData = { project: { name: 'Test' } };
+      mockRequest
+        .mockRejectedValueOnce(rateLimitError)
+        .mockResolvedValueOnce(expectedData);
+
+      const result = await executor.execute(testQuery, testVariables);
+
+      expect(result).toEqual(expectedData);
+      expect(executor._sleep).toHaveBeenCalledWith(30000);
+    });
+
+    it('should fall back to exponential backoff on 429 without Retry-After', async () => {
+      const rateLimitError = {
+        response: { status: 429, statusText: 'Too Many Requests' }
+      };
+      const expectedData = { data: 'ok' };
+      mockRequest
+        .mockRejectedValueOnce(rateLimitError)
+        .mockResolvedValueOnce(expectedData);
+
+      await executor.execute(testQuery, testVariables);
+
+      expect(executor._sleep).toHaveBeenCalledWith(1000);
+    });
+  });
 });

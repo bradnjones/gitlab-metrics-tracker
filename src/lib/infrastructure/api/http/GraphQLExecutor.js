@@ -40,13 +40,14 @@ export class GraphQLExecutor {
 
   /**
    * Executes a GraphQL query and returns the result.
+   * Retries up to 3 attempts with exponential backoff for retryable errors.
    * Transforms errors using ErrorTransformer.
    *
    * @param {string} query - GraphQL query string
    * @param {Object} [variables={}] - Query variables
    * @param {string} [context='executing query'] - Context for error messages
    * @returns {Promise<Object>} Query result data
-   * @throws {Error} Transformed error if query fails
+   * @throws {Error} Transformed error if query fails after all attempts
    */
   async execute(query, variables = {}, context = 'executing query') {
     if (this.logger) {
@@ -56,21 +57,66 @@ export class GraphQLExecutor {
       });
     }
 
-    try {
-      const data = await this.client.request(query, variables);
-      return data;
-    } catch (error) {
-      // Transform error with context
-      const transformedError = ErrorTransformer.transform(error, context);
+    const maxAttempts = 3;
+    const backoffDelays = [1000, 2000, 4000];
+    let lastError;
 
-      if (this.logger) {
-        this.logger.error('GraphQL query failed', transformedError, {
-          context,
-          variables
-        });
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await this.client.request(query, variables);
+      } catch (error) {
+        lastError = error;
+
+        const isLastAttempt = attempt === maxAttempts - 1;
+        if (isLastAttempt || !ErrorTransformer.isRetryable(error)) {
+          break;
+        }
+
+        const delay = this._retryDelay(error, backoffDelays[attempt]);
+        await this._sleep(delay);
       }
-
-      throw transformedError;
     }
+
+    const transformedError = ErrorTransformer.transform(lastError, context);
+
+    if (this.logger) {
+      this.logger.error('GraphQL query failed', transformedError, {
+        context,
+        variables
+      });
+    }
+
+    throw transformedError;
+  }
+
+  /**
+   * Returns the delay in ms before the next retry attempt.
+   * Respects the Retry-After header on 429 responses; otherwise uses backoff.
+   *
+   * @param {Error} error - The caught error
+   * @param {number} backoffMs - Default exponential backoff delay in ms
+   * @returns {number} Delay in milliseconds
+   */
+  _retryDelay(error, backoffMs) {
+    if (error.response?.status === 429) {
+      const headers = error.response.headers;
+      const retryAfterRaw = headers?.get?.('retry-after') ?? headers?.['retry-after'];
+      const retryAfterSecs = parseInt(retryAfterRaw, 10);
+      if (!isNaN(retryAfterSecs)) {
+        return retryAfterSecs * 1000;
+      }
+    }
+    return backoffMs;
+  }
+
+  /**
+   * Sleeps for the given number of milliseconds.
+   * Extracted so tests can spy on / replace it without real timers.
+   *
+   * @param {number} ms - Duration in milliseconds
+   * @returns {Promise<void>}
+   */
+  _sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
