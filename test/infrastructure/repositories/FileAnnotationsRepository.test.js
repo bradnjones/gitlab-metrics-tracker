@@ -270,4 +270,51 @@ describe('FileAnnotationsRepository', () => {
       await expect(repository.findAll()).rejects.toThrow();
     });
   });
+
+  describe('write serialization', () => {
+    test('serializes concurrent writes without data loss', async () => {
+      const annotations = Array.from({ length: 5 }, (_, i) =>
+        new Annotation({ ...validAnnotationData, title: `Event ${i}` })
+      );
+
+      // Fire all saves concurrently
+      await Promise.all(annotations.map(a => repository.save(a)));
+
+      const all = await repository.findAll();
+      expect(all).toHaveLength(5);
+    });
+  });
+
+  describe('atomic writes and crash recovery', () => {
+    test('tmp file is gone after a successful write', async () => {
+      const annotation = new Annotation(validAnnotationData);
+      await repository.save(annotation);
+
+      await expect(fs.access(repository.filePath + '.tmp')).rejects.toThrow();
+      const data = JSON.parse(await fs.readFile(repository.filePath, 'utf-8'));
+      expect(data[annotation.id]).toBeDefined();
+    });
+
+    test('recovers from tmp file when main file is missing', async () => {
+      const annotation = new Annotation(validAnnotationData);
+      const testData = { [annotation.id]: annotation.toJSON() };
+      await fs.writeFile(repository.filePath + '.tmp', JSON.stringify(testData), 'utf-8');
+      // Main file does not exist
+
+      const all = await repository.findAll();
+      expect(all).toHaveLength(1);
+      expect(all[0].id).toBe(annotation.id);
+    });
+
+    test('recovers from tmp file when main file is empty', async () => {
+      const annotation = new Annotation(validAnnotationData);
+      const testData = { [annotation.id]: annotation.toJSON() };
+      await fs.writeFile(repository.filePath + '.tmp', JSON.stringify(testData), 'utf-8');
+      await fs.writeFile(repository.filePath, '', 'utf-8');
+
+      const all = await repository.findAll();
+      expect(all).toHaveLength(1);
+      expect(all[0].id).toBe(annotation.id);
+    });
+  });
 });

@@ -24,6 +24,14 @@ export class FileAnnotationsRepository extends IAnnotationsRepository {
   constructor(dataDir) {
     super();
     this.filePath = path.join(dataDir, 'annotations.json');
+    this.tmpPath = this.filePath + '.tmp';
+    /**
+     * Promise chain that serializes every mutating operation so concurrent
+     * callers never interleave their read-modify-write cycles.
+     *
+     * @type {Promise<void>}
+     */
+    this._writeQueue = Promise.resolve();
   }
 
   /**
@@ -34,10 +42,12 @@ export class FileAnnotationsRepository extends IAnnotationsRepository {
    * @returns {Promise<void>}
    * @throws {Error} If save operation fails
    */
-  async save(annotation) {
-    const allAnnotations = await this.loadFile();
-    allAnnotations[annotation.id] = annotation.toJSON();
-    await this.saveFile(allAnnotations);
+  save(annotation) {
+    return this._enqueueOperation(async () => {
+      const allAnnotations = await this.loadFile();
+      allAnnotations[annotation.id] = annotation.toJSON();
+      await this._atomicWrite(allAnnotations);
+    });
   }
 
   /**
@@ -95,19 +105,20 @@ export class FileAnnotationsRepository extends IAnnotationsRepository {
    * @returns {Promise<boolean>} True if updated, false if not found
    * @throws {Error} If update operation fails
    */
-  async update(id, annotation) {
-    const allAnnotations = await this.loadFile();
+  update(id, annotation) {
+    return this._enqueueOperation(async () => {
+      const allAnnotations = await this.loadFile();
 
-    if (allAnnotations[id]) {
-      // Update the updatedAt timestamp
-      const updatedData = annotation.toJSON();
-      updatedData.updatedAt = new Date().toISOString();
-      allAnnotations[id] = updatedData;
-      await this.saveFile(allAnnotations);
-      return true;
-    }
+      if (allAnnotations[id]) {
+        const updatedData = annotation.toJSON();
+        updatedData.updatedAt = new Date().toISOString();
+        allAnnotations[id] = updatedData;
+        await this._atomicWrite(allAnnotations);
+        return true;
+      }
 
-    return false;
+      return false;
+    });
   }
 
   /**
@@ -117,16 +128,18 @@ export class FileAnnotationsRepository extends IAnnotationsRepository {
    * @returns {Promise<boolean>} True if deleted, false if not found
    * @throws {Error} If delete operation fails
    */
-  async delete(id) {
-    const allAnnotations = await this.loadFile();
+  delete(id) {
+    return this._enqueueOperation(async () => {
+      const allAnnotations = await this.loadFile();
 
-    if (allAnnotations[id]) {
-      delete allAnnotations[id];
-      await this.saveFile(allAnnotations);
-      return true;
-    }
+      if (allAnnotations[id]) {
+        delete allAnnotations[id];
+        await this._atomicWrite(allAnnotations);
+        return true;
+      }
 
-    return false;
+      return false;
+    });
   }
 
   /**
@@ -135,22 +148,27 @@ export class FileAnnotationsRepository extends IAnnotationsRepository {
    * @returns {Promise<number>} Number of records deleted
    * @throws {Error} If delete operation fails
    */
-  async deleteAll() {
-    const allAnnotations = await this.loadFile();
-    const count = Object.keys(allAnnotations).length;
-    await this.saveFile({});
-    return count;
+  deleteAll() {
+    return this._enqueueOperation(async () => {
+      const allAnnotations = await this.loadFile();
+      const count = Object.keys(allAnnotations).length;
+      await this._atomicWrite({});
+      return count;
+    });
   }
 
   /**
-   * Load annotations from file
-   * Returns empty object if file doesn't exist
+   * Load annotations from file.
+   * If a .tmp file exists and the main file is missing or empty, promotes the
+   * .tmp file first (crash recovery for a previous interrupted atomic write).
    *
    * @returns {Promise<Object>} Annotations object (keyed by id)
    * @throws {Error} If file read or parse fails
    * @private
    */
   async loadFile() {
+    await this._recoverFromTmp();
+
     try {
       const data = await fs.readFile(this.filePath, 'utf-8');
       return JSON.parse(data);
@@ -165,16 +183,69 @@ export class FileAnnotationsRepository extends IAnnotationsRepository {
   }
 
   /**
-   * Save annotations to file
-   * Writes JSON with 2-space indentation for readability
+   * Enqueue an operation so it runs only after all previously enqueued
+   * operations have settled. Errors propagate to the caller but do not
+   * poison the queue for subsequent operations.
+   *
+   * @template T
+   * @param {() => Promise<T>} fn - Async operation to serialize
+   * @returns {Promise<T>}
+   * @private
+   */
+  _enqueueOperation(fn) {
+    const op = this._writeQueue.then(() => fn());
+    // Catch on the queued chain only so a rejection does not block later ops
+    this._writeQueue = op.catch(() => {});
+    return op;
+  }
+
+  /**
+   * Promote .tmp file to main file if the main file is absent or empty.
+   * Called on every loadFile so any interrupted write is recovered on next read.
+   *
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _recoverFromTmp() {
+    let tmpExists = false;
+    try {
+      await fs.access(this.tmpPath);
+      tmpExists = true;
+    } catch {
+      // No tmp file — nothing to recover
+    }
+
+    if (!tmpExists) return;
+
+    let mainMissingOrEmpty = false;
+    try {
+      const stat = await fs.stat(this.filePath);
+      mainMissingOrEmpty = stat.size === 0;
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        mainMissingOrEmpty = true;
+      } else {
+        throw err;
+      }
+    }
+
+    if (mainMissingOrEmpty) {
+      await fs.rename(this.tmpPath, this.filePath);
+    }
+  }
+
+  /**
+   * Write annotations atomically: write to .tmp then rename over the main file.
+   * On POSIX systems fs.rename is atomic, so readers never see a partial file.
    *
    * @param {Object} annotations - Annotations object to save
    * @returns {Promise<void>}
-   * @throws {Error} If file write fails
+   * @throws {Error} If file write or rename fails
    * @private
    */
-  async saveFile(annotations) {
+  async _atomicWrite(annotations) {
     const data = JSON.stringify(annotations, null, 2);
-    await fs.writeFile(this.filePath, data, 'utf-8');
+    await fs.writeFile(this.tmpPath, data, 'utf-8');
+    await fs.rename(this.tmpPath, this.filePath);
   }
 }
