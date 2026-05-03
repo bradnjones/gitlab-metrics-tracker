@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import request from 'supertest';
-import { createApp, startServer, validateEnv } from '../../src/server/app.js';
+import { createApp, startServer, validateEnv, registerShutdownHandlers } from '../../src/server/app.js';
 import { ServiceFactory } from '../../src/server/services/ServiceFactory.js';
 
 describe('Express Application (createApp)', () => {
@@ -249,6 +249,86 @@ describe('validateEnv', () => {
     expect(console.error).toHaveBeenCalled();
     const logOutput = console.error.mock.calls[0][0];
     expect(logOutput).toContain('GITLAB_PROJECT_PATH');
+  });
+});
+
+describe('registerShutdownHandlers', () => {
+  let mockServer;
+
+  beforeEach(() => {
+    mockServer = { close: jest.fn() };
+    jest.spyOn(process, 'exit').mockImplementation(() => {});
+    jest.spyOn(console, 'info').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  test('registers SIGTERM handler on the process', () => {
+    const onSpy = jest.spyOn(process, 'on').mockImplementation(() => process);
+
+    registerShutdownHandlers(mockServer);
+
+    expect(onSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
+  });
+
+  test('registers SIGINT handler on the process', () => {
+    const onSpy = jest.spyOn(process, 'on').mockImplementation(() => process);
+
+    registerShutdownHandlers(mockServer);
+
+    expect(onSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+  });
+
+  test('calls server.close() when SIGTERM is received', () => {
+    const handlers = {};
+    jest.spyOn(process, 'on').mockImplementation((event, fn) => { handlers[event] = fn; return process; });
+
+    registerShutdownHandlers(mockServer);
+    handlers['SIGTERM']();
+
+    expect(mockServer.close).toHaveBeenCalled();
+  });
+
+  test('calls server.close() when SIGINT is received', () => {
+    const handlers = {};
+    jest.spyOn(process, 'on').mockImplementation((event, fn) => { handlers[event] = fn; return process; });
+
+    registerShutdownHandlers(mockServer);
+    handlers['SIGINT']();
+
+    expect(mockServer.close).toHaveBeenCalled();
+  });
+
+  test('exits with code 0 after server.close() drains connections', () => {
+    mockServer.close = jest.fn(cb => cb()); // immediately drains
+    const handlers = {};
+    jest.spyOn(process, 'on').mockImplementation((event, fn) => { handlers[event] = fn; return process; });
+
+    registerShutdownHandlers(mockServer);
+    handlers['SIGTERM']();
+
+    expect(process.exit).toHaveBeenCalledWith(0);
+  });
+
+  test('force exits with code 1 after 10s if connections do not drain', () => {
+    // close never calls its callback (simulates stuck connections)
+    mockServer.close = jest.fn();
+    const handlers = {};
+    jest.spyOn(process, 'on').mockImplementation((event, fn) => { handlers[event] = fn; return process; });
+
+    registerShutdownHandlers(mockServer);
+    handlers['SIGTERM']();
+
+    jest.advanceTimersByTime(9999);
+    expect(process.exit).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 });
 

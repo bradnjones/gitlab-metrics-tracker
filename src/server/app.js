@@ -45,6 +45,38 @@ export function validateEnv() {
 }
 
 /**
+ * Register SIGTERM and SIGINT handlers for graceful shutdown.
+ * Stops accepting new connections and waits up to 10s for in-flight
+ * requests to complete before exiting. Prevents mid-write file corruption
+ * on deploy/restart.
+ *
+ * @param {import('http').Server} server - HTTP server instance to drain
+ * @returns {void}
+ */
+export function registerShutdownHandlers(server) {
+  function shutdown(signal) {
+    logger.info(`Received ${signal}, starting graceful shutdown`);
+
+    const forceExit = setTimeout(() => {
+      logger.error('Graceful shutdown timed out after 10s, forcing exit');
+      process.exit(1);
+    }, 10_000);
+
+    // Don't let the timeout keep the event loop alive if close() finishes first
+    if (forceExit.unref) forceExit.unref();
+
+    server.close(() => {
+      logger.info('All connections drained, exiting cleanly');
+      clearTimeout(forceExit);
+      process.exit(0);
+    });
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+/**
  * Create and configure Express application
  *
  * @returns {express.Application} Configured Express app
@@ -145,6 +177,8 @@ export function startServer(port = 3000) {
       health: `http://localhost:${port}/health`
     });
   });
+
+  registerShutdownHandlers(server);
 
   return server;
 }
