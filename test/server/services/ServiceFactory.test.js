@@ -218,6 +218,14 @@ describe('ServiceFactory', () => {
       expect(repository).toBeDefined();
       expect(typeof repository.get).toBe('function');
     });
+
+    it('should respect CACHE_TTL_HOURS=0 (disable expiration) without defaulting to 6', () => {
+      process.env.CACHE_TTL_HOURS = '0';
+
+      const repository = ServiceFactory.createIterationCacheRepository();
+
+      expect(repository.cacheTTL).toBe(0);
+    });
   });
 
   describe('createGetCacheStatusUseCase', () => {

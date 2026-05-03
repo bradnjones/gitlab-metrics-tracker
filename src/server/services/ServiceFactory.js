@@ -54,8 +54,9 @@ export class ServiceFactory {
    * @returns {IterationCacheRepository} Configured cache repository instance
    */
   static createIterationCacheRepository(cacheDir = './src/data/cache/iterations') {
-    // Read TTL from environment (default 6 hours)
-    const cacheTTL = parseInt(process.env.CACHE_TTL_HOURS, 10) || 6;
+    // Read TTL from environment (default 6 hours); 0 is valid (disables expiry)
+    const parsed = parseInt(process.env.CACHE_TTL_HOURS, 10);
+    const cacheTTL = Number.isFinite(parsed) ? parsed : 6;
 
     return new IterationCacheRepository(cacheDir, cacheTTL);
   }
