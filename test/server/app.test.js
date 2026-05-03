@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import request from 'supertest';
-import { createApp, startServer, validateEnv, registerShutdownHandlers } from '../../src/server/app.js';
+import { createApp, startServer, validateEnv, registerShutdownHandlers, registerProcessHandlers } from '../../src/server/app.js';
 import { ServiceFactory } from '../../src/server/services/ServiceFactory.js';
 
 describe('Express Application (createApp)', () => {
@@ -258,6 +258,17 @@ describe('Express Application (createApp)', () => {
       // Should get an error response (400 or 500)
       expect([400, 500]).toContain(response.status);
     });
+
+    test('rejects requests with body larger than 100kb', async () => {
+      const oversized = 'x'.repeat(110 * 1024); // 110 KB
+
+      const response = await request(app)
+        .post('/api/metrics/calculate')
+        .set('Content-Type', 'application/json')
+        .send(`{"data":"${oversized}"}`);
+
+      expect(response.status).toBe(413);
+    });
   });
 });
 
@@ -343,6 +354,50 @@ describe('validateEnv', () => {
     expect(console.error).toHaveBeenCalled();
     const logOutput = console.error.mock.calls[0][0];
     expect(logOutput).toContain('GITLAB_PROJECT_PATH');
+  });
+});
+
+describe('registerProcessHandlers (uncaughtException / unhandledRejection)', () => {
+  beforeEach(() => {
+    jest.spyOn(process, 'exit').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(process, 'on').mockImplementation(() => process);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('registers uncaughtException handler', () => {
+    registerProcessHandlers();
+    expect(process.on).toHaveBeenCalledWith('uncaughtException', expect.any(Function));
+  });
+
+  test('registers unhandledRejection handler', () => {
+    registerProcessHandlers();
+    expect(process.on).toHaveBeenCalledWith('unhandledRejection', expect.any(Function));
+  });
+
+  test('uncaughtException handler logs and exits with code 1', () => {
+    const handlers = {};
+    process.on.mockImplementation((event, fn) => { handlers[event] = fn; return process; });
+
+    registerProcessHandlers();
+    handlers['uncaughtException'](new Error('boom'));
+
+    expect(console.error).toHaveBeenCalled();
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  test('unhandledRejection handler logs and exits with code 1', () => {
+    const handlers = {};
+    process.on.mockImplementation((event, fn) => { handlers[event] = fn; return process; });
+
+    registerProcessHandlers();
+    handlers['unhandledRejection']('unhandled reason', Promise.resolve());
+
+    expect(console.error).toHaveBeenCalled();
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 });
 

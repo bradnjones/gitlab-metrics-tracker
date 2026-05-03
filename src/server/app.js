@@ -49,6 +49,25 @@ export function validateEnv() {
 }
 
 /**
+ * Register process-level handlers for uncaught exceptions and unhandled
+ * promise rejections. Logs via ConsoleLogger and exits with code 1 so
+ * the orchestrator restarts the process cleanly.
+ *
+ * @returns {void}
+ */
+export function registerProcessHandlers() {
+  process.on('uncaughtException', (error) => {
+    logger.error('Uncaught exception — shutting down', error);
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled promise rejection — shutting down', reason instanceof Error ? reason : new Error(String(reason)));
+    process.exit(1);
+  });
+}
+
+/**
  * Register SIGTERM and SIGINT handlers for graceful shutdown.
  * Stops accepting new connections and waits up to 10s for in-flight
  * requests to complete before exiting. Prevents mid-write file corruption
@@ -133,8 +152,8 @@ export function createApp() {
     next();
   });
 
-  // Middleware
-  app.use(express.json());
+  // Middleware — explicit body size limit prevents memory exhaustion
+  app.use(express.json({ limit: '100kb' }));
 
   // In production serve the Vite-built bundle; in dev Vite runs separately on port 5173
   const publicPath = process.env.NODE_ENV === 'production'
@@ -194,6 +213,11 @@ export function createApp() {
 
   // Error handler
   app.use((err, req, res, next) => {
+    // Payload too large — return 413 without logging (client error, not server fault)
+    if (err.type === 'entity.too.large' || err.status === 413) {
+      return res.status(413).json({ error: 'Payload too large' });
+    }
+
     // Log sanitized error (no stack trace exposure)
     logger.error('Error occurred', err, {
       path: req.path,
@@ -234,6 +258,7 @@ function getLocalIPAddress() {
  */
 export function startServer(port = 3000) {
   validateEnv();
+  registerProcessHandlers();
   const app = createApp();
 
   // Listen on all network interfaces (0.0.0.0) to allow access from other devices
