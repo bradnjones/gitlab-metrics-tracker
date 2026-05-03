@@ -9,6 +9,7 @@ import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import { rateLimit } from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
@@ -140,6 +141,27 @@ export function createApp() {
     ? path.join(__dirname, '..', '..', 'dist')
     : path.join(__dirname, '..', 'public');
   app.use(express.static(publicPath));
+
+  // Rate limiting — applied to all /api routes
+  const generalLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    limit: 60,
+    standardHeaders: 'draft-6', // RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later' }
+  });
+
+  // Stricter limiter for cache-clearing (destructive operation)
+  const cacheClearLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-6',
+    legacyHeaders: false,
+    message: { error: 'Too many cache clear requests, please try again later' }
+  });
+
+  app.use('/api', generalLimiter);
+  app.delete('/api/cache', cacheClearLimiter);
 
   // Routes
   app.use('/api/iterations', iterationsRoutes);

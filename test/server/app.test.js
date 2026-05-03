@@ -38,6 +38,29 @@ describe('Express Application (createApp)', () => {
     });
   });
 
+  describe('Rate limiting', () => {
+    test('GET /api routes include RateLimit-Limit header', async () => {
+      const response = await request(app).get('/api/iterations');
+      // express-rate-limit draft-6: individual RateLimit-Limit / RateLimit-Remaining headers
+      expect(response.headers['ratelimit-limit']).toBeDefined();
+    });
+
+    test('GET /api routes include RateLimit-Remaining header', async () => {
+      const response = await request(app).get('/api/iterations');
+      expect(response.headers['ratelimit-remaining']).toBeDefined();
+    });
+
+    test('returns 429 when general /api rate limit is exceeded', async () => {
+      // Make 61 rapid requests to exceed the 60/min limit
+      const responses = [];
+      for (let i = 0; i < 61; i++) {
+        responses.push(await request(app).get('/api/iterations'));
+      }
+      const last = responses[responses.length - 1];
+      expect(last.status).toBe(429);
+    });
+  });
+
   describe('Per-request logging (requestId)', () => {
     test('returns X-Request-Id header on every response', async () => {
       const response = await request(app).get('/health');
