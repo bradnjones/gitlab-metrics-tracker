@@ -155,31 +155,13 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) =
         const iterationsParam = iterationIds.join(',');
         const url = `/api/metrics/cycle-time?iterations=${iterationsParam}`;
 
-        console.log('[CycleTimeChart] Fetching cycle time data:', {
-          url,
-          iterationCount: iterationIds.length,
-          iterations: iterationIds
-        });
-
         const response = await fetch(url);
 
-        console.log('[CycleTimeChart] Response received:', {
-          status: response.status,
-          ok: response.ok,
-          statusText: response.statusText
-        });
-
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[CycleTimeChart] HTTP error response body:', errorText);
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('[CycleTimeChart] Data received:', {
-          metricsCount: data.metrics?.length,
-          count: data.count
-        });
 
         // Transform API response to Chart.js format
         const transformedData = transformToChartData(data);
