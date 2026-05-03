@@ -39,11 +39,10 @@ router.get('/', async (req, res) => {
       route: 'GET /api/iterations'
     });
 
-    // Return user-friendly error
+    // Return user-friendly error without leaking internal details
     res.status(500).json({
       error: {
-        message: 'Failed to fetch iterations',
-        details: error.message
+        message: 'Failed to fetch iterations'
       }
     });
   }

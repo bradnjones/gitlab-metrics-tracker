@@ -143,8 +143,7 @@ router.get('/', async (req, res) => {
       route: 'GET /api/annotations'
     });
     res.status(500).json({
-      error: 'Failed to fetch annotations',
-      message: error.message,
+      error: 'Failed to fetch annotations'
     });
   }
 });
@@ -177,8 +176,7 @@ router.post('/', async (req, res) => {
       route: 'POST /api/annotations'
     });
     res.status(500).json({
-      error: 'Failed to create annotation',
-      message: error.message,
+      error: 'Failed to create annotation'
     });
   }
 });
@@ -234,8 +232,7 @@ router.put('/:id', async (req, res) => {
       annotationId: req.params.id
     });
     res.status(500).json({
-      error: 'Failed to update annotation',
-      message: error.message,
+      error: 'Failed to update annotation'
     });
   }
 });
@@ -263,8 +260,7 @@ router.delete('/:id', async (req, res) => {
       annotationId: req.params.id
     });
     res.status(500).json({
-      error: 'Failed to delete annotation',
-      message: error.message,
+      error: 'Failed to delete annotation'
     });
   }
 });

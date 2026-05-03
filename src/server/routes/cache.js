@@ -37,8 +37,7 @@ router.get('/status', async (req, res) => {
     });
 
     res.status(500).json({
-      error: 'Failed to get cache status',
-      message: error.message
+      error: 'Failed to get cache status'
     });
   }
 });
@@ -66,8 +65,7 @@ router.delete('/', async (req, res) => {
     });
 
     res.status(500).json({
-      error: 'Failed to clear cache',
-      message: error.message
+      error: 'Failed to clear cache'
     });
   }
 });

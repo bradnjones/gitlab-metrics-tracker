@@ -56,7 +56,8 @@ describe('Cache API', () => {
     // Verify error response structure
     expect(response.body).toHaveProperty('error');
     expect(response.body.error).toBe('Failed to clear cache');
-    expect(response.body.message).toContain('Disk error');
+    // Internal error details must not leak to the client
+    expect(response.body).not.toHaveProperty('message');
   });
 
   // Test 11: GET /api/cache/status returns cache metadata with status indicators
@@ -179,6 +180,7 @@ describe('Cache API', () => {
     // Verify error response structure
     expect(response.body).toHaveProperty('error');
     expect(response.body.error).toBe('Failed to get cache status');
-    expect(response.body.message).toContain('File system error');
+    // Internal error details must not leak to the client
+    expect(response.body).not.toHaveProperty('message');
   });
 });

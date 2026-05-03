@@ -131,8 +131,7 @@ export function createApp() {
     });
 
     res.status(500).json({
-      error: 'Internal server error',
-      message: err.message
+      error: 'Internal server error'
     });
   });
 

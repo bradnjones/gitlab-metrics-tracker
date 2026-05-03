@@ -167,12 +167,8 @@ describe('GET /api/metrics/mttr', () => {
       .expect('Content-Type', /json/)
       .expect(500);
 
-    // Verify error response structure
-    expect(response.body).toEqual({
-      error: {
-        message: 'Failed to calculate MTTR metrics',
-        details: 'Failed to fetch incidents from GitLab'
-      }
-    });
+    // Verify error response — internal details must not leak to the client
+    expect(response.body.error.message).toBe('Failed to calculate MTTR metrics');
+    expect(response.body.error).not.toHaveProperty('details');
   });
 });

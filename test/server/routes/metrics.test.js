@@ -82,7 +82,8 @@ describe('POST /api/metrics/calculate', () => {
       .expect('Content-Type', /json/);
 
     expect(response.body.error).toBe('Internal server error');
-    expect(response.body.message).toBe('Failed to fetch iteration data');
+    // Internal error details must not leak to the client
+    expect(response.body).not.toHaveProperty('message');
   });
 });
 
@@ -191,6 +192,8 @@ describe('Metrics Routes - GET endpoints', () => {
         .expect('Content-Type', /json/);
 
       expect(response.body.error.message).toBe('Failed to calculate velocity metrics');
+      // Internal error details must not leak to the client
+      expect(response.body.error).not.toHaveProperty('details');
     });
   });
 

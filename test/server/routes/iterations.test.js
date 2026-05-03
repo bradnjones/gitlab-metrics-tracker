@@ -79,13 +79,9 @@ describe('GET /api/iterations', () => {
       .expect('Content-Type', /json/)
       .expect(500);
 
-    // Verify error response structure
-    expect(response.body).toEqual({
-      error: {
-        message: 'Failed to fetch iterations',
-        details: 'GitLab API Error: 401 Unauthorized'
-      }
-    });
+    // Verify error response — internal details must not leak to the client
+    expect(response.body.error.message).toBe('Failed to fetch iterations');
+    expect(response.body.error).not.toHaveProperty('details');
   });
 
   it('should return empty array when no iterations configured', async () => {

@@ -133,12 +133,8 @@ describe('GET /api/metrics/velocity', () => {
       .expect('Content-Type', /json/)
       .expect(500);
 
-    // Verify error response structure
-    expect(response.body).toEqual({
-      error: {
-        message: 'Failed to calculate velocity metrics',
-        details: 'Failed to fetch multiple iterations: Iteration not found'
-      }
-    });
+    // Verify error response — internal details must not leak to the client
+    expect(response.body.error.message).toBe('Failed to calculate velocity metrics');
+    expect(response.body.error).not.toHaveProperty('details');
   });
 });

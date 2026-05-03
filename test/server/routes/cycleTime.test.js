@@ -200,10 +200,8 @@ describe('GET /api/metrics/cycle-time', () => {
       .expect('Content-Type', /json/)
       .expect(500);
 
-    // Verify error structure
-    expect(response.body.error).toMatchObject({
-      message: 'Failed to calculate cycle time metrics',
-      details: 'Failed to fetch iteration data'
-    });
+    // Verify error structure — internal details must not leak to the client
+    expect(response.body.error.message).toBe('Failed to calculate cycle time metrics');
+    expect(response.body.error).not.toHaveProperty('details');
   });
 });

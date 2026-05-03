@@ -50,8 +50,7 @@ function withMetricsHandler(metricName, transformFn) {
 
       res.status(500).json({
         error: {
-          message: `Failed to calculate ${metricName} metrics`,
-          details: error.message
+          message: `Failed to calculate ${metricName} metrics`
         }
       });
     }
