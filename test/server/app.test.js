@@ -38,6 +38,27 @@ describe('Express Application (createApp)', () => {
     });
   });
 
+  describe('Per-request logging (requestId)', () => {
+    test('returns X-Request-Id header on every response', async () => {
+      const response = await request(app).get('/health');
+      expect(response.headers['x-request-id']).toBeDefined();
+    });
+
+    test('X-Request-Id is a valid UUID v4', async () => {
+      const response = await request(app).get('/health');
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      expect(response.headers['x-request-id']).toMatch(uuidRegex);
+    });
+
+    test('each request gets a unique requestId', async () => {
+      const [r1, r2] = await Promise.all([
+        request(app).get('/health'),
+        request(app).get('/health')
+      ]);
+      expect(r1.headers['x-request-id']).not.toBe(r2.headers['x-request-id']);
+    });
+  });
+
   describe('CORS', () => {
     test('no CORS headers when ALLOWED_ORIGIN is not set', async () => {
       delete process.env.ALLOWED_ORIGIN;

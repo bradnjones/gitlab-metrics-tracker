@@ -11,6 +11,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 import os from 'os';
 import metricsRoutes from './routes/metrics.js';
 import iterationsRoutes from './routes/iterations.js';
@@ -111,6 +112,25 @@ export function createApp() {
       }
     }
   }));
+
+  // Per-request logging — assign a UUID to every request, log on finish
+  app.use((req, res, next) => {
+    req.id = crypto.randomUUID();
+    res.setHeader('X-Request-Id', req.id);
+    const startMs = Date.now();
+
+    res.on('finish', () => {
+      logger.info('Request completed', {
+        requestId: req.id,
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        durationMs: Date.now() - startMs
+      });
+    });
+
+    next();
+  });
 
   // Middleware
   app.use(express.json());
