@@ -165,7 +165,7 @@ export function createApp() {
   // Rate limiting — applied to all /api routes
   const generalLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    limit: 60,
+    limit: 500,
     standardHeaders: 'draft-6', // RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later' }
