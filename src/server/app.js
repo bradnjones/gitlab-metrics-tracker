@@ -9,6 +9,7 @@ import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import basicAuth from 'express-basic-auth';
 import { rateLimit } from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -181,6 +182,18 @@ export function createApp() {
 
   app.use('/api', generalLimiter);
   app.delete('/api/cache', cacheClearLimiter);
+
+  // Basic auth — protects all /api routes; /health remains open.
+  // Enabled only when both BASIC_AUTH_USER and BASIC_AUTH_PASS are set.
+  const authUser = process.env.BASIC_AUTH_USER;
+  const authPass = process.env.BASIC_AUTH_PASS;
+  if (authUser && authPass) {
+    app.use('/api', basicAuth({
+      users: { [authUser]: authPass },
+      challenge: true,
+      unauthorizedResponse: { error: 'Unauthorized' }
+    }));
+  }
 
   // Routes
   app.use('/api/iterations', iterationsRoutes);

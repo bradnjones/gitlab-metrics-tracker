@@ -38,6 +38,68 @@ describe('Express Application (createApp)', () => {
     });
   });
 
+  describe('Basic Auth', () => {
+    let originalUser;
+    let originalPass;
+
+    beforeEach(() => {
+      originalUser = process.env.BASIC_AUTH_USER;
+      originalPass = process.env.BASIC_AUTH_PASS;
+    });
+
+    afterEach(() => {
+      if (originalUser === undefined) delete process.env.BASIC_AUTH_USER;
+      else process.env.BASIC_AUTH_USER = originalUser;
+      if (originalPass === undefined) delete process.env.BASIC_AUTH_PASS;
+      else process.env.BASIC_AUTH_PASS = originalPass;
+    });
+
+    test('/health is accessible without credentials even when auth is enabled', async () => {
+      process.env.BASIC_AUTH_USER = 'admin';
+      process.env.BASIC_AUTH_PASS = 'secret';
+      const response = await request(createApp()).get('/health');
+      expect(response.status).toBe(200);
+    });
+
+    test('/api routes return 401 without credentials when auth is enabled', async () => {
+      process.env.BASIC_AUTH_USER = 'admin';
+      process.env.BASIC_AUTH_PASS = 'secret';
+      const response = await request(createApp()).get('/api/iterations');
+      expect(response.status).toBe(401);
+    });
+
+    test('/api routes return 401 with wrong credentials', async () => {
+      process.env.BASIC_AUTH_USER = 'admin';
+      process.env.BASIC_AUTH_PASS = 'secret';
+      const response = await request(createApp())
+        .get('/api/iterations')
+        .auth('admin', 'wrong');
+      expect(response.status).toBe(401);
+    });
+
+    test('/api routes are accessible with correct credentials', async () => {
+      process.env.BASIC_AUTH_USER = 'admin';
+      process.env.BASIC_AUTH_PASS = 'secret';
+      ServiceFactory.createGitLabClient = jest.fn().mockReturnValue({
+        fetchIterations: jest.fn().mockResolvedValue([])
+      });
+      const response = await request(createApp())
+        .get('/api/iterations')
+        .auth('admin', 'secret');
+      expect(response.status).toBe(200);
+    });
+
+    test('/api routes have no auth when BASIC_AUTH_USER is not set', async () => {
+      delete process.env.BASIC_AUTH_USER;
+      delete process.env.BASIC_AUTH_PASS;
+      ServiceFactory.createGitLabClient = jest.fn().mockReturnValue({
+        fetchIterations: jest.fn().mockResolvedValue([])
+      });
+      const response = await request(createApp()).get('/api/iterations');
+      expect(response.status).toBe(200);
+    });
+  });
+
   describe('Rate limiting', () => {
     test('GET /api routes include RateLimit-Limit header', async () => {
       const response = await request(app).get('/api/iterations');
