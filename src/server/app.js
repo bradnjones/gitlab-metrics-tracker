@@ -7,6 +7,7 @@
 
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
@@ -83,6 +84,17 @@ export function registerShutdownHandlers(server) {
  */
 export function createApp() {
   const app = express();
+
+  // Security headers — must be first middleware
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        // Allow inline styles for styled-components
+        'style-src': ["'self'", "'unsafe-inline'"]
+      }
+    }
+  }));
 
   // Middleware
   app.use(express.json());

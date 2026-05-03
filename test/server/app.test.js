@@ -38,6 +38,30 @@ describe('Express Application (createApp)', () => {
     });
   });
 
+  describe('Security Headers (helmet)', () => {
+    test('sets X-Content-Type-Options: nosniff', async () => {
+      const response = await request(app).get('/health');
+      expect(response.headers['x-content-type-options']).toBe('nosniff');
+    });
+
+    test('sets X-Frame-Options to deny clickjacking', async () => {
+      const response = await request(app).get('/health');
+      expect(response.headers['x-frame-options']).toMatch(/DENY|SAMEORIGIN/i);
+    });
+
+    test('sets Referrer-Policy header', async () => {
+      const response = await request(app).get('/health');
+      expect(response.headers['referrer-policy']).toBeDefined();
+    });
+
+    test('Content-Security-Policy allows unsafe-inline for styled-components', async () => {
+      const response = await request(app).get('/health');
+      const csp = response.headers['content-security-policy'];
+      expect(csp).toBeDefined();
+      expect(csp).toContain("'unsafe-inline'");
+    });
+  });
+
   describe('Health Check Endpoint', () => {
     test('GET /health returns 200 with status', async () => {
       const response = await request(app).get('/health');
