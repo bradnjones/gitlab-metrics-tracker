@@ -8,13 +8,20 @@ import userEvent from '@testing-library/user-event';
 import ChangeFailureRateChart from '../../../src/public/components/ChangeFailureRateChart.jsx';
 
 // Mock Chart.js
-jest.mock('react-chartjs-2', () => ({
-  Line: jest.fn(({ data }) => (
-    <div data-testid="change-failure-rate-line-chart" role="img" aria-label="Change Failure Rate chart">
-      <div data-testid="chart-data">{JSON.stringify(data)}</div>
-    </div>
-  ))
-}));
+jest.mock('react-chartjs-2', () => {
+  const React = require('react');
+  const mockToBase64Image = jest.fn(() => 'data:image/png;base64,mock');
+  const Line = React.forwardRef(({ data }, ref) => {
+    React.useImperativeHandle(ref, () => ({ toBase64Image: mockToBase64Image }));
+    return (
+      <div data-testid="change-failure-rate-line-chart" role="img" aria-label="Change Failure Rate chart">
+        <div data-testid="chart-data">{JSON.stringify(data)}</div>
+      </div>
+    );
+  });
+  Line.displayName = 'Line';
+  return { Line };
+});
 
 jest.mock('chartjs-plugin-annotation', () => ({}));
 
@@ -340,5 +347,58 @@ describe('ChangeFailureRateChart', () => {
     });
 
     getItemSpy.mockRestore();
+  });
+
+  test('renders Export PNG button when chart data is available', async () => {
+    // Arrange
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <ChangeFailureRateChart selectedIterations={mockIterations} />
+      </ThemeProvider>
+    );
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument();
+    });
+  });
+
+  test('does not render Export PNG button in empty state', () => {
+    // Act
+    render(
+      <ThemeProvider theme={theme}>
+        <ChangeFailureRateChart selectedIterations={[]} />
+      </ThemeProvider>
+    );
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument();
+  });
+
+  test('Export PNG button triggers download with correct filename', async () => {
+    // Arrange
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+
+    const originalCreateElement = document.createElement.bind(document);
+    const mockClick = jest.fn();
+    const createElementSpy = jest.spyOn(document, 'createElement').mockImplementation((tag, ...args) => {
+      const el = originalCreateElement(tag, ...args);
+      if (tag === 'a') el.click = mockClick;
+      return el;
+    });
+
+    // Act
+    render(<ThemeProvider theme={theme}><ChangeFailureRateChart selectedIterations={mockIterations} /></ThemeProvider>);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Export PNG' }));
+
+    // Assert
+    expect(mockClick).toHaveBeenCalled();
+    createElementSpy.mockRestore();
   });
 });

@@ -9,14 +9,21 @@ import VelocityChart from '../../../src/public/components/VelocityChart.jsx';
 import { useAnnotations } from '../../../src/public/hooks/useAnnotations.js';
 
 // Mock Chart.js and react-chartjs-2
-jest.mock('react-chartjs-2', () => ({
-  Line: jest.fn(({ data, options }) => (
-    <div data-testid="velocity-line-chart" role="img" aria-label="Velocity chart">
-      <div data-testid="chart-data">{JSON.stringify(data)}</div>
-      <div data-testid="chart-options">{JSON.stringify(options)}</div>
-    </div>
-  ))
-}));
+jest.mock('react-chartjs-2', () => {
+  const React = require('react');
+  const mockToBase64Image = jest.fn(() => 'data:image/png;base64,mock');
+  const Line = React.forwardRef(({ data, options }, ref) => {
+    React.useImperativeHandle(ref, () => ({ toBase64Image: mockToBase64Image }));
+    return (
+      <div data-testid="velocity-line-chart" role="img" aria-label="Velocity chart">
+        <div data-testid="chart-data">{JSON.stringify(data)}</div>
+        <div data-testid="chart-options">{JSON.stringify(options)}</div>
+      </div>
+    );
+  });
+  Line.displayName = 'Line';
+  return { Line };
+});
 
 // Mock chartjs-plugin-annotation
 jest.mock('chartjs-plugin-annotation', () => ({}));
@@ -480,5 +487,61 @@ describe('VelocityChart', () => {
     // Assert - options should NOT have annotation plugin set
     const chartOptions = JSON.parse(screen.getByTestId('chart-options').textContent);
     expect(chartOptions.plugins.annotation).toBeUndefined();
+  });
+
+  test('renders Export PNG button when chart data is available', async () => {
+    // Arrange
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    });
+
+    // Act
+    renderWithTheme(<VelocityChart selectedIterations={mockIterations} />);
+
+    // Assert - button appears once data loads
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument();
+    });
+  });
+
+  test('does not render Export PNG button in empty state', () => {
+    // Act
+    renderWithTheme(<VelocityChart selectedIterations={[]} />);
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument();
+  });
+
+  test('Export PNG button triggers download with correct filename', async () => {
+    // Arrange
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    });
+
+    const originalCreateElement = document.createElement.bind(document);
+    const mockClick = jest.fn();
+    const createElementSpy = jest.spyOn(document, 'createElement').mockImplementation((tag, ...args) => {
+      const el = originalCreateElement(tag, ...args);
+      if (tag === 'a') {
+        el.click = mockClick;
+      }
+      return el;
+    });
+
+    // Act
+    renderWithTheme(<VelocityChart selectedIterations={mockIterations} />);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Export PNG' }));
+
+    // Assert
+    expect(mockClick).toHaveBeenCalled();
+
+    createElementSpy.mockRestore();
   });
 });

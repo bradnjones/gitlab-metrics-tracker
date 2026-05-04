@@ -479,4 +479,33 @@ describe('MTTRChart', () => {
 
     getItemSpy.mockRestore();
   });
+
+  it('renders Export PNG button when chart data is available', async () => {
+    // Arrange
+    jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        metrics: [{ iterationId: 'gid://gitlab/Iteration/123', dueDate: '2025-01-28', mttrAvg: 2.0 }]
+      })
+    });
+    const mockIterations = [{ id: 'gid://gitlab/Iteration/123', title: 'Sprint 1' }];
+
+    // Act
+    renderWithTheme(<MTTRChart selectedIterations={mockIterations} />);
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument();
+    });
+  });
+
+  it('does not render Export PNG button in empty state', () => {
+    // Act
+    renderWithTheme(<MTTRChart selectedIterations={[]} />);
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument();
+  });
+
 });
