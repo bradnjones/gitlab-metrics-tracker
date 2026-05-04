@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
+import { exportChartAsPng } from '../utils/exportChart.js';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -391,11 +392,7 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
    */
   const handleExport = () => {
     if (!chartRef.current) return;
-    const url = chartRef.current.toBase64Image('image/png', 1.0);
-    const link = document.createElement('a');
-    link.download = 'cycle-time-chart.png';
-    link.href = url;
-    link.click();
+    exportChartAsPng(chartRef, 'cycle-time-chart.png');
   };
 
   // Empty state - no iterations selected

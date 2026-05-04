@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
+import { exportChartAsPng } from '../utils/exportChart.js';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -364,11 +365,7 @@ const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnno
    */
   const handleExport = () => {
     if (!chartRef.current) return;
-    const url = chartRef.current.toBase64Image('image/png', 1.0);
-    const link = document.createElement('a');
-    link.download = 'mttr-chart.png';
-    link.href = url;
-    link.click();
+    exportChartAsPng(chartRef, 'mttr-chart.png');
   };
 
   // Empty state - no iterations selected

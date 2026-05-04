@@ -38,6 +38,7 @@ coverage/
 # Temporary
 tmp/
 temp/
+.claude/worktrees/
 
 # Backup files
 *.backup

@@ -8,6 +8,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
+import { exportChartAsPng } from '../utils/exportChart.js';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
@@ -369,11 +370,7 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
    */
   const handleExport = () => {
     if (!chartRef.current) return;
-    const url = chartRef.current.toBase64Image('image/png', 1.0);
-    const link = document.createElement('a');
-    link.download = 'lead-time-chart.png';
-    link.href = url;
-    link.click();
+    exportChartAsPng(chartRef, 'lead-time-chart.png');
   };
 
   // Empty state - no iterations selected
