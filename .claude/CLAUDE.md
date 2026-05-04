@@ -37,6 +37,7 @@ Before ANY task, **launch appropriate agents**. This is NOT optional.
 | **Clean Architecture** | Enforces Clean Architecture + SOLID principles | Architecture decisions, refactoring, code structure |
 | **Test Coverage** | Plans TDD strategy, validates test quality | Before writing tests, validating coverage |
 | **Code Review** | Reviews code for quality, security, patterns | After implementation, before commits |
+| **Production Readiness** | Security, observability, resilience, system design gaps | Before declaring the app production-ready, evaluating deployment fitness |
 
 **Agent files:** `.claude/agents/*.md`
 
