@@ -68,6 +68,10 @@
       "**/test/**/*.test.{js,jsx}",
       "!**/test/integration/**"
     ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.claude/worktrees/"
+    ],
     "transform": {
       "^.+\\.(js|jsx)$": "babel-jest"
     },

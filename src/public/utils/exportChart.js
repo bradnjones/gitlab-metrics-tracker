@@ -7,12 +7,13 @@
  *    composite the chart onto a fresh white canvas so downloaded PNGs are
  *    legible outside the app.
  *
- * 2. Low resolution — Capturing the canvas at its rendered CSS size produces
- *    a small, grainy image. We temporarily resize the Chart.js instance to 3×
- *    its current dimensions before capturing, then restore it. Because resize,
- *    capture, and restore all happen synchronously within one JS task the
- *    browser never paints the intermediate state — there is no visible flash.
- *    The final PNG is 3× the chart's display size in each dimension (9× area).
+ * 2. Low resolution — The chart canvas already renders at devicePixelRatio×
+ *    (e.g. 2× on Retina). We scale the raw canvas pixels up by an additional
+ *    3× factor by drawing onto a larger export canvas, giving a final PNG that
+ *    is 3× the physical canvas in each dimension (9× area). Aspect ratio is
+ *    always preserved because both dimensions are scaled by the same factor.
+ *    No Chart.js resize is needed, so there is no risk of container constraints
+ *    distorting the output.
  *
  * @param {import('react').RefObject} chartRef - React ref pointing to a Chart.js instance
  * @param {string} filename - Desired filename for the download (e.g. 'velocity-chart.png')
@@ -21,28 +22,22 @@
 export function exportChartAsPng(chartRef, filename) {
   if (!chartRef.current) return;
 
-  const chart = chartRef.current;
+  const source = chartRef.current.canvas;
   const SCALE = 3;
-  const origWidth = chart.width;
-  const origHeight = chart.height;
 
-  // Render at 3× for export — synchronous resize/capture/restore means no repaint
-  chart.resize(origWidth * SCALE, origHeight * SCALE);
-
-  const source = chart.canvas;
   const canvas = document.createElement('canvas');
-  canvas.width = source.width;
-  canvas.height = source.height;
+  canvas.width = source.width * SCALE;
+  canvas.height = source.height * SCALE;
 
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(source, 0, 0);
+  // drawImage with explicit destination dimensions scales the source to fill
+  // the export canvas — same factor on both axes so aspect ratio is preserved.
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
 
   const link = document.createElement('a');
   link.download = filename;
   link.href = canvas.toDataURL('image/png');
   link.click();
-
-  chart.resize(origWidth, origHeight);
 }
