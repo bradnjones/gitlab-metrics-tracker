@@ -56,6 +56,14 @@ jest.mock('../../../src/public/components/MetricsSummary.jsx', () => {
   };
 });
 
+// Mock useMetricsExport hook
+jest.mock('../../../src/public/hooks/useMetricsExport.js', () => ({
+  useMetricsExport: () => ({
+    exportCSV: jest.fn(),
+    exporting: false
+  })
+}));
+
 // Mock useIterations hook
 jest.mock('../../../src/public/hooks/useIterations.js', () => ({
   useIterations: () => ({

@@ -52,11 +52,13 @@ describe('HamburgerMenu', () => {
   const mockOnManageAnnotations = jest.fn();
   const mockOnAddAnnotation = jest.fn();
   const mockOnChangeSprints = jest.fn();
+  const mockOnExportCSV = jest.fn();
 
   beforeEach(() => {
     mockOnManageAnnotations.mockClear();
     mockOnAddAnnotation.mockClear();
     mockOnChangeSprints.mockClear();
+    mockOnExportCSV.mockClear();
   });
 
   const renderWithTheme = (component) => {
@@ -105,7 +107,7 @@ describe('HamburgerMenu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  test('renders three menu items and calls correct callback prop when each item is clicked', async () => {
+  test('renders four menu items and calls correct callback prop when each item is clicked', async () => {
     // Arrange
     const user = userEvent.setup();
 
@@ -115,6 +117,8 @@ describe('HamburgerMenu', () => {
         onManageAnnotations={mockOnManageAnnotations}
         onAddAnnotation={mockOnAddAnnotation}
         onChangeSprints={mockOnChangeSprints}
+        onExportCSV={mockOnExportCSV}
+        canExport={true}
       />
     );
 
@@ -122,14 +126,15 @@ describe('HamburgerMenu', () => {
     const button = screen.getByRole('button', { name: 'Menu' });
     await user.click(button);
 
-    // Assert - Three menu items are rendered
+    // Assert - Four menu items are rendered
     const menuItems = screen.getAllByRole('menuitem');
-    expect(menuItems).toHaveLength(3);
+    expect(menuItems).toHaveLength(4);
 
     // Assert - Menu items have correct text
     expect(screen.getByText('Manage Annotations')).toBeInTheDocument();
     expect(screen.getByText('Add Annotation')).toBeInTheDocument();
     expect(screen.getByText('Change Sprints')).toBeInTheDocument();
+    expect(screen.getByText('Export CSV')).toBeInTheDocument();
 
     // Act - Click "Manage Annotations"
     await user.click(screen.getByText('Manage Annotations'));
@@ -166,6 +171,62 @@ describe('HamburgerMenu', () => {
     await waitFor(() => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
+
+    // Re-open menu for Export CSV test
+    await user.click(button);
+
+    // Act - Click "Export CSV"
+    await user.click(screen.getByText('Export CSV'));
+
+    // Assert - Callback called and menu closed
+    expect(mockOnExportCSV).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+  });
+
+  test('Export CSV item is disabled when canExport is false', async () => {
+    const user = userEvent.setup();
+
+    renderWithTheme(
+      <HamburgerMenu
+        onManageAnnotations={mockOnManageAnnotations}
+        onAddAnnotation={mockOnAddAnnotation}
+        onChangeSprints={mockOnChangeSprints}
+        onExportCSV={mockOnExportCSV}
+        canExport={false}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: 'Menu' });
+    await user.click(button);
+
+    const exportItem = screen.getByText('Export CSV').closest('[role="menuitem"]');
+    expect(exportItem).toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(screen.getByText('Export CSV'));
+    expect(mockOnExportCSV).not.toHaveBeenCalled();
+  });
+
+  test('Export CSV item shows "Exporting..." while in-flight', async () => {
+    const user = userEvent.setup();
+
+    renderWithTheme(
+      <HamburgerMenu
+        onManageAnnotations={mockOnManageAnnotations}
+        onAddAnnotation={mockOnAddAnnotation}
+        onChangeSprints={mockOnChangeSprints}
+        onExportCSV={mockOnExportCSV}
+        canExport={true}
+        exporting={true}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: 'Menu' });
+    await user.click(button);
+
+    expect(screen.getByText('Exporting...')).toBeInTheDocument();
+    expect(screen.queryByText('Export CSV')).not.toBeInTheDocument();
   });
 
   test('closes menu when clicking outside dropdown and when Escape key is pressed', async () => {

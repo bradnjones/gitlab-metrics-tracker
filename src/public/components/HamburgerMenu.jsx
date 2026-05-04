@@ -101,20 +101,21 @@ const MenuItem = styled.button`
   background: transparent;
   border: none;
   border-bottom: 1px solid ${props => props.theme.colors.border};
-  color: ${props => props.theme.colors.textPrimary};
+  color: ${props => props.$disabled ? props.theme.colors.textSecondary : props.theme.colors.textPrimary};
   font-size: ${props => props.theme.typography.fontSize.sm};
   font-weight: ${props => props.theme.typography.fontWeight.medium};
-  cursor: pointer;
+  cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
+  opacity: ${props => props.$disabled ? 0.5 : 1};
   transition: background ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing};
 
   &:hover {
-    background: ${props => props.theme.colors.bgSecondary};
+    background: ${props => props.$disabled ? 'transparent' : props.theme.colors.bgSecondary};
   }
 
   &:focus {
     outline: 2px solid ${props => props.theme.colors.primary};
     outline-offset: -2px;
-    background: ${props => props.theme.colors.bgSecondary};
+    background: ${props => props.$disabled ? 'transparent' : props.theme.colors.bgSecondary};
   }
 
   &:last-child {
@@ -150,15 +151,18 @@ const MenuItemText = styled.span`
 /**
  * HamburgerMenu Component
  *
- * Dropdown menu for header actions (Manage Annotations, Add Annotation, Change Sprints)
+ * Dropdown menu for header actions (Manage Annotations, Add Annotation, Change Sprints, Export CSV)
  *
  * @param {Object} props
  * @param {Function} props.onManageAnnotations - Callback for "Manage Annotations" action
  * @param {Function} props.onAddAnnotation - Callback for "Add Annotation" action
  * @param {Function} props.onChangeSprints - Callback for "Change Sprints" action
+ * @param {Function} [props.onExportCSV] - Callback for "Export CSV" action
+ * @param {boolean} [props.canExport=false] - Whether export is available (iterations selected)
+ * @param {boolean} [props.exporting=false] - Whether export is in-flight
  * @returns {JSX.Element}
  */
-export default function HamburgerMenu({ onManageAnnotations, onAddAnnotation, onChangeSprints }) {
+export default function HamburgerMenu({ onManageAnnotations, onAddAnnotation, onChangeSprints, onExportCSV, canExport = false, exporting = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -259,6 +263,17 @@ export default function HamburgerMenu({ onManageAnnotations, onAddAnnotation, on
           >
             <MenuItemIcon>🔄</MenuItemIcon>
             <MenuItemText>Change Sprints</MenuItemText>
+          </MenuItem>
+
+          <MenuItem
+            onClick={() => !exporting && canExport && handleMenuItemClick(onExportCSV)}
+            role="menuitem"
+            type="button"
+            $disabled={!canExport || exporting}
+            aria-disabled={!canExport || exporting}
+          >
+            <MenuItemIcon>📥</MenuItemIcon>
+            <MenuItemText>{exporting ? 'Exporting...' : 'Export CSV'}</MenuItemText>
           </MenuItem>
         </DropdownMenu>
       )}

@@ -349,6 +349,8 @@ const HeaderChangeButton = styled.button`
  * @param {Function} props.onOpenModal
  * @param {Function} props.onOpenAnnotationModal - Callback when "Add Annotation" clicked
  * @param {Function} props.onOpenManageAnnotations - Callback when "Manage Annotations" clicked
+ * @param {Function} [props.onExportCSV] - Callback to trigger CSV export
+ * @param {boolean} [props.exporting=false] - Whether a CSV export is in-flight
  * @returns {JSX.Element}
  */
 function CompactHeaderWithIterations({
@@ -356,7 +358,9 @@ function CompactHeaderWithIterations({
   onRemoveIteration,
   onOpenModal,
   onOpenAnnotationModal,
-  onOpenManageAnnotations
+  onOpenManageAnnotations,
+  onExportCSV,
+  exporting = false,
 }) {
   // State to trigger cache status refresh
   const [cacheRefreshKey, setCacheRefreshKey] = useState(0);
@@ -441,6 +445,9 @@ function CompactHeaderWithIterations({
             onManageAnnotations={handleManageAnnotations}
             onAddAnnotation={handleAnnotationClick}
             onChangeSprints={handleChangeClick}
+            onExportCSV={onExportCSV}
+            canExport={selectedIterations.length > 0}
+            exporting={exporting}
           />
 
           <BrandingSection>
@@ -517,9 +524,11 @@ function arePropsEqual(prevProps, nextProps) {
     prevProps.onRemoveIteration !== nextProps.onRemoveIteration ||
     prevProps.onOpenModal !== nextProps.onOpenModal ||
     prevProps.onOpenAnnotationModal !== nextProps.onOpenAnnotationModal ||
-    prevProps.onOpenManageAnnotations !== nextProps.onOpenManageAnnotations
+    prevProps.onOpenManageAnnotations !== nextProps.onOpenManageAnnotations ||
+    prevProps.onExportCSV !== nextProps.onExportCSV ||
+    prevProps.exporting !== nextProps.exporting
   ) {
-    return false; // Callbacks changed, need to re-render
+    return false; // Callbacks or export state changed, need to re-render
   }
 
   // Props are equal, skip re-render
