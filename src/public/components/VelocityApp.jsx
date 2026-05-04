@@ -24,7 +24,7 @@
  * @returns {JSX.Element} Rendered application
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { useMetricsExport } from '../hooks/useMetricsExport.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
@@ -32,6 +32,7 @@ import CompactHeaderWithIterations from './CompactHeaderWithIterations.jsx';
 import ViewNavigation from './ViewNavigation.jsx';
 import EmptyState from './EmptyState.jsx';
 import IterationSelectionModal from './IterationSelectionModal.jsx';
+import SprintDisplayFilterModal from './SprintDisplayFilterModal.jsx';
 import AnnotationModal from './AnnotationModal.jsx';
 import AnnotationsManagementModal from './AnnotationsManagementModal.jsx';
 import MetricsSummary from './MetricsSummary.jsx';
@@ -168,6 +169,9 @@ const SHOW_ANNOTATIONS_KEY = 'show-annotations';
 
 export default function VelocityApp() {
   const [selectedIterations, setSelectedIterations] = useState([]);
+  // null = show all; Set<string> = explicit subset
+  const [displayedIterationIds, setDisplayedIterationIds] = useState(null);
+  const [isDisplayFilterModalOpen, setIsDisplayFilterModalOpen] = useState(false);
   const { exportCSV, exporting } = useMetricsExport(selectedIterations);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -184,6 +188,12 @@ export default function VelocityApp() {
       return true;
     }
   });
+
+  // Derive the subset of iterations actually shown in charts
+  const displayedIterations = useMemo(() => {
+    if (!displayedIterationIds) return selectedIterations;
+    return selectedIterations.filter(iter => displayedIterationIds.has(iter.id));
+  }, [selectedIterations, displayedIterationIds]);
 
   // Load selected iterations from localStorage on mount
   useEffect(() => {
@@ -239,20 +249,32 @@ export default function VelocityApp() {
   }, []);
 
   /**
-   * Handle removing an iteration from the header chips
-   * @param {string} iterationId - ID of iteration to remove
-   */
-  const handleRemoveIteration = useCallback((iterationId) => {
-    setSelectedIterations(prev => prev.filter(iter => iter.id !== iterationId));
-  }, []);
-
-  /**
-   * Handle opening the iteration selection modal
-   * Opens modal without changing application state
+   * Handle opening the iteration selection modal (cache management)
    */
   const handleOpenModal = useCallback(() => {
     setIsModalOpen(true);
   }, []);
+
+  /**
+   * Handle opening the sprint display filter modal
+   */
+  const handleOpenDisplayFilter = useCallback(() => {
+    setIsDisplayFilterModalOpen(true);
+  }, []);
+
+  /**
+   * Handle applying the sprint display filter
+   * @param {Set<string>} newDisplayedIds
+   */
+  const handleApplyDisplayFilter = useCallback((newDisplayedIds) => {
+    // null means "show all" — normalise when everything is selected
+    if (newDisplayedIds.size >= selectedIterations.length) {
+      setDisplayedIterationIds(null);
+    } else {
+      setDisplayedIterationIds(new Set(newDisplayedIds));
+    }
+    setIsDisplayFilterModalOpen(false);
+  }, [selectedIterations.length]);
 
   /**
    * Handle opening the annotation modal
@@ -276,11 +298,25 @@ export default function VelocityApp() {
   };
 
   /**
-   * Handle applying iteration selection from modal
-   * @param {Array<Object>} selectedIterations - Selected iteration objects with full data
+   * Handle applying iteration selection from cache modal.
+   * Reconciles displayedIterationIds: keeps previously-shown iterations that
+   * still exist, and shows any brand-new additions.
+   * @param {Array<Object>} newIterations
    */
-  const handleApplyIterations = (selectedIterations) => {
-    setSelectedIterations(selectedIterations);
+  const handleApplyIterations = (newIterations) => {
+    if (displayedIterationIds !== null) {
+      const oldIds = new Set(selectedIterations.map(it => it.id));
+      const reconciled = new Set();
+      newIterations.forEach(it => {
+        // Show if it was displayed before, or if it's brand new to the pool
+        if (displayedIterationIds.has(it.id) || !oldIds.has(it.id)) {
+          reconciled.add(it.id);
+        }
+      });
+      // Normalise to null when everything is shown
+      setDisplayedIterationIds(reconciled.size === newIterations.length ? null : reconciled);
+    }
+    setSelectedIterations(newIterations);
     setIsModalOpen(false);
   };
 
@@ -411,8 +447,9 @@ export default function VelocityApp() {
       <AppContainer>
         <CompactHeaderWithIterations
           selectedIterations={selectedIterations}
-          onRemoveIteration={handleRemoveIteration}
+          displayedIterations={displayedIterations}
           onOpenModal={handleOpenModal}
+          onOpenDisplayFilter={handleOpenDisplayFilter}
           onOpenAnnotationModal={handleOpenAnnotationModal}
           onOpenManageAnnotations={handleOpenManageAnnotations}
           onExportCSV={exportCSV}
@@ -435,7 +472,7 @@ export default function VelocityApp() {
             <>
               {currentView === 'dashboard' && (
                 <>
-                  <MetricsSummary selectedIterations={selectedIterations} />
+                  <MetricsSummary selectedIterations={displayedIterations} />
                   <ChartsToolbar>
                     <AnnotationToggleButton onClick={handleToggleAnnotations}>
                       {showAnnotations ? 'Annotations: On' : 'Annotations: Off'}
@@ -445,7 +482,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Velocity Trend</ChartTitle>
                 <VelocityChart
-                  selectedIterations={selectedIterations}
+                  selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                   showAnnotations={showAnnotations}
                 />
@@ -454,7 +491,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Cycle Time</ChartTitle>
                 <CycleTimeChart
-                  selectedIterations={selectedIterations}
+                  selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                   showAnnotations={showAnnotations}
                 />
@@ -463,7 +500,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Deployment Frequency</ChartTitle>
                 <DeploymentFrequencyChart
-                  selectedIterations={selectedIterations}
+                  selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                   showAnnotations={showAnnotations}
                 />
@@ -472,7 +509,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Lead Time</ChartTitle>
                 <LeadTimeChart
-                  selectedIterations={selectedIterations}
+                  selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                   showAnnotations={showAnnotations}
                 />
@@ -481,7 +518,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>MTTR (Mean Time to Recovery)</ChartTitle>
                 <MTTRChart
-                  selectedIterations={selectedIterations}
+                  selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                   showAnnotations={showAnnotations}
                 />
@@ -490,7 +527,7 @@ export default function VelocityApp() {
               <ChartCard>
                 <ChartTitle>Change Failure Rate</ChartTitle>
                 <ChangeFailureRateChart
-                  selectedIterations={selectedIterations}
+                  selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                   showAnnotations={showAnnotations}
                 />
@@ -515,7 +552,7 @@ export default function VelocityApp() {
 
               {currentView === 'dataExplorer' && (
                 <DataExplorerView
-                  selectedIterations={selectedIterations}
+                  selectedIterations={displayedIterations}
                 />
               )}
             </>
@@ -527,6 +564,14 @@ export default function VelocityApp() {
           onClose={handleCloseModal}
           onApply={handleApplyIterations}
           selectedIterationIds={selectedIterations.map(iter => iter.id)}
+        />
+
+        <SprintDisplayFilterModal
+          isOpen={isDisplayFilterModalOpen}
+          onClose={() => setIsDisplayFilterModalOpen(false)}
+          onApply={handleApplyDisplayFilter}
+          iterations={selectedIterations}
+          displayedIds={displayedIterationIds}
         />
 
         {annotationError && (

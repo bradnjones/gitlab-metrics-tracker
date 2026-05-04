@@ -1,20 +1,14 @@
 /**
  * CompactHeaderWithIterations Component
  *
- * Unified header combining branding and iteration selection.
- * Reduces header height from 172px to 56px (~67% reduction).
- *
- * Design specifications:
- * - Gradient: 135deg, #3b82f6 → #2563eb
- * - Padding: 12px 24px (desktop), 8px 16px (mobile)
- * - Height: ~56px (desktop), ~48px+ (mobile with wrapping)
- * - Chips: Translucent white with backdrop blur
- * - Button: White background with primary text color
+ * Unified header combining branding and sprint display controls.
+ * Fixed single-row height regardless of how many sprints are selected.
  *
  * @param {Object} props
- * @param {Array<{id: string, title: string, iterationCadence?: {title: string}, iid?: number}>} props.selectedIterations - Selected iterations
- * @param {Function} props.onRemoveIteration - Callback when iteration chip removed
- * @param {Function} props.onOpenModal - Callback when "Change Sprints" clicked
+ * @param {Array<{id: string, title: string, iterationCadence?: {title: string}, iid?: number, dueDate?: string}>} props.selectedIterations - All selected (cached) iterations
+ * @param {Array<Object>} props.displayedIterations - Subset currently shown in charts
+ * @param {Function} props.onOpenModal - Callback when "Change Sprints" clicked (cache modal)
+ * @param {Function} props.onOpenDisplayFilter - Callback when sprint summary pill clicked
  * @returns {JSX.Element} Compact header component
  */
 
@@ -153,112 +147,62 @@ const CompactSubtitle = styled.p`
 `;
 
 /**
- * Iteration chips section with multi-row wrapping
+ * Compact clickable pill showing sprint count + date range
  *
  * @component
  */
-const IterationChipsSection = styled.div`
+const SprintSummaryPill = styled.button`
   display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-
-  /* Enable multi-row wrapping */
-  flex-wrap: wrap;
-
-  /* Constrain to max 2 rows on desktop */
-  max-height: 60px;
-  overflow-y: auto;
-
-  /* Thin scrollbar for overflow scenarios */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 2px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
-    width: 100%;
-    order: 3;
-    max-height: none;
-    overflow-y: visible;
-  }
-`;
-
-/**
- * Translucent iteration chip for header
- *
- * @component
- */
-const HeaderIterationChip = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(255, 255, 255, 0.2);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: ${props => props.theme.borderRadius.md};
   color: white;
-  padding: 2px 5px;
-  border-radius: 6px;
-  font-size: ${props => props.theme.typography.fontSize.xs};
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
-  white-space: nowrap;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  padding: 6px 12px;
+  flex-shrink: 0;
   transition: background ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing};
 
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
-`;
-
-/**
- * Remove button for header chips
- *
- * @component
- */
-const HeaderChipRemoveButton = styled.button`
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-  font-size: ${props => props.theme.typography.fontSize.base};
-  line-height: 1;
-  opacity: 0.8;
-  transition: opacity ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing};
-
-  &:hover {
-    opacity: 1;
+    background: rgba(255, 255, 255, 0.25);
   }
 
   &:focus {
     outline: 2px solid white;
     outline-offset: 2px;
-    border-radius: ${props => props.theme.borderRadius.sm};
+  }
+
+  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
+    width: 100%;
+    order: 3;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${props => props.theme.spacing.md};
   }
 `;
 
-/**
- * Empty chips message
- *
- * @component
- */
-const EmptyChipsMessage = styled.span`
+const PillTopLine = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: ${props => props.theme.typography.fontSize.sm};
-  font-style: italic;
-  opacity: 0.7;
+  font-weight: ${props => props.theme.typography.fontWeight.semibold};
+  white-space: nowrap;
+`;
+
+const PillBottomLine = styled.span`
+  font-size: ${props => props.theme.typography.fontSize.xs};
+  opacity: 0.8;
+  white-space: nowrap;
+`;
+
+const Chevron = styled.span`
+  font-size: 10px;
+  opacity: 0.8;
 `;
 
 /**
@@ -341,100 +285,65 @@ const HeaderChangeButton = styled.button`
 /* ===== COMPONENT ===== */
 
 /**
+ * Format ISO date to MM/DD
+ * @param {string} dateString
+ * @returns {string}
+ */
+function fmtDate(dateString) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+/**
+ * Build date range string from an array of iterations
+ * @param {Array<Object>} iterations
+ * @returns {string} e.g. "10/25 – 5/23"
+ */
+function buildDateRange(iterations) {
+  const dates = iterations.map(it => it.dueDate).filter(Boolean).sort();
+  if (dates.length === 0) return '';
+  if (dates.length === 1) return fmtDate(dates[0]);
+  return `${fmtDate(dates[0])} – ${fmtDate(dates[dates.length - 1])}`;
+}
+
+/**
  * CompactHeaderWithIterations Component
  *
  * @param {Object} props
- * @param {Array<{id: string, title: string, iterationCadence?: {title: string}, iid?: number}>} props.selectedIterations
- * @param {Function} props.onRemoveIteration
- * @param {Function} props.onOpenModal
- * @param {Function} props.onOpenAnnotationModal - Callback when "Add Annotation" clicked
- * @param {Function} props.onOpenManageAnnotations - Callback when "Manage Annotations" clicked
- * @param {Function} [props.onExportCSV] - Callback to trigger CSV export
- * @param {boolean} [props.exporting=false] - Whether a CSV export is in-flight
+ * @param {Array<Object>} props.selectedIterations - All selected (cached) iterations
+ * @param {Array<Object>} props.displayedIterations - Subset currently shown in charts
+ * @param {Function} props.onOpenModal - Opens cache selection modal ("Change Sprints")
+ * @param {Function} props.onOpenDisplayFilter - Opens sprint display filter modal
+ * @param {Function} props.onOpenAnnotationModal
+ * @param {Function} props.onOpenManageAnnotations
+ * @param {Function} [props.onExportCSV]
+ * @param {boolean} [props.exporting=false]
  * @returns {JSX.Element}
  */
 function CompactHeaderWithIterations({
   selectedIterations = [],
-  onRemoveIteration,
+  displayedIterations = [],
   onOpenModal,
+  onOpenDisplayFilter,
   onOpenAnnotationModal,
   onOpenManageAnnotations,
   onExportCSV,
   exporting = false,
 }) {
-  // State to trigger cache status refresh
   const [cacheRefreshKey, setCacheRefreshKey] = useState(0);
 
-  /**
-   * Format date to short MM/DD format matching graph labels
-   * @param {string} dateString - ISO date string
-   * @returns {string} Formatted date string (e.g., "10/26")
-   */
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
-  };
+  const handleRefreshComplete = () => setCacheRefreshKey(prev => prev + 1);
 
-  /**
-   * Get cadence initials for compact display
-   * @param {string} title - Cadence title (e.g., "Devs Sprint")
-   * @returns {string} Initials (e.g., "DS")
-   */
-  const getCadenceInitials = (title) => {
-    if (!title) return '';
-    return title
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase();
-  };
+  const total = selectedIterations.length;
+  const shown = displayedIterations.length;
+  const countLabel = total === 0
+    ? 'No sprints'
+    : shown === total
+      ? `${total} sprint${total !== 1 ? 's' : ''}`
+      : `${shown} of ${total} sprints`;
 
-  /**
-   * Handle remove iteration button click
-   * @param {string} iterationId - ID of iteration to remove
-   */
-  const handleRemove = (iterationId) => {
-    if (onRemoveIteration) {
-      onRemoveIteration(iterationId);
-    }
-  };
-
-  /**
-   * Handle change sprints button click
-   */
-  const handleChangeClick = () => {
-    if (onOpenModal) {
-      onOpenModal();
-    }
-  };
-
-  /**
-   * Handle add annotation button click
-   */
-  const handleAnnotationClick = () => {
-    if (onOpenAnnotationModal) {
-      onOpenAnnotationModal();
-    }
-  };
-
-  /**
-   * Handle cache refresh complete
-   * Triggers cache status component to refetch data
-   */
-  const handleRefreshComplete = () => {
-    setCacheRefreshKey(prev => prev + 1);
-  };
-
-  /**
-   * Handle manage annotations from hamburger menu
-   * Opens the AnnotationsManagementModal
-   */
-  const handleManageAnnotations = () => {
-    if (onOpenManageAnnotations) {
-      onOpenManageAnnotations();
-    }
-  };
+  const dateRange = buildDateRange(displayedIterations.length > 0 ? displayedIterations : selectedIterations);
 
   return (
     <CompactHeader>
@@ -442,9 +351,9 @@ function CompactHeaderWithIterations({
         {/* LEFT SECTION: Hamburger + Branding */}
         <LeftSection>
           <HamburgerMenu
-            onManageAnnotations={handleManageAnnotations}
-            onAddAnnotation={handleAnnotationClick}
-            onChangeSprints={handleChangeClick}
+            onManageAnnotations={() => onOpenManageAnnotations?.()}
+            onAddAnnotation={() => onOpenAnnotationModal?.()}
+            onChangeSprints={() => onOpenModal?.()}
             onExportCSV={onExportCSV}
             canExport={selectedIterations.length > 0}
             exporting={exporting}
@@ -456,36 +365,19 @@ function CompactHeaderWithIterations({
           </BrandingSection>
         </LeftSection>
 
-        {/* MIDDLE SECTION: Sprint Chips */}
-        <IterationChipsSection>
-          {selectedIterations.length === 0 ? (
-            <EmptyChipsMessage>No sprints selected</EmptyChipsMessage>
-          ) : (
-            selectedIterations.map((iteration) => {
-              // Full title for tooltip
-              const baseTitle = iteration.title || iteration.iterationCadence?.title || `Sprint ${iteration.iid}` || iteration.id;
-              const fullTitle = iteration.dueDate ? `${baseTitle} (${formatDate(iteration.dueDate)})` : baseTitle;
-
-              // Compact display: "DS 10/25" format
-              const cadenceInitials = getCadenceInitials(iteration.iterationCadence?.title);
-              const endDate = iteration.dueDate ? formatDate(iteration.dueDate) : '';
-              const displayTitle = cadenceInitials && endDate ? `${cadenceInitials} ${endDate}` : fullTitle;
-
-              return (
-                <HeaderIterationChip key={iteration.id} title={fullTitle}>
-                  {displayTitle}
-                  <HeaderChipRemoveButton
-                    onClick={() => handleRemove(iteration.id)}
-                    aria-label={`Remove ${fullTitle}`}
-                    type="button"
-                  >
-                    ×
-                  </HeaderChipRemoveButton>
-                </HeaderIterationChip>
-              );
-            })
-          )}
-        </IterationChipsSection>
+        {/* MIDDLE SECTION: Sprint summary pill */}
+        <SprintSummaryPill
+          type="button"
+          onClick={() => onOpenDisplayFilter?.()}
+          title="Click to filter which sprints are displayed"
+          disabled={total === 0}
+        >
+          <PillTopLine>
+            {countLabel}
+            <Chevron>▾</Chevron>
+          </PillTopLine>
+          {dateRange && <PillBottomLine>{dateRange}</PillBottomLine>}
+        </SprintSummaryPill>
 
         {/* RIGHT SECTION: Cache Status + Refresh Button */}
         <RightSection>
@@ -500,38 +392,27 @@ function CompactHeaderWithIterations({
 }
 
 /**
- * Custom comparison function for React.memo
- * Only re-render if selectedIterations IDs actually change
- * This prevents re-renders when array reference changes but content is same
+ * Custom comparison for React.memo — skip re-render when nothing visible changed
  *
- * @param {Object} prevProps - Previous props
- * @param {Object} nextProps - Next props
- * @returns {boolean} true if props are equal (skip re-render), false if different (re-render)
+ * @param {Object} prevProps
+ * @param {Object} nextProps
+ * @returns {boolean}
  */
 function arePropsEqual(prevProps, nextProps) {
-  // Compare selectedIterations by their IDs, not array reference
-  const prevIds = prevProps.selectedIterations.map(iter => iter.id).sort().join(',');
-  const nextIds = nextProps.selectedIterations.map(iter => iter.id).sort().join(',');
+  const ids = (arr) => arr.map(it => it.id).sort().join(',');
 
-  if (prevIds !== nextIds) {
-    return false; // IDs changed, need to re-render
-  }
+  if (ids(prevProps.selectedIterations) !== ids(nextProps.selectedIterations)) return false;
+  if (ids(prevProps.displayedIterations) !== ids(nextProps.displayedIterations)) return false;
 
-  // For callbacks, we assume they're memoized in parent
-  // If parent uses useCallback properly, these should be stable
-  // Comparing function references
   if (
-    prevProps.onRemoveIteration !== nextProps.onRemoveIteration ||
     prevProps.onOpenModal !== nextProps.onOpenModal ||
+    prevProps.onOpenDisplayFilter !== nextProps.onOpenDisplayFilter ||
     prevProps.onOpenAnnotationModal !== nextProps.onOpenAnnotationModal ||
     prevProps.onOpenManageAnnotations !== nextProps.onOpenManageAnnotations ||
     prevProps.onExportCSV !== nextProps.onExportCSV ||
     prevProps.exporting !== nextProps.exporting
-  ) {
-    return false; // Callbacks or export state changed, need to re-render
-  }
+  ) return false;
 
-  // Props are equal, skip re-render
   return true;
 }
 
