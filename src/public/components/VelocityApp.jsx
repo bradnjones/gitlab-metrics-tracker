@@ -26,6 +26,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { useMetricsExport } from '../hooks/useMetricsExport.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import CompactHeaderWithIterations from './CompactHeaderWithIterations.jsx';
 import ViewNavigation from './ViewNavigation.jsx';
@@ -119,14 +120,55 @@ const ChartTitle = styled.h3`
 `;
 
 /**
+ * Toolbar row above the charts grid, right-aligned
+ *
+ * @component
+ */
+const ChartsToolbar = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: ${props => props.theme.spacing.sm};
+`;
+
+/**
+ * Pill toggle button for annotation visibility
+ *
+ * @component
+ */
+const AnnotationToggleButton = styled.button`
+  background: ${props => props.theme.colors.bgPrimary};
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: ${props => props.theme.borderRadius.full};
+  color: ${props => props.theme.colors.textSecondary};
+  cursor: pointer;
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  padding: 4px 12px;
+  transition: background ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing},
+              color ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing};
+
+  &:hover {
+    background: ${props => props.theme.colors.bgTertiary};
+    color: ${props => props.theme.colors.textPrimary};
+  }
+
+  &:focus {
+    outline: 2px solid ${props => props.theme.colors.primary};
+    outline-offset: 2px;
+  }
+`;
+
+/**
  * VelocityApp Component
  *
  * @returns {JSX.Element} Rendered application
  */
 const STORAGE_KEY = 'gitlab-metrics-selected-iterations';
+const SHOW_ANNOTATIONS_KEY = 'show-annotations';
 
 export default function VelocityApp() {
   const [selectedIterations, setSelectedIterations] = useState([]);
+  const { exportCSV, exporting } = useMetricsExport(selectedIterations);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAnnotationModalOpen, setIsAnnotationModalOpen] = useState(false);
@@ -134,6 +176,14 @@ export default function VelocityApp() {
   const [editingAnnotation, setEditingAnnotation] = useState(null);
   const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
   const [annotationError, setAnnotationError] = useState(null);
+  const [showAnnotations, setShowAnnotations] = useState(() => {
+    try {
+      const stored = localStorage.getItem(SHOW_ANNOTATIONS_KEY);
+      return stored === null ? true : stored !== 'false';
+    } catch {
+      return true;
+    }
+  });
 
   // Load selected iterations from localStorage on mount
   useEffect(() => {
@@ -341,6 +391,21 @@ export default function VelocityApp() {
     setAnnotationRefreshKey(prev => prev + 1);
   };
 
+  /**
+   * Toggle annotation visibility on all charts and persist the preference
+   */
+  const handleToggleAnnotations = useCallback(() => {
+    setShowAnnotations(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SHOW_ANNOTATIONS_KEY, String(next));
+      } catch {
+        // Ignore write errors
+      }
+      return next;
+    });
+  }, []);
+
   return (
     <ErrorBoundary>
       <AppContainer>
@@ -350,6 +415,8 @@ export default function VelocityApp() {
           onOpenModal={handleOpenModal}
           onOpenAnnotationModal={handleOpenAnnotationModal}
           onOpenManageAnnotations={handleOpenManageAnnotations}
+          onExportCSV={exportCSV}
+          exporting={exporting}
         />
 
         <ViewNavigation
@@ -369,12 +436,18 @@ export default function VelocityApp() {
               {currentView === 'dashboard' && (
                 <>
                   <MetricsSummary selectedIterations={selectedIterations} />
+                  <ChartsToolbar>
+                    <AnnotationToggleButton onClick={handleToggleAnnotations}>
+                      {showAnnotations ? 'Annotations: On' : 'Annotations: Off'}
+                    </AnnotationToggleButton>
+                  </ChartsToolbar>
                   <ChartsGrid>
               <ChartCard>
                 <ChartTitle>Velocity Trend</ChartTitle>
                 <VelocityChart
                   selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
+                  showAnnotations={showAnnotations}
                 />
               </ChartCard>
 
@@ -383,6 +456,7 @@ export default function VelocityApp() {
                 <CycleTimeChart
                   selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
+                  showAnnotations={showAnnotations}
                 />
               </ChartCard>
 
@@ -391,6 +465,7 @@ export default function VelocityApp() {
                 <DeploymentFrequencyChart
                   selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
+                  showAnnotations={showAnnotations}
                 />
               </ChartCard>
 
@@ -399,6 +474,7 @@ export default function VelocityApp() {
                 <LeadTimeChart
                   selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
+                  showAnnotations={showAnnotations}
                 />
               </ChartCard>
 
@@ -407,6 +483,7 @@ export default function VelocityApp() {
                 <MTTRChart
                   selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
+                  showAnnotations={showAnnotations}
                 />
               </ChartCard>
 
@@ -415,6 +492,7 @@ export default function VelocityApp() {
                 <ChangeFailureRateChart
                   selectedIterations={selectedIterations}
                   annotationRefreshKey={annotationRefreshKey}
+                  showAnnotations={showAnnotations}
                 />
               </ChartCard>
             </ChartsGrid>

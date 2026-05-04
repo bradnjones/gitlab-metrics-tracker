@@ -6,6 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import userEvent from '@testing-library/user-event';
 import VelocityChart from '../../../src/public/components/VelocityChart.jsx';
+import { useAnnotations } from '../../../src/public/hooks/useAnnotations.js';
 
 // Mock Chart.js and react-chartjs-2
 jest.mock('react-chartjs-2', () => ({
@@ -419,5 +420,65 @@ describe('VelocityChart', () => {
     // (The annotationRefreshKey is passed to useAnnotations, not used to trigger data refetch)
     // So we verify the component still renders
     expect(screen.getByTestId('velocity-line-chart')).toBeInTheDocument();
+  });
+
+  /**
+   * Test: showAnnotations=true (default) includes annotation plugin in chart options
+   */
+  test('includes annotation plugin config when showAnnotations is true and annotations exist', async () => {
+    // Arrange - return a non-empty annotation so the plugin config fires
+    useAnnotations.mockReturnValue({
+      annotations: { event1: { type: 'line', xMin: '1/14', xMax: '1/14' } },
+      loading: false,
+      error: null,
+    });
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    });
+
+    // Act
+    renderWithTheme(
+      <VelocityChart selectedIterations={mockIterations} annotationRefreshKey={0} showAnnotations={true} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('velocity-line-chart')).toBeInTheDocument();
+    });
+
+    // Assert - options should have annotation plugin
+    const chartOptions = JSON.parse(screen.getByTestId('chart-options').textContent);
+    expect(chartOptions.plugins.annotation).toBeDefined();
+  });
+
+  /**
+   * Test: showAnnotations=false suppresses annotation plugin even when annotations exist
+   */
+  test('omits annotation plugin config when showAnnotations is false', async () => {
+    // Arrange - non-empty annotation present, but toggle is off
+    useAnnotations.mockReturnValue({
+      annotations: { event1: { type: 'line', xMin: '1/14', xMax: '1/14' } },
+      loading: false,
+      error: null,
+    });
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    });
+
+    // Act
+    renderWithTheme(
+      <VelocityChart selectedIterations={mockIterations} annotationRefreshKey={0} showAnnotations={false} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('velocity-line-chart')).toBeInTheDocument();
+    });
+
+    // Assert - options should NOT have annotation plugin set
+    const chartOptions = JSON.parse(screen.getByTestId('chart-options').textContent);
+    expect(chartOptions.plugins.annotation).toBeUndefined();
   });
 });

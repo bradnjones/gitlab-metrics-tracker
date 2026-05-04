@@ -13,40 +13,40 @@ import EmptyState from '../../../src/public/components/EmptyState.jsx';
 import IterationSelectionModal from '../../../src/public/components/IterationSelectionModal.jsx';
 
 
-// Mock chart components
+// Mock chart components - capture showAnnotations prop for assertion
 jest.mock('../../../src/public/components/VelocityChart.jsx', () => {
-  return function MockVelocityChart() {
-    return <div data-testid="velocity-chart">Velocity Chart</div>;
+  return function MockVelocityChart({ showAnnotations }) {
+    return <div data-testid="velocity-chart" data-show-annotations={String(showAnnotations)}>Velocity Chart</div>;
   };
 });
 
 jest.mock('../../../src/public/components/CycleTimeChart.jsx', () => {
-  return function MockCycleTimeChart() {
-    return <div data-testid="cycle-time-chart">Cycle Time Chart</div>;
+  return function MockCycleTimeChart({ showAnnotations }) {
+    return <div data-testid="cycle-time-chart" data-show-annotations={String(showAnnotations)}>Cycle Time Chart</div>;
   };
 });
 
 jest.mock('../../../src/public/components/DeploymentFrequencyChart.jsx', () => {
-  return function MockDeploymentFrequencyChart() {
-    return <div data-testid="deployment-frequency-chart">Deployment Frequency Chart</div>;
+  return function MockDeploymentFrequencyChart({ showAnnotations }) {
+    return <div data-testid="deployment-frequency-chart" data-show-annotations={String(showAnnotations)}>Deployment Frequency Chart</div>;
   };
 });
 
 jest.mock('../../../src/public/components/LeadTimeChart.jsx', () => {
-  return function MockLeadTimeChart() {
-    return <div data-testid="lead-time-chart">Lead Time Chart</div>;
+  return function MockLeadTimeChart({ showAnnotations }) {
+    return <div data-testid="lead-time-chart" data-show-annotations={String(showAnnotations)}>Lead Time Chart</div>;
   };
 });
 
 jest.mock('../../../src/public/components/MTTRChart.jsx', () => {
-  return function MockMTTRChart() {
-    return <div data-testid="mttr-chart">MTTR Chart</div>;
+  return function MockMTTRChart({ showAnnotations }) {
+    return <div data-testid="mttr-chart" data-show-annotations={String(showAnnotations)}>MTTR Chart</div>;
   };
 });
 
 jest.mock('../../../src/public/components/ChangeFailureRateChart.jsx', () => {
-  return function MockChangeFailureRateChart() {
-    return <div data-testid="change-failure-rate-chart">Change Failure Rate Chart</div>;
+  return function MockChangeFailureRateChart({ showAnnotations }) {
+    return <div data-testid="change-failure-rate-chart" data-show-annotations={String(showAnnotations)}>Change Failure Rate Chart</div>;
   };
 });
 
@@ -1210,5 +1210,173 @@ describe('VelocityApp', () => {
 
     // Cleanup
     global.fetch.mockRestore();
+  });
+
+  /**
+   * Test 9.28: Annotation toggle button renders with "Annotations: On" when showAnnotations is true
+   */
+  test('renders annotation toggle button defaulting to "Annotations: On"', () => {
+    const mockStoredIterations = [
+      { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' },
+    ];
+    Storage.prototype.getItem = jest.fn((key) => {
+      if (key === 'gitlab-metrics-selected-iterations') return JSON.stringify(mockStoredIterations);
+      return null; // show-annotations key not set → defaults to true
+    });
+
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ metrics: [] }) }));
+
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    expect(screen.getByRole('button', { name: /Annotations: On/i })).toBeInTheDocument();
+
+    global.fetch.mockRestore();
+    Storage.prototype.getItem.mockRestore();
+  });
+
+  /**
+   * Test 9.29: Clicking the toggle button switches label to "Annotations: Off"
+   */
+  test('clicking annotation toggle button switches to "Annotations: Off"', async () => {
+    const user = userEvent.setup();
+    const mockStoredIterations = [
+      { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' },
+    ];
+    Storage.prototype.getItem = jest.fn((key) => {
+      if (key === 'gitlab-metrics-selected-iterations') return JSON.stringify(mockStoredIterations);
+      return null;
+    });
+    Storage.prototype.setItem = jest.fn();
+
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ metrics: [] }) }));
+
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    const toggleBtn = screen.getByRole('button', { name: /Annotations: On/i });
+    await user.click(toggleBtn);
+
+    expect(screen.getByRole('button', { name: /Annotations: Off/i })).toBeInTheDocument();
+
+    global.fetch.mockRestore();
+    Storage.prototype.getItem.mockRestore();
+    Storage.prototype.setItem.mockRestore();
+  });
+
+  /**
+   * Test 9.30: showAnnotations=true is passed to all six chart components by default
+   */
+  test('passes showAnnotations=true to all six chart components by default', () => {
+    const mockStoredIterations = [
+      { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' },
+    ];
+    Storage.prototype.getItem = jest.fn((key) => {
+      if (key === 'gitlab-metrics-selected-iterations') return JSON.stringify(mockStoredIterations);
+      return null;
+    });
+
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ metrics: [] }) }));
+
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    const charts = [
+      'velocity-chart',
+      'cycle-time-chart',
+      'deployment-frequency-chart',
+      'lead-time-chart',
+      'mttr-chart',
+      'change-failure-rate-chart',
+    ];
+
+    charts.forEach((testId) => {
+      expect(screen.getByTestId(testId)).toHaveAttribute('data-show-annotations', 'true');
+    });
+
+    global.fetch.mockRestore();
+    Storage.prototype.getItem.mockRestore();
+  });
+
+  /**
+   * Test 9.31: After toggling off, showAnnotations=false is passed to all six chart components
+   */
+  test('passes showAnnotations=false to all six chart components after toggling off', async () => {
+    const user = userEvent.setup();
+    const mockStoredIterations = [
+      { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' },
+    ];
+    Storage.prototype.getItem = jest.fn((key) => {
+      if (key === 'gitlab-metrics-selected-iterations') return JSON.stringify(mockStoredIterations);
+      return null;
+    });
+    Storage.prototype.setItem = jest.fn();
+
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ metrics: [] }) }));
+
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Annotations: On/i }));
+
+    const charts = [
+      'velocity-chart',
+      'cycle-time-chart',
+      'deployment-frequency-chart',
+      'lead-time-chart',
+      'mttr-chart',
+      'change-failure-rate-chart',
+    ];
+
+    charts.forEach((testId) => {
+      expect(screen.getByTestId(testId)).toHaveAttribute('data-show-annotations', 'false');
+    });
+
+    global.fetch.mockRestore();
+    Storage.prototype.getItem.mockRestore();
+    Storage.prototype.setItem.mockRestore();
+  });
+
+  /**
+   * Test 9.32: showAnnotations preference is persisted to localStorage
+   */
+  test('persists showAnnotations preference to localStorage when toggled', async () => {
+    const user = userEvent.setup();
+    const mockStoredIterations = [
+      { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' },
+    ];
+    const setItemSpy = jest.spyOn(Storage.prototype, 'setItem');
+    Storage.prototype.getItem = jest.fn((key) => {
+      if (key === 'gitlab-metrics-selected-iterations') return JSON.stringify(mockStoredIterations);
+      return null;
+    });
+
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ metrics: [] }) }));
+
+    render(
+      <ThemeProvider theme={theme}>
+        <VelocityApp />
+      </ThemeProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Annotations: On/i }));
+
+    expect(setItemSpy).toHaveBeenCalledWith('show-annotations', 'false');
+
+    global.fetch.mockRestore();
+    Storage.prototype.getItem.mockRestore();
+    setItemSpy.mockRestore();
   });
 });

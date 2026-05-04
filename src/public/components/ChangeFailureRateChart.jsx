@@ -5,7 +5,7 @@
  * @module components/ChangeFailureRateChart
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
@@ -77,21 +77,49 @@ const ChartContainer = styled.div`
   }
 `;
 
+const ChartToolbar = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+`;
+
+const ExportButton = styled.button`
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #374151;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.5;
+
+  &:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+
+  &:active {
+    background: #e5e7eb;
+  }
+`;
+
 /**
  * ChangeFailureRateChart Component
  *
  * @param {Object} props - Component props
  * @param {Array<string>} props.iterationIds - Array of iteration IDs to fetch metrics for
  * @param {number} [props.annotationRefreshKey=0] - Key that triggers annotation re-fetch
+ * @param {boolean} [props.showAnnotations=true] - Whether to render annotation markers on the chart
  * @returns {JSX.Element} Rendered component
  */
-const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey = 0 }) => {
+const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnnotations = true }) => {
   const [chartData, setChartData] = useState(null);
   const [controlLimits, setControlLimits] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [excludedIterationIds, setExcludedIterationIds] = useChartFilters(FILTER_STORAGE_KEY);
   const [isEnlarged, setIsEnlarged] = useState(false);
+  const chartRef = useRef(null);
 
   // Clean up excluded iterations that are no longer in selectedIterations
   useEffect(() => {
@@ -309,8 +337,8 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
       };
     }
 
-    // Set annotations if we have any
-    if (Object.keys(allAnnotations).length > 0) {
+    // Set annotations if we have any and annotations are visible
+    if (showAnnotations && Object.keys(allAnnotations).length > 0) {
       options.plugins.annotation = {
         annotations: allAnnotations
       };
@@ -332,6 +360,18 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
    */
   const handleResetFilter = () => {
     setExcludedIterationIds([]);
+  };
+
+  /**
+   * Export the chart as a PNG image download
+   */
+  const handleExport = () => {
+    if (!chartRef.current) return;
+    const url = chartRef.current.toBase64Image('image/png', 1.0);
+    const link = document.createElement('a');
+    link.download = 'change-failure-rate-chart.png';
+    link.href = url;
+    link.click();
   };
 
   // Empty state - no iterations selected
@@ -375,6 +415,9 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
       </FilterContainer>
       {chartData && (
         <>
+          <ChartToolbar>
+            <ExportButton onClick={handleExport}>Export PNG</ExportButton>
+          </ChartToolbar>
           <ChartContainer
             onClick={() => setIsEnlarged(true)}
             role="button"
@@ -388,6 +431,7 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
             }}
           >
             <Line
+              ref={chartRef}
               data={chartData}
               options={getChartOptions(controlLimits, changeFailureAnnotations)}
               aria-label="Line chart showing change failure rate trends across selected iterations"
