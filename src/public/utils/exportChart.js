@@ -7,13 +7,12 @@
  *    composite the chart onto a fresh white canvas so downloaded PNGs are
  *    legible outside the app.
  *
- * 2. Low resolution — The chart canvas already renders at devicePixelRatio×
- *    (e.g. 2× on Retina). We scale the raw canvas pixels up by an additional
- *    3× factor by drawing onto a larger export canvas, giving a final PNG that
- *    is 3× the physical canvas in each dimension (9× area). Aspect ratio is
- *    always preserved because both dimensions are scaled by the same factor.
- *    No Chart.js resize is needed, so there is no risk of container constraints
- *    distorting the output.
+ * 2. Low resolution — Instead of upscaling the existing bitmap (which just
+ *    stretches pixels and produces a grainy result), we temporarily raise the
+ *    chart's devicePixelRatio to EXPORT_DPR and force a full re-render. Chart.js
+ *    redraws all vector elements (lines, curves, text, axes, annotations) at
+ *    the higher density, producing a genuinely sharp export. The chart is then
+ *    restored to its original DPR so the UI is unaffected.
  *
  * @param {import('react').RefObject} chartRef - React ref pointing to a Chart.js instance
  * @param {string} filename - Desired filename for the download (e.g. 'velocity-chart.png')
@@ -22,22 +21,31 @@
 export function exportChartAsPng(chartRef, filename) {
   if (!chartRef.current) return;
 
-  const source = chartRef.current.canvas;
-  const SCALE = 3;
+  const chart = chartRef.current;
+  const EXPORT_DPR = 4;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = source.width * SCALE;
-  canvas.height = source.height * SCALE;
+  const originalDPR = chart.options.devicePixelRatio ?? window.devicePixelRatio ?? 1;
 
-  const ctx = canvas.getContext('2d');
+  // Re-render all vector elements at high DPI before capturing.
+  chart.options.devicePixelRatio = EXPORT_DPR;
+  chart.resize();
+
+  const source = chart.canvas;
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = source.width;
+  exportCanvas.height = source.height;
+
+  const ctx = exportCanvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // drawImage with explicit destination dimensions scales the source to fill
-  // the export canvas — same factor on both axes so aspect ratio is preserved.
-  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  ctx.drawImage(source, 0, 0);
 
   const link = document.createElement('a');
   link.download = filename;
-  link.href = canvas.toDataURL('image/png');
+  link.href = exportCanvas.toDataURL('image/png');
   link.click();
+
+  // Restore the chart to its original pixel ratio.
+  chart.options.devicePixelRatio = originalDPR;
+  chart.resize();
 }
