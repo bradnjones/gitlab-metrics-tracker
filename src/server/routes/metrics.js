@@ -36,8 +36,11 @@ function withMetricsHandler(metricName, transformFn) {
         });
       }
 
+      const gitlabToken = req.gitlabToken;
+      const gitlabProject = req.gitlabProject;
+
       const iterationIds = iterations.split(',').map(id => id.trim());
-      const metricsService = ServiceFactory.createMetricsService();
+      const metricsService = ServiceFactory.createMetricsService({ gitlabToken, projectPath: gitlabProject });
       const allMetrics = await metricsService.calculateMultipleMetrics(iterationIds);
       const result = transformFn(allMetrics);
 
@@ -263,8 +266,11 @@ router.post('/calculate', async (req, res, next) => {
       });
     }
 
-    // Create service (will use environment variables)
-    const metricsService = ServiceFactory.createMetricsService();
+    const gitlabToken = req.gitlabToken;
+    const gitlabProject = req.gitlabProject;
+
+    // Create service with per-request credentials
+    const metricsService = ServiceFactory.createMetricsService({ gitlabToken, projectPath: gitlabProject });
 
     // Calculate metrics
     const metrics = await metricsService.calculateMetrics(iterationId);

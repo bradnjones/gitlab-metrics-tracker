@@ -22,8 +22,11 @@ const logger = new ConsoleLogger({ serviceName: 'iterations-api' });
  */
 router.get('/', async (req, res) => {
   try {
-    // Create GitLab client
-    const gitlabClient = ServiceFactory.createGitLabClient();
+    const gitlabToken = req.gitlabToken;
+    const gitlabProject = req.gitlabProject;
+
+    // Create GitLab client with per-request credentials
+    const gitlabClient = ServiceFactory.createGitLabClient({ gitlabToken, projectPath: gitlabProject });
 
     // Fetch iterations from GitLab
     const iterations = await gitlabClient.fetchIterations();

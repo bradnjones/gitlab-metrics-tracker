@@ -196,6 +196,13 @@ export function createApp() {
     }));
   }
 
+  // Per-request GitLab credentials — read from headers, fall back to env vars
+  app.use('/api', (req, res, next) => {
+    req.gitlabToken = req.headers['x-gitlab-token'] || process.env.GITLAB_TOKEN;
+    req.gitlabProject = req.headers['x-gitlab-project'] || process.env.GITLAB_PROJECT_PATH;
+    next();
+  });
+
   // Routes
   app.use('/api/iterations', iterationsRoutes);
   app.use('/api/metrics', metricsRoutes);

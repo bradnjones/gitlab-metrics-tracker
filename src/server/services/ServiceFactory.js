@@ -29,12 +29,19 @@ export class ServiceFactory {
    * @returns {GitLabClient} Configured GitLabClient instance
    */
   static createGitLabClient(config = null) {
-    // Use provided config or load from environment
-    const gitlabConfig = config || {
-      url: process.env.GITLAB_URL || 'https://gitlab.com',
-      token: process.env.GITLAB_TOKEN,
-      projectPath: process.env.GITLAB_PROJECT_PATH,
-    };
+    // Support both { token, projectPath, url } and { gitlabToken, projectPath } shapes,
+    // or fall back to environment variables when no config is provided.
+    const gitlabConfig = config
+      ? {
+          url: config.url || process.env.GITLAB_URL || 'https://gitlab.com',
+          token: config.gitlabToken || config.token,
+          projectPath: config.projectPath,
+        }
+      : {
+          url: process.env.GITLAB_URL || 'https://gitlab.com',
+          token: process.env.GITLAB_TOKEN,
+          projectPath: process.env.GITLAB_PROJECT_PATH,
+        };
 
     // Validate required config
     if (!gitlabConfig.token) {
@@ -68,12 +75,19 @@ export class ServiceFactory {
    * @returns {MetricsService} Fully wired MetricsService instance
    */
   static createMetricsService(config = null) {
-    // Use provided config or load from environment
-    const gitlabConfig = config || {
-      url: process.env.GITLAB_URL || 'https://gitlab.com',
-      token: process.env.GITLAB_TOKEN,
-      projectPath: process.env.GITLAB_PROJECT_PATH,
-    };
+    // Support both { token, projectPath, url } and { gitlabToken, projectPath } shapes,
+    // or fall back to environment variables when no config is provided.
+    const gitlabConfig = config
+      ? {
+          url: config.url || process.env.GITLAB_URL || 'https://gitlab.com',
+          token: config.gitlabToken || config.token,
+          projectPath: config.projectPath,
+        }
+      : {
+          url: process.env.GITLAB_URL || 'https://gitlab.com',
+          token: process.env.GITLAB_TOKEN,
+          projectPath: process.env.GITLAB_PROJECT_PATH,
+        };
 
     // Validate required config
     if (!gitlabConfig.token) {
