@@ -1,5 +1,5 @@
 /**
- * Tests for SettingsModal component
+ * Tests for SettingsView (SettingsModal.jsx)
  *
  * @jest-environment jsdom
  */
@@ -33,6 +33,7 @@ const theme = {
     fontWeight: {
       medium: '500',
       semibold: '600',
+      bold: '700',
     },
     lineHeight: {
       tight: '1.25',
@@ -67,116 +68,50 @@ const renderWithTheme = (component) => render(
   <ThemeProvider theme={theme}>{component}</ThemeProvider>
 );
 
-describe('SettingsModal', () => {
+describe('SettingsModal (inline view)', () => {
   const mockOnSave = jest.fn();
-  const mockOnClose = jest.fn();
 
   beforeEach(() => {
     mockOnSave.mockClear();
-    mockOnClose.mockClear();
   });
 
-  // ── Visibility ──────────────────────────────────────────────────────────────
+  // ── Rendering ────────────────────────────────────────────────────────────────
 
-  test('renders nothing when isOpen is false', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={false} onSave={mockOnSave} onClose={mockOnClose} />
-    );
-    expect(screen.queryByText('GitLab Settings')).not.toBeInTheDocument();
-  });
-
-  test('renders the modal when isOpen is true', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
-    expect(screen.getByText('GitLab Settings')).toBeInTheDocument();
+  test('renders the settings view with title and fields', () => {
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
+    expect(screen.getByText('Settings')).toBeInTheDocument();
     expect(screen.getByLabelText(/Personal Access Token/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Project Path/i)).toBeInTheDocument();
   });
 
   test('shows memory-only notice', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     expect(screen.getByText(/held in browser memory only/i)).toBeInTheDocument();
-  });
-
-  // ── Cancel / close behaviour ────────────────────────────────────────────────
-
-  test('does not show Cancel button when hasCredentials is false', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} hasCredentials={false} />
-    );
-    expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
-  });
-
-  test('shows Cancel button when hasCredentials is true', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} hasCredentials={true} />
-    );
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-  });
-
-  test('calls onClose when Cancel is clicked', async () => {
-    const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} hasCredentials={true} />
-    );
-    await user.click(screen.getByRole('button', { name: /cancel/i }));
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-    expect(mockOnSave).not.toHaveBeenCalled();
-  });
-
-  test('overlay click does NOT close when hasCredentials is false', () => {
-    const { container } = renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} hasCredentials={false} />
-    );
-    fireEvent.click(container.firstChild);
-    expect(mockOnClose).not.toHaveBeenCalled();
-  });
-
-  test('overlay click closes when hasCredentials is true', () => {
-    const { container } = renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} hasCredentials={true} />
-    );
-    fireEvent.click(container.firstChild);
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  test('Escape key closes modal when hasCredentials is true', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} hasCredentials={true} />
-    );
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  test('Escape key does NOT close when hasCredentials is false', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} hasCredentials={false} />
-    );
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(mockOnClose).not.toHaveBeenCalled();
   });
 
   // ── Manual tab ──────────────────────────────────────────────────────────────
 
   test('calls onSave with trimmed credentials on valid manual submit', async () => {
     const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     await user.type(screen.getByLabelText(/Personal Access Token/i), '  glpat-abc123  ');
     await user.type(screen.getByLabelText(/Project Path/i), '  group/project  ');
     await user.click(screen.getByRole('button', { name: /^save$/i }));
     expect(mockOnSave).toHaveBeenCalledWith({ gitlabToken: 'glpat-abc123', projectPath: 'group/project' });
   });
 
+  test('shows success banner after saving', async () => {
+    const user = userEvent.setup();
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
+    await user.type(screen.getByLabelText(/Personal Access Token/i), 'glpat-abc123');
+    await user.type(screen.getByLabelText(/Project Path/i), 'group/project');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    expect(screen.getByText(/Credentials saved/i)).toBeInTheDocument();
+  });
+
   test('shows error when token is empty on manual submit', async () => {
     const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     await user.type(screen.getByLabelText(/Project Path/i), 'group/project');
     await user.click(screen.getByRole('button', { name: /^save$/i }));
     expect(mockOnSave).not.toHaveBeenCalled();
@@ -185,9 +120,7 @@ describe('SettingsModal', () => {
 
   test('shows error when project path is empty on manual submit', async () => {
     const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     await user.type(screen.getByLabelText(/Personal Access Token/i), 'glpat-abc123');
     await user.click(screen.getByRole('button', { name: /^save$/i }));
     expect(mockOnSave).not.toHaveBeenCalled();
@@ -195,41 +128,24 @@ describe('SettingsModal', () => {
   });
 
   test('token input has type text and autoComplete off', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     const input = screen.getByLabelText(/Personal Access Token/i);
     expect(input).toHaveAttribute('type', 'text');
     expect(input).toHaveAttribute('autoComplete', 'off');
-  });
-
-  test('resets form when modal reopens', async () => {
-    const user = userEvent.setup();
-    const { rerender } = renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
-    await user.type(screen.getByLabelText(/Personal Access Token/i), 'some-value');
-    rerender(<ThemeProvider theme={theme}><SettingsModal isOpen={false} onSave={mockOnSave} onClose={mockOnClose} /></ThemeProvider>);
-    rerender(<ThemeProvider theme={theme}><SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} /></ThemeProvider>);
-    expect(screen.getByLabelText(/Personal Access Token/i)).toHaveValue('');
   });
 
   // ── Import JSON tab ─────────────────────────────────────────────────────────
 
   test('switches to Import JSON tab and shows textarea', async () => {
     const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     await user.click(screen.getByRole('button', { name: /import json/i }));
     expect(screen.getByLabelText(/paste config json/i)).toBeInTheDocument();
   });
 
   test('imports valid JSON and calls onSave', async () => {
     const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     await user.click(screen.getByRole('button', { name: /import json/i }));
     fireEvent.change(screen.getByLabelText(/paste config json/i), {
       target: { value: '{"gitlabToken":"glpat-xyz","projectPath":"org/repo"}' },
@@ -240,9 +156,7 @@ describe('SettingsModal', () => {
 
   test('shows error for invalid JSON on import', async () => {
     const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     await user.click(screen.getByRole('button', { name: /import json/i }));
     fireEvent.change(screen.getByLabelText(/paste config json/i), {
       target: { value: 'not json at all' },
@@ -255,9 +169,7 @@ describe('SettingsModal', () => {
 
   test('shows error when gitlabToken field is missing from imported JSON', async () => {
     const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     await user.click(screen.getByRole('button', { name: /import json/i }));
     fireEvent.change(screen.getByLabelText(/paste config json/i), {
       target: { value: '{"projectPath":"org/repo"}' },
@@ -269,9 +181,7 @@ describe('SettingsModal', () => {
 
   test('shows error when projectPath field is missing from imported JSON', async () => {
     const user = userEvent.setup();
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} />);
     await user.click(screen.getByRole('button', { name: /import json/i }));
     fireEvent.change(screen.getByLabelText(/paste config json/i), {
       target: { value: '{"gitlabToken":"glpat-xyz"}' },
@@ -284,9 +194,7 @@ describe('SettingsModal', () => {
   // ── Export JSON tab ─────────────────────────────────────────────────────────
 
   test('Export JSON tab is only shown when hasCredentials is true', () => {
-    renderWithTheme(
-      <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} hasCredentials={false} />
-    );
+    renderWithTheme(<SettingsModal onSave={mockOnSave} hasCredentials={false} />);
     expect(screen.queryByRole('button', { name: /export json/i })).not.toBeInTheDocument();
   });
 
@@ -294,13 +202,7 @@ describe('SettingsModal', () => {
     const user = userEvent.setup();
     const creds = { gitlabToken: 'glpat-abc', projectPath: 'myorg/myrepo' };
     renderWithTheme(
-      <SettingsModal
-        isOpen={true}
-        onSave={mockOnSave}
-        onClose={mockOnClose}
-        hasCredentials={true}
-        currentCredentials={creds}
-      />
+      <SettingsModal onSave={mockOnSave} hasCredentials={true} currentCredentials={creds} />
     );
     await user.click(screen.getByRole('button', { name: /export json/i }));
     const textarea = screen.getByLabelText(/exported config json/i);

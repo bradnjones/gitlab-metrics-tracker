@@ -1,26 +1,18 @@
 /**
- * SettingsModal Component
+ * SettingsView Component
  *
- * Modal for entering GitLab credentials (Personal Access Token and project path).
- * Credentials are held in React state only — never saved to disk, localStorage,
- * or sessionStorage.
+ * Inline settings page for entering GitLab credentials.
+ * Rendered as a top-level view (tab), not a modal.
+ * Credentials are held in React state only — never saved to disk.
  *
  * Supports three entry modes:
  * - Manual: type token and project path into separate fields
- * - Import: paste a JSON config blob to populate both fields at once
- * - Export: view the current credentials as a JSON blob to copy elsewhere
- *
- * Rules:
- * - Not dismissible when credentials are null (forces entry before using the app).
- * - Dismissible (shows Cancel) when credentials are already set.
+ * - Import JSON: paste a config blob to populate both fields at once
+ * - Export JSON: view current credentials as JSON to copy elsewhere
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  ModalOverlay,
-  Modal,
-  ModalHeader,
-  CloseButton,
   ModalFooter,
   FormGroup,
   Input,
@@ -31,15 +23,31 @@ import styled from 'styled-components';
 
 /* ===== STYLED COMPONENTS ===== */
 
-const ModalBodyDiv = styled.div`
-  padding: 1.5rem;
+const ViewContainer = styled.div`
+  max-width: 640px;
+  margin: ${props => props.theme.spacing.lg} auto;
+  padding: 0 ${props => props.theme.spacing.lg};
+`;
+
+const ViewTitle = styled.h2`
+  font-size: ${props => props.theme.typography.fontSize.xl};
+  font-weight: ${props => props.theme.typography.fontWeight.bold};
+  color: ${props => props.theme.colors.textPrimary};
+  margin: 0 0 ${props => props.theme.spacing.md} 0;
+`;
+
+const Card = styled.div`
+  background: ${props => props.theme.colors.bgPrimary};
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: ${props => props.theme.borderRadius.lg};
+  box-shadow: ${props => props.theme.shadows.md};
+  overflow: hidden;
 `;
 
 const TabBar = styled.div`
   display: flex;
   border-bottom: 1px solid ${props => props.theme.colors.border};
-  margin-bottom: ${props => props.theme.spacing.lg};
-  gap: 0;
+  background: ${props => props.theme.colors.bgSecondary};
 `;
 
 const Tab = styled.button`
@@ -59,12 +67,27 @@ const Tab = styled.button`
   }
 `;
 
+const CardBody = styled.div`
+  padding: ${props => props.theme.spacing.lg};
+`;
+
 const MemoryNotice = styled.p`
   margin: 0 0 ${props => props.theme.spacing.lg} 0;
   font-size: ${props => props.theme.typography.fontSize.sm};
   color: ${props => props.theme.colors.textSecondary};
   background: ${props => props.theme.colors.bgSecondary};
   border: 1px solid ${props => props.theme.colors.border};
+  border-radius: ${props => props.theme.borderRadius.md};
+  padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
+  line-height: 1.5;
+`;
+
+const SuccessBanner = styled.div`
+  margin: 0 0 ${props => props.theme.spacing.lg} 0;
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
   border-radius: ${props => props.theme.borderRadius.md};
   padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
   line-height: 1.5;
@@ -123,59 +146,28 @@ const ExportLabelRow = styled.div`
 /* ===== COMPONENT ===== */
 
 /**
- * SettingsModal
+ * SettingsView
  *
  * @param {Object} props
- * @param {boolean} props.isOpen
- * @param {Function} props.onSave - Called with { gitlabToken, projectPath }
- * @param {Function} props.onClose - Called when Cancel clicked (only when credentials set)
+ * @param {Function} props.onSave - Called with { gitlabToken, projectPath } on save
  * @param {boolean} [props.hasCredentials=false]
  * @param {{ gitlabToken: string, projectPath: string } | null} [props.currentCredentials=null]
- * @returns {JSX.Element|null}
+ * @returns {JSX.Element}
  */
-export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials = false, currentCredentials = null }) {
+export default function SettingsModal({ onSave, hasCredentials = false, currentCredentials = null }) {
   const [tab, setTab] = useState('manual');
   const [formData, setFormData] = useState({ gitlabToken: '', projectPath: '' });
   const [errors, setErrors] = useState({});
   const [importJson, setImportJson] = useState('');
   const [importError, setImportError] = useState('');
   const [copyLabel, setCopyLabel] = useState('Copy');
-
-  // Reset form when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setTab('manual');
-      setFormData({ gitlabToken: '', projectPath: '' });
-      setErrors({});
-      setImportJson('');
-      setImportError('');
-      setCopyLabel('Copy');
-    }
-  }, [isOpen]);
-
-  // Escape key closes only when already configured
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && isOpen && hasCredentials) onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, hasCredentials, onClose]);
-
-  // Lock body scroll while open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [isOpen]);
+  const [saved, setSaved] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+    setSaved(false);
   };
 
   const handleManualSubmit = (e) => {
@@ -185,6 +177,7 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
     if (!formData.projectPath.trim()) newErrors.projectPath = 'Project path is required';
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
     onSave({ gitlabToken: formData.gitlabToken.trim(), projectPath: formData.projectPath.trim() });
+    setSaved(true);
   };
 
   const handleImportSubmit = (e) => {
@@ -207,6 +200,7 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
       return;
     }
     onSave({ gitlabToken: gitlabToken.trim(), projectPath: projectPath.trim() });
+    setSaved(true);
   };
 
   const handleCopy = () => {
@@ -218,41 +212,30 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
     });
   };
 
-  const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget && hasCredentials) onClose();
-  };
-
-  if (!isOpen) return null;
-
   const exportJson = currentCredentials
     ? JSON.stringify({ gitlabToken: currentCredentials.gitlabToken, projectPath: currentCredentials.projectPath }, null, 2)
     : '';
 
   return (
-    <ModalOverlay onClick={handleOverlayClick}>
-      <Modal>
-        <ModalHeader>
-          <h3>GitLab Settings</h3>
-          {hasCredentials && (
-            <CloseButton type="button" onClick={onClose} aria-label="Close settings">
-              &times;
-            </CloseButton>
-          )}
-        </ModalHeader>
+    <ViewContainer>
+      <ViewTitle>Settings</ViewTitle>
 
-        <ModalBodyDiv>
+      <Card>
+        <TabBar>
+          <Tab type="button" $active={tab === 'manual'} onClick={() => setTab('manual')}>Manual</Tab>
+          <Tab type="button" $active={tab === 'import'} onClick={() => setTab('import')}>Import JSON</Tab>
+          {hasCredentials && (
+            <Tab type="button" $active={tab === 'export'} onClick={() => setTab('export')}>Export JSON</Tab>
+          )}
+        </TabBar>
+
+        <CardBody>
           <MemoryNotice>
             Credentials are held in browser memory only and are never saved to disk.
             You will need to re-enter them each time you reload the page.
           </MemoryNotice>
 
-          <TabBar>
-            <Tab type="button" $active={tab === 'manual'} onClick={() => setTab('manual')}>Manual</Tab>
-            <Tab type="button" $active={tab === 'import'} onClick={() => setTab('import')}>Import JSON</Tab>
-            {hasCredentials && (
-              <Tab type="button" $active={tab === 'export'} onClick={() => setTab('export')}>Export JSON</Tab>
-            )}
-          </TabBar>
+          {saved && <SuccessBanner>Credentials saved — you can now use the Dashboard.</SuccessBanner>}
 
           {tab === 'manual' && (
             <form onSubmit={handleManualSubmit} noValidate>
@@ -286,8 +269,7 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
               </FormGroup>
 
               <ModalFooter>
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '1rem' }}>
-                  {hasCredentials && <SecondaryButton type="button" onClick={onClose}>Cancel</SecondaryButton>}
+                <div style={{ marginLeft: 'auto' }}>
                   <PrimaryButton type="submit">Save</PrimaryButton>
                 </div>
               </ModalFooter>
@@ -301,7 +283,7 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
                 <JsonTextarea
                   id="settings-import-json"
                   value={importJson}
-                  onChange={e => { setImportJson(e.target.value); setImportError(''); }}
+                  onChange={e => { setImportJson(e.target.value); setImportError(''); setSaved(false); }}
                   placeholder={'{\n  "gitlabToken": "glpat-...",\n  "projectPath": "group/project"\n}'}
                   $hasError={!!importError}
                   spellCheck={false}
@@ -310,8 +292,7 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
               </FormGroup>
 
               <ModalFooter>
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '1rem' }}>
-                  {hasCredentials && <SecondaryButton type="button" onClick={onClose}>Cancel</SecondaryButton>}
+                <div style={{ marginLeft: 'auto' }}>
                   <PrimaryButton type="submit">Import &amp; Save</PrimaryButton>
                 </div>
               </ModalFooter>
@@ -334,16 +315,10 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
                   aria-label="Exported config JSON"
                 />
               </FormGroup>
-
-              <ModalFooter>
-                <div style={{ marginLeft: 'auto' }}>
-                  <SecondaryButton type="button" onClick={onClose}>Close</SecondaryButton>
-                </div>
-              </ModalFooter>
             </div>
           )}
-        </ModalBodyDiv>
-      </Modal>
-    </ModalOverlay>
+        </CardBody>
+      </Card>
+    </ViewContainer>
   );
 }

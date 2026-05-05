@@ -96,14 +96,8 @@ const ViewButton = styled.button`
  * @returns {JSX.Element}
  */
 export default function ViewNavigation({ currentView, onViewChange, hasSelectedIterations }) {
-  /**
-   * Handle view button click
-   * @param {string} view - View name to switch to
-   */
   const handleViewClick = (view) => {
-    if (onViewChange) {
-      onViewChange(view);
-    }
+    if (onViewChange) onViewChange(view);
   };
 
   return (
@@ -126,15 +120,21 @@ export default function ViewNavigation({ currentView, onViewChange, hasSelectedI
       >
         Data Explorer
       </ViewButton>
+
+      <ViewButton
+        onClick={() => handleViewClick('settings')}
+        $isActive={currentView === 'settings'}
+        aria-current={currentView === 'settings' ? 'page' : undefined}
+        type="button"
+      >
+        Settings
+      </ViewButton>
     </Nav>
   );
 }
 
-/**
- * PropTypes validation for runtime type checking
- */
 ViewNavigation.propTypes = {
-  currentView: PropTypes.oneOf(['dashboard', 'dataExplorer']).isRequired,
+  currentView: PropTypes.oneOf(['dashboard', 'dataExplorer', 'settings']).isRequired,
   onViewChange: PropTypes.func.isRequired,
   hasSelectedIterations: PropTypes.bool.isRequired
 };

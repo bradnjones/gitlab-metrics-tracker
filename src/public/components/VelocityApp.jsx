@@ -172,18 +172,12 @@ const SHOW_ANNOTATIONS_KEY = 'show-annotations';
 
 export default function VelocityApp() {
   const { credentials, setCredentials } = useCredentials();
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
-  // Auto-open settings on first load if no credentials are set
-  useEffect(() => {
-    if (!credentials) setSettingsOpen(true);
-  }, [credentials]);
   const [selectedIterations, setSelectedIterations] = useState([]);
   // null = show all; Set<string> = explicit subset
   const [displayedIterationIds, setDisplayedIterationIds] = useState(null);
   const [isDisplayFilterModalOpen, setIsDisplayFilterModalOpen] = useState(false);
   const { exportCSV, exporting } = useMetricsExport(selectedIterations);
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentView, setCurrentView] = useState(() => credentials ? 'dashboard' : 'settings');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAnnotationModalOpen, setIsAnnotationModalOpen] = useState(false);
   const [isManageAnnotationsModalOpen, setIsManageAnnotationsModalOpen] = useState(false);
@@ -472,7 +466,7 @@ export default function VelocityApp() {
           onRemoveIteration={handleRemoveIteration}
           onExportCSV={exportCSV}
           exporting={exporting}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSettings={() => setCurrentView('settings')}
         />
 
         <ViewNavigation
@@ -482,12 +476,23 @@ export default function VelocityApp() {
         />
 
         <Content>
-          {selectedIterations.length === 0 ? (
+          {currentView === 'settings' && (
+            <SettingsModal
+              hasCredentials={credentials !== null}
+              currentCredentials={credentials}
+              onSave={(creds) => {
+                setCredentials(creds);
+                setCurrentView('dashboard');
+              }}
+            />
+          )}
+          {currentView !== 'settings' && selectedIterations.length === 0 && (
             <EmptyState
               title="No Iterations Selected"
               message="Select sprint iterations to view velocity metrics and team performance data."
             />
-          ) : (
+          )}
+          {currentView !== 'settings' && selectedIterations.length > 0 && (
             <>
               {currentView === 'dashboard' && (
                 <>
@@ -574,9 +579,10 @@ export default function VelocityApp() {
                   selectedIterations={displayedIterations}
                 />
               )}
+
             </>
           )}
-        </Content>
+          </Content>
 
         <IterationSelectionModal
           isOpen={isModalOpen}
@@ -632,16 +638,6 @@ export default function VelocityApp() {
           onCreate={handleCreateAnnotation}
         />
 
-        <SettingsModal
-          isOpen={settingsOpen}
-          hasCredentials={credentials !== null}
-          currentCredentials={credentials}
-          onSave={(creds) => {
-            setCredentials(creds);
-            setSettingsOpen(false);
-          }}
-          onClose={() => setSettingsOpen(false)}
-        />
       </AppContainer>
     </ErrorBoundary>
   );
