@@ -321,6 +321,7 @@ function buildDateRange(iterations) {
  * @param {Function} props.onOpenAnnotationModal
  * @param {Function} props.onOpenManageAnnotations
  * @param {Function} [props.onExportCSV]
+ * @param {Function} [props.onOpenSettings]
  * @param {boolean} [props.exporting=false]
  * @returns {JSX.Element}
  */
@@ -332,6 +333,7 @@ function CompactHeaderWithIterations({
   onOpenAnnotationModal,
   onOpenManageAnnotations,
   onExportCSV,
+  onOpenSettings,
   exporting = false,
 }) {
   const [cacheRefreshKey, setCacheRefreshKey] = useState(0);
@@ -359,6 +361,7 @@ function CompactHeaderWithIterations({
             onAddAnnotation={() => onOpenAnnotationModal?.()}
             onChangeSprints={() => onOpenModal?.()}
             onExportCSV={onExportCSV}
+            onOpenSettings={() => onOpenSettings?.()}
             canExport={selectedIterations.length > 0}
             exporting={exporting}
           />
@@ -418,6 +421,7 @@ function arePropsEqual(prevProps, nextProps) {
     prevProps.onOpenAnnotationModal !== nextProps.onOpenAnnotationModal ||
     prevProps.onOpenManageAnnotations !== nextProps.onOpenManageAnnotations ||
     prevProps.onExportCSV !== nextProps.onExportCSV ||
+    prevProps.onOpenSettings !== nextProps.onOpenSettings ||
     prevProps.exporting !== nextProps.exporting
   ) return false;
 

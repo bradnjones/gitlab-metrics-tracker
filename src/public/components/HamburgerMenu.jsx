@@ -158,11 +158,12 @@ const MenuItemText = styled.span`
  * @param {Function} props.onAddAnnotation - Callback for "Add Annotation" action
  * @param {Function} props.onChangeSprints - Callback for "Change Sprints" action
  * @param {Function} [props.onExportCSV] - Callback for "Export CSV" action
+ * @param {Function} [props.onOpenSettings] - Callback for "Settings" action
  * @param {boolean} [props.canExport=false] - Whether export is available (iterations selected)
  * @param {boolean} [props.exporting=false] - Whether export is in-flight
  * @returns {JSX.Element}
  */
-export default function HamburgerMenu({ onManageAnnotations, onAddAnnotation, onChangeSprints, onExportCSV, canExport = false, exporting = false }) {
+export default function HamburgerMenu({ onManageAnnotations, onAddAnnotation, onChangeSprints, onExportCSV, onOpenSettings, canExport = false, exporting = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -274,6 +275,15 @@ export default function HamburgerMenu({ onManageAnnotations, onAddAnnotation, on
           >
             <MenuItemIcon>📥</MenuItemIcon>
             <MenuItemText>{exporting ? 'Exporting...' : 'Export CSV'}</MenuItemText>
+          </MenuItem>
+
+          <MenuItem
+            onClick={() => handleMenuItemClick(onOpenSettings)}
+            role="menuitem"
+            type="button"
+          >
+            <MenuItemIcon>⚙️</MenuItemIcon>
+            <MenuItemText>Settings</MenuItemText>
           </MenuItem>
         </DropdownMenu>
       )}

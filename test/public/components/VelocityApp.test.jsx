@@ -13,6 +13,15 @@ import EmptyState from '../../../src/public/components/EmptyState.jsx';
 import IterationSelectionModal from '../../../src/public/components/IterationSelectionModal.jsx';
 
 
+// Stub credentials so SettingsModal doesn't auto-open during tests
+jest.mock('../../../src/public/contexts/CredentialsContext.jsx', () => ({
+  useCredentials: () => ({
+    credentials: { gitlabToken: 'test-token', projectPath: 'test/project' },
+    setCredentials: jest.fn(),
+  }),
+  CredentialsProvider: ({ children }) => children,
+}));
+
 // Mock chart components - capture showAnnotations prop for assertion
 jest.mock('../../../src/public/components/VelocityChart.jsx', () => {
   return function MockVelocityChart({ showAnnotations }) {

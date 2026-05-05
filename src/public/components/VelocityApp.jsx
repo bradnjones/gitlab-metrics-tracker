@@ -173,6 +173,11 @@ const SHOW_ANNOTATIONS_KEY = 'show-annotations';
 export default function VelocityApp() {
   const { credentials, setCredentials } = useCredentials();
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Auto-open settings on first load if no credentials are set
+  useEffect(() => {
+    if (!credentials) setSettingsOpen(true);
+  }, [credentials]);
   const [selectedIterations, setSelectedIterations] = useState([]);
   // null = show all; Set<string> = explicit subset
   const [displayedIterationIds, setDisplayedIterationIds] = useState(null);

@@ -126,15 +126,16 @@ describe('HamburgerMenu', () => {
     const button = screen.getByRole('button', { name: 'Menu' });
     await user.click(button);
 
-    // Assert - Four menu items are rendered
+    // Assert - Five menu items are rendered
     const menuItems = screen.getAllByRole('menuitem');
-    expect(menuItems).toHaveLength(4);
+    expect(menuItems).toHaveLength(5);
 
     // Assert - Menu items have correct text
     expect(screen.getByText('Manage Annotations')).toBeInTheDocument();
     expect(screen.getByText('Add Annotation')).toBeInTheDocument();
     expect(screen.getByText('Change Sprints')).toBeInTheDocument();
     expect(screen.getByText('Export CSV')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
 
     // Act - Click "Manage Annotations"
     await user.click(screen.getByText('Manage Annotations'));
