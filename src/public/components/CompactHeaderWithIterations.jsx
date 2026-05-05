@@ -153,9 +153,7 @@ const CompactSubtitle = styled.p`
  */
 const SprintSummaryPill = styled.button`
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
+  align-items: center;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -164,6 +162,7 @@ const SprintSummaryPill = styled.button`
   cursor: pointer;
   padding: 6px 12px;
   flex-shrink: 0;
+  white-space: nowrap;
   transition: background ${props => props.theme.transitions.fast} ${props => props.theme.transitions.easing};
 
   &:hover {
@@ -178,10 +177,8 @@ const SprintSummaryPill = styled.button`
   @media (max-width: ${props => props.theme.breakpoints.tablet}) {
     width: 100%;
     order: 3;
-    flex-direction: row;
-    align-items: center;
     justify-content: space-between;
-    gap: ${props => props.theme.spacing.md};
+    white-space: normal;
   }
 `;
 
@@ -192,12 +189,17 @@ const PillTopLine = styled.span`
   font-size: ${props => props.theme.typography.fontSize.sm};
   font-weight: ${props => props.theme.typography.fontWeight.semibold};
   white-space: nowrap;
+
+  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
+    white-space: normal;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
 `;
 
-const PillBottomLine = styled.span`
-  font-size: ${props => props.theme.typography.fontSize.xs};
-  opacity: 0.8;
-  white-space: nowrap;
+const PillSeparator = styled.span`
+  opacity: 0.6;
+  font-weight: 400;
 `;
 
 const Chevron = styled.span`
@@ -212,9 +214,17 @@ const Chevron = styled.span`
  */
 const ChipList = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: ${props => props.theme.spacing.xs};
   padding: 6px 12px 8px;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+
+  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
 `;
 
 /**
@@ -443,13 +453,11 @@ function CompactHeaderWithIterations({
         >
           {total === 0
             ? <span>No sprints selected</span>
-            : <>
-                <PillTopLine>
-                  <span>{countLabel}</span>
-                  <Chevron>▾</Chevron>
-                </PillTopLine>
-                {dateRange && <PillBottomLine>{dateRange}</PillBottomLine>}
-              </>
+            : <PillTopLine>
+                <span>{countLabel}</span>
+                {dateRange && <><PillSeparator>·</PillSeparator><span>{dateRange}</span></>}
+                <Chevron>▾</Chevron>
+              </PillTopLine>
           }
         </SprintSummaryPill>
 
