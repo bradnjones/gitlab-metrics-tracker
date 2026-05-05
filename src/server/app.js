@@ -37,7 +37,7 @@ const logger = new ConsoleLogger({ serviceName: 'express-app' });
  * @returns {void}
  */
 export function validateEnv() {
-  const required = ['GITLAB_TOKEN', 'GITLAB_PROJECT_PATH', 'BASIC_AUTH_USER', 'BASIC_AUTH_PASS'];
+  const required = ['BASIC_AUTH_USER', 'BASIC_AUTH_PASS'];
   const missing = required.filter(key => !process.env[key]);
 
   if (missing.length > 0) {
@@ -196,10 +196,10 @@ export function createApp() {
     }));
   }
 
-  // Per-request GitLab credentials — read from headers, fall back to env vars
+  // Per-request GitLab credentials — read from headers only (never from env)
   app.use('/api', (req, res, next) => {
-    req.gitlabToken = req.headers['x-gitlab-token'] || process.env.GITLAB_TOKEN;
-    req.gitlabProject = req.headers['x-gitlab-project'] || process.env.GITLAB_PROJECT_PATH;
+    req.gitlabToken = req.headers['x-gitlab-token'];
+    req.gitlabProject = req.headers['x-gitlab-project'];
     next();
   });
 

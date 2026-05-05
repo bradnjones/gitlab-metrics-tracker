@@ -630,6 +630,7 @@ export default function VelocityApp() {
         <SettingsModal
           isOpen={settingsOpen}
           hasCredentials={credentials !== null}
+          currentCredentials={credentials}
           onSave={(creds) => {
             setCredentials(creds);
             setSettingsOpen(false);

@@ -335,89 +335,78 @@ describe('Express Application (createApp)', () => {
 });
 
 describe('validateEnv', () => {
-  let originalToken;
-  let originalProjectPath;
+  let originalUser;
+  let originalPass;
 
   beforeEach(() => {
-    originalToken = process.env.GITLAB_TOKEN;
-    originalProjectPath = process.env.GITLAB_PROJECT_PATH;
+    originalUser = process.env.BASIC_AUTH_USER;
+    originalPass = process.env.BASIC_AUTH_PASS;
     jest.spyOn(process, 'exit').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    // Restore original values (undefined means delete)
-    if (originalToken === undefined) {
-      delete process.env.GITLAB_TOKEN;
-    } else {
-      process.env.GITLAB_TOKEN = originalToken;
-    }
-    if (originalProjectPath === undefined) {
-      delete process.env.GITLAB_PROJECT_PATH;
-    } else {
-      process.env.GITLAB_PROJECT_PATH = originalProjectPath;
-    }
+    if (originalUser === undefined) { delete process.env.BASIC_AUTH_USER; } else { process.env.BASIC_AUTH_USER = originalUser; }
+    if (originalPass === undefined) { delete process.env.BASIC_AUTH_PASS; } else { process.env.BASIC_AUTH_PASS = originalPass; }
     jest.restoreAllMocks();
   });
 
-  test('does not exit when both required vars are set', () => {
-    process.env.GITLAB_TOKEN = 'test-token';
-    process.env.GITLAB_PROJECT_PATH = 'test/group';
-    process.env.BASIC_AUTH_USER = 'test-user';
-    process.env.BASIC_AUTH_PASS = 'test-pass';
+  test('does not exit when BASIC_AUTH_USER and BASIC_AUTH_PASS are set', () => {
+    process.env.BASIC_AUTH_USER = 'admin';
+    process.env.BASIC_AUTH_PASS = 'secret';
 
     validateEnv();
 
     expect(process.exit).not.toHaveBeenCalled();
   });
 
-  test('exits with code 1 when GITLAB_TOKEN is missing', () => {
-    delete process.env.GITLAB_TOKEN;
-    process.env.GITLAB_PROJECT_PATH = 'test/group';
+  test('exits with code 1 when BASIC_AUTH_USER is missing', () => {
+    delete process.env.BASIC_AUTH_USER;
+    process.env.BASIC_AUTH_PASS = 'secret';
 
     validateEnv();
 
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
-  test('exits with code 1 when GITLAB_PROJECT_PATH is missing', () => {
-    process.env.GITLAB_TOKEN = 'test-token';
-    delete process.env.GITLAB_PROJECT_PATH;
+  test('exits with code 1 when BASIC_AUTH_PASS is missing', () => {
+    process.env.BASIC_AUTH_USER = 'admin';
+    delete process.env.BASIC_AUTH_PASS;
 
     validateEnv();
 
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
-  test('exits with code 1 when both required vars are missing', () => {
-    delete process.env.GITLAB_TOKEN;
-    delete process.env.GITLAB_PROJECT_PATH;
+  test('exits with code 1 when both BASIC_AUTH vars are missing', () => {
+    delete process.env.BASIC_AUTH_USER;
+    delete process.env.BASIC_AUTH_PASS;
 
     validateEnv();
 
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
-  test('logs error naming each missing variable', () => {
-    delete process.env.GITLAB_TOKEN;
-    process.env.GITLAB_PROJECT_PATH = 'test/group';
+  test('logs error naming missing variable', () => {
+    delete process.env.BASIC_AUTH_USER;
+    process.env.BASIC_AUTH_PASS = 'secret';
 
     validateEnv();
 
     expect(console.error).toHaveBeenCalled();
     const logOutput = console.error.mock.calls[0][0];
-    expect(logOutput).toContain('GITLAB_TOKEN');
+    expect(logOutput).toContain('BASIC_AUTH_USER');
   });
 
-  test('logs error naming GITLAB_PROJECT_PATH when missing', () => {
-    process.env.GITLAB_TOKEN = 'test-token';
+  test('GITLAB_TOKEN and GITLAB_PROJECT_PATH are not required env vars', () => {
+    process.env.BASIC_AUTH_USER = 'admin';
+    process.env.BASIC_AUTH_PASS = 'secret';
+    delete process.env.GITLAB_TOKEN;
     delete process.env.GITLAB_PROJECT_PATH;
 
     validateEnv();
 
-    expect(console.error).toHaveBeenCalled();
-    const logOutput = console.error.mock.calls[0][0];
-    expect(logOutput).toContain('GITLAB_PROJECT_PATH');
+    expect(process.exit).not.toHaveBeenCalled();
   });
 });
 
