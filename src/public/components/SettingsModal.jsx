@@ -21,7 +21,6 @@ import {
   Modal,
   ModalHeader,
   CloseButton,
-  ModalBody,
   ModalFooter,
   FormGroup,
   Input,
@@ -31,6 +30,10 @@ import {
 import styled from 'styled-components';
 
 /* ===== STYLED COMPONENTS ===== */
+
+const ModalBodyDiv = styled.div`
+  padding: 1.5rem;
+`;
 
 const TabBar = styled.div`
   display: flex;
@@ -237,7 +240,7 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
           )}
         </ModalHeader>
 
-        <ModalBody noValidate>
+        <ModalBodyDiv>
           <MemoryNotice>
             Credentials are held in browser memory only and are never saved to disk.
             You will need to re-enter them each time you reload the page.
@@ -339,7 +342,7 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
               </ModalFooter>
             </div>
           )}
-        </ModalBody>
+        </ModalBodyDiv>
       </Modal>
     </ModalOverlay>
   );
