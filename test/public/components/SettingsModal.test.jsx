@@ -194,12 +194,12 @@ describe('SettingsModal', () => {
     expect(screen.getByText(/Project path is required/i)).toBeInTheDocument();
   });
 
-  test('token input has type password and autoComplete off', () => {
+  test('token input has type text and autoComplete off', () => {
     renderWithTheme(
       <SettingsModal isOpen={true} onSave={mockOnSave} onClose={mockOnClose} />
     );
     const input = screen.getByLabelText(/Personal Access Token/i);
-    expect(input).toHaveAttribute('type', 'password');
+    expect(input).toHaveAttribute('type', 'text');
     expect(input).toHaveAttribute('autoComplete', 'off');
   });
 

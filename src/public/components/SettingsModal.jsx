@@ -256,7 +256,7 @@ export default function SettingsModal({ isOpen, onSave, onClose, hasCredentials 
               <FormGroup>
                 <label htmlFor="settings-token">GitLab Personal Access Token</label>
                 <Input
-                  type="password"
+                  type="text"
                   id="settings-token"
                   name="gitlabToken"
                   value={formData.gitlabToken}
