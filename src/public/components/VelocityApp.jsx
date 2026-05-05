@@ -428,6 +428,13 @@ export default function VelocityApp() {
   };
 
   /**
+   * Remove a single iteration from the selected set by id
+   */
+  const handleRemoveIteration = useCallback((id) => {
+    setSelectedIterations(prev => prev.filter(it => it.id !== id));
+  }, []);
+
+  /**
    * Toggle annotation visibility on all charts and persist the preference
    */
   const handleToggleAnnotations = useCallback(() => {
@@ -452,6 +459,7 @@ export default function VelocityApp() {
           onOpenDisplayFilter={handleOpenDisplayFilter}
           onOpenAnnotationModal={handleOpenAnnotationModal}
           onOpenManageAnnotations={handleOpenManageAnnotations}
+          onRemoveIteration={handleRemoveIteration}
           onExportCSV={exportCSV}
           exporting={exporting}
         />
