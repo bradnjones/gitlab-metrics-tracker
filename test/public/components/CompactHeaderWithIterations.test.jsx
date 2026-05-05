@@ -214,7 +214,7 @@ describe('CompactHeaderWithIterations', () => {
     });
   });
 
-  test('renders iteration chips when iterations are selected', () => {
+  test('shows sprint count in summary pill when iterations are selected', () => {
     // Arrange
     const mockIterations = [
       {
@@ -238,51 +238,12 @@ describe('CompactHeaderWithIterations', () => {
         onOpenManageAnnotations={mockOnOpenManageAnnotations}
         onOpenAnnotationModal={mockOnOpenAnnotationModal}
         onOpenModal={mockOnOpenModal}
-        onRemoveIteration={mockOnRemoveIteration}
       />
     );
 
-    // Assert - No "No sprints selected" message
+    // Assert - Summary pill reflects selection count; chips are not in the header
     expect(screen.queryByText('No sprints selected')).not.toBeInTheDocument();
-
-    // Assert - Iteration chips are rendered with compact format (DS = Devs Sprint initials)
-    // Note: Dates may be off by 1 day due to UTC/local timezone conversion
-    expect(screen.getByText('DS 1/14')).toBeInTheDocument();
-    expect(screen.getByText('DS 1/28')).toBeInTheDocument();
-  });
-
-  test('calls onRemoveIteration callback when iteration chip remove button is clicked', async () => {
-    // Arrange
-    const user = userEvent.setup();
-    const mockIterations = [
-      {
-        id: '1',
-        title: 'Sprint 1',
-        dueDate: '2024-01-15',
-        iterationCadence: { title: 'Devs Sprint' },
-      },
-    ];
-
-    // Act
-    renderWithTheme(
-      <CompactHeaderWithIterations
-        selectedIterations={mockIterations}
-        onOpenManageAnnotations={mockOnOpenManageAnnotations}
-        onOpenAnnotationModal={mockOnOpenAnnotationModal}
-        onOpenModal={mockOnOpenModal}
-        onRemoveIteration={mockOnRemoveIteration}
-      />
-    );
-
-    // Find the remove button (× button) for Sprint 1
-    const removeButton = screen.getByRole('button', { name: /Remove.*Sprint 1/i });
-
-    // Act - Click remove button
-    await user.click(removeButton);
-
-    // Assert - Callback was called with iteration ID
-    expect(mockOnRemoveIteration).toHaveBeenCalledTimes(1);
-    expect(mockOnRemoveIteration).toHaveBeenCalledWith('1');
+    expect(screen.getByText('2 sprints')).toBeInTheDocument();
   });
 
   test('all three hamburger menu callbacks work independently within the same component instance', async () => {

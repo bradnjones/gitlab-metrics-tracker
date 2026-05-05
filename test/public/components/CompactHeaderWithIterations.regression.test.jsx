@@ -145,7 +145,8 @@ describe('CompactHeaderWithIterations - Regression Tests for Cache Flickering (#
       />
     );
 
-    expect(getByText('Sprint 1')).toBeInTheDocument();
+    // Summary pill shows count for initial 2 iterations
+    expect(getByText('2 sprints')).toBeInTheDocument();
 
     const newIterations = [
       { id: '3', title: 'Sprint 3', iid: 3 },
@@ -161,8 +162,8 @@ describe('CompactHeaderWithIterations - Regression Tests for Cache Flickering (#
       </ThemeProvider>
     );
 
-    // Component SHOULD re-render and show new iteration
-    expect(getByText('Sprint 3')).toBeInTheDocument();
+    // Component SHOULD re-render and update the pill count
+    expect(getByText('1 sprint')).toBeInTheDocument();
   });
 
   test('REGRESSION: Callback functions should be stable (memoized in parent)', () => {

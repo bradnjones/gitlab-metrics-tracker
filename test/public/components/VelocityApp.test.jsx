@@ -812,20 +812,13 @@ describe('VelocityApp', () => {
    * Test 9.21: Removing iteration chip updates selected iterations
    * Verifies handleRemoveIteration filters out the removed iteration
    */
-  test('removing iteration chip updates selected iterations', async () => {
+  test('sprint summary pill shows correct count when iterations are loaded from storage', async () => {
     // Arrange
-    const user = userEvent.setup();
     const mockIterations = [
       { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1' },
       { id: 'gid://gitlab/Iteration/2', title: 'Sprint 2' },
     ];
     Storage.prototype.getItem = jest.fn(() => JSON.stringify(mockIterations));
-
-    // Mock fetch
-    global.fetch = jest.fn(() => Promise.resolve({
-      ok: true,
-      json: async () => ({ metrics: [] })
-    }));
 
     // Act
     render(
@@ -834,25 +827,14 @@ describe('VelocityApp', () => {
       </ThemeProvider>
     );
 
-    // Wait for iterations to load
+    // Assert - pill updates from "No sprints selected" to the sprint count
     await waitFor(() => {
       expect(screen.queryByText(/no sprints selected/i)).not.toBeInTheDocument();
-    });
-
-    // Find and click remove button for Sprint 1
-    // CompactHeaderWithIterations renders iteration chips with × button
-    const removeButtons = screen.getAllByRole('button', { name: /remove/i });
-    await user.click(removeButtons[0]); // Remove first iteration
-
-    // Assert - Sprint 1 should be removed, Sprint 2 should remain
-    await waitFor(() => {
-      // The component should still have Sprint 2, not showing empty state
-      expect(screen.queryByText(/Sprint 1/i)).not.toBeInTheDocument();
+      expect(screen.getByText('2 sprints')).toBeInTheDocument();
     });
 
     // Cleanup
     Storage.prototype.getItem.mockRestore();
-    global.fetch.mockRestore();
   });
 
   /**

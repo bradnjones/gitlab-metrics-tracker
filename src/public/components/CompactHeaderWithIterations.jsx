@@ -207,63 +207,6 @@ const Chevron = styled.span`
   opacity: 0.8;
 `;
 
-/**
- * Row below the main header showing per-iteration chips
- *
- * @component
- */
-const ChipList = styled.div`
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: ${props => props.theme.spacing.xs};
-  padding: 6px 12px 8px;
-  scrollbar-width: none;
-  &::-webkit-scrollbar { display: none; }
-
-  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-`;
-
-/**
- * Individual iteration chip
- *
- * @component
- */
-const IterationChip = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: ${props => props.theme.borderRadius.full};
-  color: white;
-  font-size: ${props => props.theme.typography.fontSize.xs};
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
-  padding: 2px 8px 2px 10px;
-  white-space: nowrap;
-`;
-
-/**
- * Remove (×) button inside a chip
- *
- * @component
- */
-const ChipRemoveButton = styled.button`
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  opacity: 0.7;
-  padding: 0 2px;
-
-  &:hover { opacity: 1; }
-  &:focus { outline: 1px solid white; border-radius: 2px; }
-`;
 
 /**
  * Actions section (cache status, refresh button, change sprints button)
@@ -356,23 +299,6 @@ function fmtDate(dateString) {
 }
 
 /**
- * Format an iteration into a compact chip label.
- * Uses cadence initials + due date when available; falls back to iteration title.
- * @param {Object} iteration
- * @returns {string} e.g. "DS 1/14" or "Sprint 1"
- */
-function formatChipLabel(iteration) {
-  if (!iteration.iterationCadence?.title || !iteration.dueDate) {
-    return iteration.title;
-  }
-  const initials = iteration.iterationCadence.title
-    .split(' ')
-    .map(w => w[0])
-    .join('');
-  return `${initials} ${fmtDate(iteration.dueDate)}`;
-}
-
-/**
  * Build date range string from an array of iterations
  * @param {Array<Object>} iterations
  * @returns {string} e.g. "10/25 – 5/23"
@@ -394,7 +320,6 @@ function buildDateRange(iterations) {
  * @param {Function} props.onOpenDisplayFilter - Opens sprint display filter modal
  * @param {Function} props.onOpenAnnotationModal
  * @param {Function} props.onOpenManageAnnotations
- * @param {Function} [props.onRemoveIteration] - Called with iteration id when chip × is clicked
  * @param {Function} [props.onExportCSV]
  * @param {boolean} [props.exporting=false]
  * @returns {JSX.Element}
@@ -406,7 +331,6 @@ function CompactHeaderWithIterations({
   onOpenDisplayFilter,
   onOpenAnnotationModal,
   onOpenManageAnnotations,
-  onRemoveIteration,
   onExportCSV,
   exporting = false,
 }) {
@@ -415,7 +339,8 @@ function CompactHeaderWithIterations({
   const handleRefreshComplete = () => setCacheRefreshKey(prev => prev + 1);
 
   const total = selectedIterations.length;
-  const shown = displayedIterations.length;
+  // Empty displayedIterations means no filter is active — treat as all shown
+  const shown = displayedIterations.length === 0 ? total : displayedIterations.length;
   const countLabel = total === 0
     ? null
     : shown === total
@@ -470,23 +395,6 @@ function CompactHeaderWithIterations({
         </RightSection>
       </CompactHeaderContent>
 
-      {/* CHIP LIST: per-iteration chips with remove buttons */}
-      {selectedIterations.length > 0 && (
-        <ChipList>
-          {selectedIterations.map(it => (
-            <IterationChip key={it.id}>
-              {formatChipLabel(it)}
-              <ChipRemoveButton
-                type="button"
-                aria-label={`Remove ${it.title}`}
-                onClick={() => onRemoveIteration?.(it.id)}
-              >
-                ×
-              </ChipRemoveButton>
-            </IterationChip>
-          ))}
-        </ChipList>
-      )}
     </CompactHeader>
   );
 }
@@ -509,7 +417,6 @@ function arePropsEqual(prevProps, nextProps) {
     prevProps.onOpenDisplayFilter !== nextProps.onOpenDisplayFilter ||
     prevProps.onOpenAnnotationModal !== nextProps.onOpenAnnotationModal ||
     prevProps.onOpenManageAnnotations !== nextProps.onOpenManageAnnotations ||
-    prevProps.onRemoveIteration !== nextProps.onRemoveIteration ||
     prevProps.onExportCSV !== nextProps.onExportCSV ||
     prevProps.exporting !== nextProps.exporting
   ) return false;
