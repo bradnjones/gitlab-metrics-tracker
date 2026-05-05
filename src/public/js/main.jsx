@@ -4,6 +4,7 @@ import { ThemeProvider } from 'styled-components';
 import VelocityApp from '../components/VelocityApp.jsx';
 import GlobalStyles from '../styles/GlobalStyles.jsx';
 import theme from '../styles/theme.js';
+import { CredentialsProvider } from '../contexts/CredentialsContext.jsx';
 
 /**
  * Main entry point for the React application
@@ -12,9 +13,11 @@ import theme from '../styles/theme.js';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <GlobalStyles />
-      <VelocityApp />
-    </ThemeProvider>
+    <CredentialsProvider>
+      <ThemeProvider theme={theme}>
+        <GlobalStyles />
+        <VelocityApp />
+      </ThemeProvider>
+    </CredentialsProvider>
   </React.StrictMode>
 );

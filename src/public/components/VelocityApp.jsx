@@ -27,6 +27,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { useMetricsExport } from '../hooks/useMetricsExport.js';
+import { useCredentials } from '../contexts/CredentialsContext.jsx';
+import { apiFetch } from '../utils/apiFetch.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import CompactHeaderWithIterations from './CompactHeaderWithIterations.jsx';
 import ViewNavigation from './ViewNavigation.jsx';
@@ -35,6 +37,7 @@ import IterationSelectionModal from './IterationSelectionModal.jsx';
 import SprintDisplayFilterModal from './SprintDisplayFilterModal.jsx';
 import AnnotationModal from './AnnotationModal.jsx';
 import AnnotationsManagementModal from './AnnotationsManagementModal.jsx';
+import SettingsModal from './SettingsModal.jsx';
 import MetricsSummary from './MetricsSummary.jsx';
 import VelocityChart from './VelocityChart.jsx';
 import CycleTimeChart from './CycleTimeChart.jsx';
@@ -168,6 +171,8 @@ const STORAGE_KEY = 'gitlab-metrics-selected-iterations';
 const SHOW_ANNOTATIONS_KEY = 'show-annotations';
 
 export default function VelocityApp() {
+  const { credentials, setCredentials } = useCredentials();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedIterations, setSelectedIterations] = useState([]);
   // null = show all; Set<string> = explicit subset
   const [displayedIterationIds, setDisplayedIterationIds] = useState(null);
@@ -339,7 +344,7 @@ export default function VelocityApp() {
       const url = isEditing ? `/api/annotations/${editingAnnotation.id}` : '/api/annotations';
       const method = isEditing ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -370,7 +375,7 @@ export default function VelocityApp() {
   const handleDeleteAnnotation = async (annotationId) => {
     setAnnotationError(null);
     try {
-      const response = await fetch(`/api/annotations/${annotationId}`, {
+      const response = await apiFetch(`/api/annotations/${annotationId}`, {
         method: 'DELETE',
       });
 
@@ -462,6 +467,7 @@ export default function VelocityApp() {
           onRemoveIteration={handleRemoveIteration}
           onExportCSV={exportCSV}
           exporting={exporting}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
 
         <ViewNavigation
@@ -619,6 +625,16 @@ export default function VelocityApp() {
           onEdit={handleEditAnnotation}
           onDelete={handleDeleteAnnotationFromManage}
           onCreate={handleCreateAnnotation}
+        />
+
+        <SettingsModal
+          isOpen={settingsOpen}
+          hasCredentials={credentials !== null}
+          onSave={(creds) => {
+            setCredentials(creds);
+            setSettingsOpen(false);
+          }}
+          onClose={() => setSettingsOpen(false)}
         />
       </AppContainer>
     </ErrorBoundary>

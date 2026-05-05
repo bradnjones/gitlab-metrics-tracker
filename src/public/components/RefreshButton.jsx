@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 import styled from 'styled-components';
 
 /**
@@ -85,7 +86,7 @@ export default function RefreshButton({ onRefreshComplete }) {
       setState('loading');
       setErrorMessage('');
 
-      const response = await fetch('/api/cache', {
+      const response = await apiFetch('/api/cache', {
         method: 'DELETE',
       });
 

@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 import styled from 'styled-components';
 
 /**
@@ -148,7 +149,7 @@ function CacheStatus() {
           setError(null); // Clear any previous errors on first fetch
         }
 
-        const response = await fetch('/api/cache/status');
+        const response = await apiFetch('/api/cache/status');
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);

@@ -69,8 +69,7 @@
       "!**/test/integration/**"
     ],
     "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/.claude/worktrees/"
+      "/node_modules/"
     ],
     "transform": {
       "^.+\\.(js|jsx)$": "babel-jest"
@@ -87,7 +86,9 @@
       "^./chart-shared\\.jsx$": "<rootDir>/src/public/components/__mocks__/chart-shared.cjs",
       "^\\.\\./components/chart-shared\\.jsx$": "<rootDir>/src/public/components/__mocks__/chart-shared.cjs",
       "^../utils/exportChart\\.js$": "<rootDir>/src/public/utils/__mocks__/exportChart.cjs",
-      "^\\.\\./utils/exportChart\\.js$": "<rootDir>/src/public/utils/__mocks__/exportChart.cjs"
+      "^\\.\\./utils/exportChart\\.js$": "<rootDir>/src/public/utils/__mocks__/exportChart.cjs",
+      "^../utils/apiFetch\\.js$": "<rootDir>/src/public/utils/__mocks__/apiFetch.cjs",
+      "^\\.\\./utils/apiFetch\\.js$": "<rootDir>/src/public/utils/__mocks__/apiFetch.cjs"
     },
     "setupFilesAfterEnv": [
       "<rootDir>/src/test/setup.js"
