@@ -65,8 +65,32 @@ jest.mock('../../../src/public/components/MetricsSummary.jsx', () => {
   };
 });
 
-// Resolve ESM/CJS boundary: re-export the real implementation via a CJS-compatible factory
-jest.mock('../../../src/public/hooks/useAppModals.js', () => jest.requireActual('../../../src/public/hooks/useAppModals.js'));
+// Provide a CJS-compatible implementation of useAppModals for this test environment.
+// jest.requireActual cannot load ESM modules in a CJS factory, so the hook behaviour
+// is re-implemented inline using React state obtained via require().
+jest.mock('../../../src/public/hooks/useAppModals.js', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const React = require('react');
+  function useAppModals() {
+    const [isModalOpen, setIsModalOpen] = React.useState(false);
+    const [isDisplayFilterModalOpen, setIsDisplayFilterModalOpen] = React.useState(false);
+    const [isAnnotationModalOpen, setIsAnnotationModalOpen] = React.useState(false);
+    const [isManageAnnotationsModalOpen, setIsManageAnnotationsModalOpen] = React.useState(false);
+    const [editingAnnotation, setEditingAnnotation] = React.useState(null);
+    const openIterationModal = React.useCallback(() => setIsModalOpen(true), []);
+    const closeIterationModal = React.useCallback(() => setIsModalOpen(false), []);
+    const openDisplayFilterModal = React.useCallback(() => setIsDisplayFilterModalOpen(true), []);
+    const closeDisplayFilterModal = React.useCallback(() => setIsDisplayFilterModalOpen(false), []);
+    const openAnnotationModal = React.useCallback(() => setIsAnnotationModalOpen(true), []);
+    const closeAnnotationModal = React.useCallback(() => { setIsAnnotationModalOpen(false); setEditingAnnotation(null); }, []);
+    const openManageAnnotationsModal = React.useCallback(() => setIsManageAnnotationsModalOpen(true), []);
+    const closeManageAnnotationsModal = React.useCallback(() => setIsManageAnnotationsModalOpen(false), []);
+    const startEditAnnotation = React.useCallback((annotation) => { setEditingAnnotation(annotation); setIsManageAnnotationsModalOpen(false); setIsAnnotationModalOpen(true); }, []);
+    const startCreateAnnotation = React.useCallback(() => { setEditingAnnotation(null); setIsManageAnnotationsModalOpen(false); setIsAnnotationModalOpen(true); }, []);
+    return { isModalOpen, isDisplayFilterModalOpen, isAnnotationModalOpen, isManageAnnotationsModalOpen, editingAnnotation, openIterationModal, closeIterationModal, openDisplayFilterModal, closeDisplayFilterModal, openAnnotationModal, closeAnnotationModal, openManageAnnotationsModal, closeManageAnnotationsModal, startEditAnnotation, startCreateAnnotation };
+  }
+  return { __esModule: true, default: useAppModals };
+});
 
 // Mock useMetricsExport hook
 jest.mock('../../../src/public/hooks/useMetricsExport.js', () => ({
