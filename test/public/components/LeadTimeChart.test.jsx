@@ -2,10 +2,16 @@
  * @jest-environment jsdom
  */
 import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import userEvent from '@testing-library/user-event';
 import LeadTimeChart from '../../../src/public/components/LeadTimeChart.jsx';
+import {
+  defaultTheme,
+  sampleIterations,
+  setupChartMocks,
+  renderWithTheme,
+} from '../setup/chartTestHelpers.js';
 
 // Mock Chart.js
 jest.mock('react-chartjs-2', () => {
@@ -74,31 +80,19 @@ jest.mock('../../../src/public/components/ChartFilterDropdown.jsx', () => {
   ));
 });
 
-const theme = {
-  colors: { bgPrimary: '#ffffff', textPrimary: '#1f2937' },
-  spacing: { sm: '0.5rem', md: '1rem' },
-  typography: { fontSize: { sm: '0.875rem', base: '1rem' } },
-};
+// Two-sprint subset of sampleIterations — matches mockApiResponse IDs and dates
+const mockIterations = sampleIterations.slice(0, 2);
 
 describe('LeadTimeChart', () => {
   let mockFetch;
 
   beforeEach(() => {
-    Storage.prototype.getItem = jest.fn(() => null);
-    Storage.prototype.setItem = jest.fn();
-    Storage.prototype.removeItem = jest.fn();
-    mockFetch = jest.fn();
-    global.fetch = mockFetch;
+    ({ mockFetch } = setupChartMocks());
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
-
-  const mockIterations = [
-    { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1', startDate: '2024-01-01', dueDate: '2024-01-14' },
-    { id: 'gid://gitlab/Iteration/2', title: 'Sprint 2', startDate: '2024-01-15', dueDate: '2024-01-28' },
-  ];
 
   const mockApiResponse = {
     metrics: [
@@ -108,31 +102,19 @@ describe('LeadTimeChart', () => {
   };
 
   test('renders empty state when no iterations selected', () => {
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={[]} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={[]} />, defaultTheme);
     expect(screen.getByText(/Select iterations to view lead time/i)).toBeInTheDocument();
   });
 
   test('renders loading state while fetching data', async () => {
     mockFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ ok: true, json: async () => mockApiResponse }), 100)));
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
     expect(screen.getByText(/Loading lead time data/i)).toBeInTheDocument();
   });
 
   test('renders error state when API call fails', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(screen.getByText(/Error loading lead time data/i)).toBeInTheDocument();
     });
@@ -140,11 +122,7 @@ describe('LeadTimeChart', () => {
 
   test('renders chart with lead time data on successful fetch', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(screen.getByTestId('lead-time-line-chart')).toBeInTheDocument();
     });
@@ -152,11 +130,7 @@ describe('LeadTimeChart', () => {
 
   test('calls API with correct iteration IDs', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/metrics/lead-time?iterations=gid://gitlab/Iteration/1,gid://gitlab/Iteration/2'
@@ -167,11 +141,7 @@ describe('LeadTimeChart', () => {
   test('handles filter change and re-fetches data', async () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('lead-time-line-chart')).toBeInTheDocument());
     mockFetch.mockClear();
     await user.click(screen.getByText('Exclude Sprint 1'));
@@ -182,14 +152,10 @@ describe('LeadTimeChart', () => {
 
   test('clears chart data when iterations are removed', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    const { rerender } = renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('lead-time-line-chart')).toBeInTheDocument());
     rerender(
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={defaultTheme}>
         <LeadTimeChart selectedIterations={[]} />
       </ThemeProvider>
     );
@@ -205,11 +171,7 @@ describe('LeadTimeChart', () => {
     });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(screen.getByTestId('lead-time-line-chart')).toBeInTheDocument();
@@ -236,11 +198,7 @@ describe('LeadTimeChart', () => {
     });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     // Assert - Should call API with only non-excluded iteration
     await waitFor(() => {
@@ -257,10 +215,9 @@ describe('LeadTimeChart', () => {
       json: async () => mockApiResponse,
     });
 
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} annotationRefreshKey={0} />
-      </ThemeProvider>
+    const { rerender } = renderWithTheme(
+      <LeadTimeChart selectedIterations={mockIterations} annotationRefreshKey={0} />,
+      defaultTheme
     );
 
     await waitFor(() => {
@@ -271,7 +228,7 @@ describe('LeadTimeChart', () => {
 
     // Act - Change annotationRefreshKey (simulates annotation update)
     rerender(
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={defaultTheme}>
         <LeadTimeChart selectedIterations={mockIterations} annotationRefreshKey={1} />
       </ThemeProvider>
     );
@@ -291,11 +248,7 @@ describe('LeadTimeChart', () => {
       json: async () => mockApiResponse
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled();
@@ -313,14 +266,10 @@ describe('LeadTimeChart', () => {
   test('handles all iterations being filtered out', async () => {
     const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
 
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    const { rerender } = renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     rerender(
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={defaultTheme}>
         <LeadTimeChart selectedIterations={[]} />
       </ThemeProvider>
     );
@@ -338,11 +287,7 @@ describe('LeadTimeChart', () => {
       status: 500
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(screen.getByText(/error loading lead time data/i)).toBeInTheDocument();
@@ -356,11 +301,7 @@ describe('LeadTimeChart', () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     // Assert
     await waitFor(() => {
@@ -370,11 +311,7 @@ describe('LeadTimeChart', () => {
 
   test('does not render Export PNG button in empty state', () => {
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <LeadTimeChart selectedIterations={[]} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<LeadTimeChart selectedIterations={[]} />, defaultTheme);
 
     // Assert
     expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument();
@@ -383,7 +320,7 @@ describe('LeadTimeChart', () => {
   test('Export PNG button triggers download with correct filename', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
 
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument());
 
     const user = userEvent.setup();
@@ -392,7 +329,7 @@ describe('LeadTimeChart', () => {
 
   test('shows P90 by default when showP90 prop is true', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} showP90={true} /></ThemeProvider>);
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} showP90={true} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
@@ -401,7 +338,7 @@ describe('LeadTimeChart', () => {
 
   test('shows P90 by default when showP90 prop is omitted', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
@@ -410,7 +347,7 @@ describe('LeadTimeChart', () => {
 
   test('hides P90 dataset when showP90 prop is false', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} showP90={false} /></ThemeProvider>);
+    renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} showP90={false} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
@@ -421,12 +358,17 @@ describe('LeadTimeChart', () => {
 
   test('updates displayed datasets when showP90 prop changes', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    const { rerender } = render(
-      <ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} showP90={true} /></ThemeProvider>
+    const { rerender } = renderWithTheme(
+      <LeadTimeChart selectedIterations={mockIterations} showP90={true} />,
+      defaultTheme
     );
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
-    rerender(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} showP90={false} /></ThemeProvider>);
+    rerender(
+      <ThemeProvider theme={defaultTheme}>
+        <LeadTimeChart selectedIterations={mockIterations} showP90={false} />
+      </ThemeProvider>
+    );
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
     expect(chartData.datasets.map(d => d.label)).not.toContain('P90');
