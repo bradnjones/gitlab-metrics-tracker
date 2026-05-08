@@ -6,6 +6,13 @@ Stories are prepended to this file (most recent at top).
 
 ## Bug Fixes & Improvements
 
+### 2026-05-08 - Issue #153 - Add P50 and Average chart toggles
+- Added Average: On/Off and P50: On/Off toggle buttons to the dashboard toolbar, alongside the existing P90 toggle
+- At-least-one guard: when only one series remains enabled, its button is disabled (`opacity: 0.5; pointer-events: none`) to prevent rendering an empty chart
+- State and localStorage persistence follow the same pattern as the P90 toggle (`chart-show-p50`, `chart-show-average` keys)
+- Added `gap` to `ChartsToolbar` so three buttons don't visually merge
+- 16 new tests (8 per chart component); all 1188 tests pass, overall coverage 87.79%
+
 ### 2026-05-08 - PR #151 - Add P90 toggle to Cycle Time and Lead Time charts
 - Added "Hide P90" / "Show P90" button to chart toolbars on both Cycle Time and Lead Time charts
 - Filtering the P90 dataset out entirely causes Chart.js to auto-rescale the y-axis, making Avg/P50 fluctuations visible when P90 outliers are extreme
