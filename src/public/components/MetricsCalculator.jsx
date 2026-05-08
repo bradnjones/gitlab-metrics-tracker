@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 
 /**
  * Minimal vertical slice component for calculating sprint metrics
@@ -33,7 +34,7 @@ function MetricsCalculator() {
     setResults(null);
 
     try {
-      const response = await fetch('/api/metrics/calculate', {
+      const response = await apiFetch('/api/metrics/calculate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

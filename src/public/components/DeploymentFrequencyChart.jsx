@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
 import { exportChartAsPng } from '../utils/exportChart.js';
@@ -178,7 +179,7 @@ const DeploymentFrequencyChart = ({ selectedIterations = [], annotationRefreshKe
         const iterationsParam = iterationIds.join(',');
         const url = `/api/metrics/deployment-frequency?iterations=${iterationsParam}`;
 
-        const response = await fetch(url);
+        const response = await apiFetch(url);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

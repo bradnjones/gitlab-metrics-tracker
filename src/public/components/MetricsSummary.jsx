@@ -17,6 +17,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 import styled from 'styled-components';
 import MetricSummaryCard from './MetricSummaryCard.jsx';
 import {
@@ -76,11 +77,11 @@ export default function MetricsSummary({ selectedIterations }) {
 
         // Fetch all metrics in parallel
         const [velocity, cycleTime, deployFreq, leadTime, mttr] = await Promise.all([
-          fetch(`/api/metrics/velocity?iterations=${iterationIds}`).then(r => r.json()),
-          fetch(`/api/metrics/cycle-time?iterations=${iterationIds}`).then(r => r.json()),
-          fetch(`/api/metrics/deployment-frequency?iterations=${iterationIds}`).then(r => r.json()),
-          fetch(`/api/metrics/lead-time?iterations=${iterationIds}`).then(r => r.json()),
-          fetch(`/api/metrics/mttr?iterations=${iterationIds}`).then(r => r.json())
+          apiFetch(`/api/metrics/velocity?iterations=${iterationIds}`).then(r => r.json()),
+          apiFetch(`/api/metrics/cycle-time?iterations=${iterationIds}`).then(r => r.json()),
+          apiFetch(`/api/metrics/deployment-frequency?iterations=${iterationIds}`).then(r => r.json()),
+          apiFetch(`/api/metrics/lead-time?iterations=${iterationIds}`).then(r => r.json()),
+          apiFetch(`/api/metrics/mttr?iterations=${iterationIds}`).then(r => r.json())
         ]);
 
         // Extract metrics arrays from API responses

@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import styled from 'styled-components';
+import { apiFetch } from '../utils/apiFetch.js';
 
 const ListContainer = styled.div`
   position: relative;
@@ -133,7 +134,7 @@ const AnnotationsList = forwardRef(({ onEdit }, ref) => {
   const fetchAnnotations = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/annotations');
+      const response = await apiFetch('/api/annotations');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

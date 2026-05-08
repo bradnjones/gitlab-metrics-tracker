@@ -3,7 +3,7 @@
  *
  * Inline settings page for entering GitLab credentials.
  * Rendered as a top-level view (tab), not a modal.
- * Credentials are held in React state only — never saved to disk.
+ * Credentials are saved to localStorage and restored on page load.
  *
  * Supports three entry modes:
  * - Manual: type token and project path into separate fields
@@ -23,31 +23,28 @@ import styled from 'styled-components';
 
 /* ===== STYLED COMPONENTS ===== */
 
-const ViewContainer = styled.div`
-  max-width: 640px;
-  margin: ${props => props.theme.spacing.lg} auto;
-  padding: 0 ${props => props.theme.spacing.lg};
+const PageContainer = styled.div`
+  padding: ${props => props.theme.spacing.lg};
+  display: flex;
+  flex-direction: column;
+  gap: ${props => props.theme.spacing.lg};
 `;
 
-const ViewTitle = styled.h2`
+const PageTitle = styled.h2`
   font-size: ${props => props.theme.typography.fontSize.xl};
   font-weight: ${props => props.theme.typography.fontWeight.bold};
   color: ${props => props.theme.colors.textPrimary};
-  margin: 0 0 ${props => props.theme.spacing.md} 0;
+  margin: 0;
 `;
 
-const Card = styled.div`
-  background: ${props => props.theme.colors.bgPrimary};
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.lg};
-  box-shadow: ${props => props.theme.shadows.md};
-  overflow: hidden;
+const FormSection = styled.div`
+  max-width: 600px;
 `;
 
 const TabBar = styled.div`
   display: flex;
   border-bottom: 1px solid ${props => props.theme.colors.border};
-  background: ${props => props.theme.colors.bgSecondary};
+  gap: 0;
 `;
 
 const Tab = styled.button`
@@ -67,8 +64,8 @@ const Tab = styled.button`
   }
 `;
 
-const CardBody = styled.div`
-  padding: ${props => props.theme.spacing.lg};
+const TabContent = styled.div`
+  padding-top: ${props => props.theme.spacing.lg};
 `;
 
 const MemoryNotice = styled.p`
@@ -217,10 +214,10 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
     : '';
 
   return (
-    <ViewContainer>
-      <ViewTitle>Settings</ViewTitle>
+    <PageContainer>
+      <PageTitle>Settings</PageTitle>
 
-      <Card>
+      <FormSection>
         <TabBar>
           <Tab type="button" $active={tab === 'manual'} onClick={() => setTab('manual')}>Manual</Tab>
           <Tab type="button" $active={tab === 'import'} onClick={() => setTab('import')}>Import JSON</Tab>
@@ -229,10 +226,10 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
           )}
         </TabBar>
 
-        <CardBody>
+        <TabContent>
           <MemoryNotice>
-            Credentials are held in browser memory only and are never saved to disk.
-            You will need to re-enter them each time you reload the page.
+            Credentials are saved to browser localStorage and will persist across page reloads.
+            They are never sent to any server other than your configured GitLab instance.
           </MemoryNotice>
 
           {saved && <SuccessBanner>Credentials saved — you can now use the Dashboard.</SuccessBanner>}
@@ -317,8 +314,8 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
               </FormGroup>
             </div>
           )}
-        </CardBody>
-      </Card>
-    </ViewContainer>
+        </TabContent>
+      </FormSection>
+    </PageContainer>
   );
 }

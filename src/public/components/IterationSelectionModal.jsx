@@ -24,6 +24,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
+import { apiFetch } from '../utils/apiFetch.js';
 import IterationSelector from './IterationSelector.jsx';
 import {
   ProgressFooter,
@@ -295,7 +296,7 @@ export default function IterationSelectionModal({
 
       const fetchIterations = async () => {
         try {
-          const response = await fetch('/api/iterations');
+          const response = await apiFetch('/api/iterations');
           const data = await response.json();
           setAllIterations(data.iterations || []);
         } catch (error) {
@@ -308,7 +309,7 @@ export default function IterationSelectionModal({
       // Fetch cache status to know which iterations are already cached
       const fetchCacheStatus = async () => {
         try {
-          const response = await fetch('/api/cache/status');
+          const response = await apiFetch('/api/cache/status');
           const data = await response.json();
           // Extract iteration IDs from the iterations array
           const cachedIds = (data.iterations || []).map(iter => iter.iterationId);
@@ -379,7 +380,7 @@ export default function IterationSelectionModal({
 
         // Trigger cache population by calling velocity endpoint
         // We don't need the response - just want to populate the cache
-        await fetch(`/api/metrics/velocity?iterations=${encodeURIComponent(iterationId)}`);
+        await apiFetch(`/api/metrics/velocity?iterations=${encodeURIComponent(iterationId)}`);
 
         // Update download state to 'complete' after successful fetch
         setDownloadStates(prev => ({

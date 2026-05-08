@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
 import { exportChartAsPng } from '../utils/exportChart.js';
@@ -171,7 +172,7 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
         const iterationsParam = iterationIds.join(',');
         const url = `/api/metrics/lead-time?iterations=${iterationsParam}`;
 
-        const response = await fetch(url);
+        const response = await apiFetch(url);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

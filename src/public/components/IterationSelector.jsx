@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 import { useIterations } from '../hooks/useIterations.js';
 import { useIterationFilters } from '../hooks/useIterationFilters.js';
 import { useSelectAll } from '../hooks/useSelectAll.js';
@@ -96,7 +97,7 @@ const IterationSelector = ({
 
     const fetchCacheStatus = async () => {
       try {
-        const response = await fetch('/api/cache/status');
+        const response = await apiFetch('/api/cache/status');
         const data = await response.json();
 
         // Extract cached iteration IDs from the response

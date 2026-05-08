@@ -1,15 +1,16 @@
 /**
  * CredentialsContext
  *
- * Holds GitLab credentials (PAT + project path) in React state only.
- * Credentials are never written to localStorage, sessionStorage, or any
- * persistent medium. Refreshing the page requires re-entry.
+ * Holds GitLab credentials (PAT + project path) in React state, persisted
+ * to localStorage so they survive page reloads.
  *
  * @module public/contexts/CredentialsContext
  */
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import { setCredentialsStore } from '../utils/apiFetch.js';
+
+const CREDENTIALS_KEY = 'gitlab-metrics-credentials';
 
 /**
  * @typedef {{ gitlabToken: string, projectPath: string }} Credentials
@@ -30,12 +31,33 @@ const CredentialsContext = createContext({ credentials: null, setCredentials: ()
  */
 export function CredentialsProvider({ children }) {
   /** @type {[Credentials|null, Function]} */
-  const [credentials, setCredentials] = useState(null);
+  const [credentials, setCredentialsState] = useState(() => {
+    try {
+      const stored = localStorage.getItem(CREDENTIALS_KEY);
+      const parsed = stored ? JSON.parse(stored) : null;
+      // Sync module store immediately so apiFetch has credentials before first render
+      setCredentialsStore(parsed);
+      return parsed;
+    } catch {
+      return null;
+    }
+  });
 
-  // Keep the apiFetch module store in sync whenever credentials change
-  useEffect(() => {
-    setCredentialsStore(credentials);
-  }, [credentials]);
+  // Synchronously update the apiFetch store and localStorage before React re-renders,
+  // so chart useEffects that fire on the same render cycle see the new credentials.
+  const setCredentials = useCallback((creds) => {
+    setCredentialsStore(creds);
+    try {
+      if (creds) {
+        localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(creds));
+      } else {
+        localStorage.removeItem(CREDENTIALS_KEY);
+      }
+    } catch {
+      // Ignore write errors (e.g. private browsing quota)
+    }
+    setCredentialsState(creds);
+  }, []);
 
   return (
     <CredentialsContext.Provider value={{ credentials, setCredentials }}>

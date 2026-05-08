@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 
 /**
  * Custom hook for fetching iterations from the API
@@ -24,7 +25,7 @@ export function useIterations() {
         setLoading(true);
         setError(null);
 
-        const response = await fetch('/api/iterations');
+        const response = await apiFetch('/api/iterations');
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

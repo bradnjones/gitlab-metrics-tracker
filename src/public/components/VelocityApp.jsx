@@ -486,13 +486,21 @@ export default function VelocityApp() {
               }}
             />
           )}
-          {currentView !== 'settings' && selectedIterations.length === 0 && (
+          {currentView !== 'settings' && !credentials && (
+            <EmptyState
+              title="Credentials Required"
+              message="Enter your GitLab Personal Access Token and project path in Settings before loading metrics."
+              ctaText="Go to Settings"
+              onCTA={() => setCurrentView('settings')}
+            />
+          )}
+          {currentView !== 'settings' && credentials && selectedIterations.length === 0 && (
             <EmptyState
               title="No Iterations Selected"
               message="Select sprint iterations to view velocity metrics and team performance data."
             />
           )}
-          {currentView !== 'settings' && selectedIterations.length > 0 && (
+          {currentView !== 'settings' && credentials && selectedIterations.length > 0 && (
             <>
               {currentView === 'dashboard' && (
                 <>

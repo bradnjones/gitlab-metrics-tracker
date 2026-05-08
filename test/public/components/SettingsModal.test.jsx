@@ -84,9 +84,9 @@ describe('SettingsModal (inline view)', () => {
     expect(screen.getByLabelText(/Project Path/i)).toBeInTheDocument();
   });
 
-  test('shows memory-only notice', () => {
+  test('shows credentials persistence notice', () => {
     renderWithTheme(<SettingsModal onSave={mockOnSave} />);
-    expect(screen.getByText(/held in browser memory only/i)).toBeInTheDocument();
+    expect(screen.getByText(/saved to browser localStorage/i)).toBeInTheDocument();
   });
 
   // ── Manual tab ──────────────────────────────────────────────────────────────

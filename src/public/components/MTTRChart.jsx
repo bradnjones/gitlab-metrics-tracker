@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 import styled from 'styled-components';
 import { exportChartAsPng } from '../utils/exportChart.js';
 import { Line } from 'react-chartjs-2';
@@ -307,7 +308,7 @@ const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnno
 
       try {
         const iterationsParam = iterationIds.join(',');
-        const response = await fetch(`/api/metrics/mttr?iterations=${iterationsParam}`);
+        const response = await apiFetch(`/api/metrics/mttr?iterations=${iterationsParam}`);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

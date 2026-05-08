@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
 import { exportChartAsPng } from '../utils/exportChart.js';
-// TESTING: Removed fetchWithRetry to see if plain fetch works with cache
-// import { fetchWithRetry } from '../utils/fetchWithRetry.js';
+import { apiFetch } from '../utils/apiFetch.js';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -171,8 +170,7 @@ const VelocityChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
         setError(null);
 
         const iterationsParam = iterationIds.join(',');
-        // TESTING: Using plain fetch instead of fetchWithRetry
-        const response = await fetch(`/api/metrics/velocity?iterations=${iterationsParam}`);
+        const response = await apiFetch(`/api/metrics/velocity?iterations=${iterationsParam}`);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

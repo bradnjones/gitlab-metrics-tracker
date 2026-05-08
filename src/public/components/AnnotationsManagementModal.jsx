@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/apiFetch.js';
 import {
   ModalOverlay,
   Modal,
@@ -105,7 +106,7 @@ export default function AnnotationsManagementModal({ isOpen, onClose, onEdit, on
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/annotations');
+      const response = await apiFetch('/api/annotations');
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

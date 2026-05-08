@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { apiFetch } from '../utils/apiFetch.js';
 import DataExplorerIssuesTable, { transformIssueToStory } from './DataExplorerIssuesTable.jsx';
 import DataExplorerIncidentsTable, { transformIncident } from './DataExplorerIncidentsTable.jsx';
 import DataExplorerMRsTable, { transformMergeRequest } from './DataExplorerMRsTable.jsx';
@@ -117,7 +118,7 @@ export default function DataExplorerView({ selectedIterations }) {
         setLoadingStories(true);
 
         const iterationsParam = selectedIterations.map(iter => iter.id).join(',');
-        const response = await fetch(`/api/metrics/velocity?iterations=${iterationsParam}`);
+        const response = await apiFetch(`/api/metrics/velocity?iterations=${iterationsParam}`);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -162,7 +163,7 @@ export default function DataExplorerView({ selectedIterations }) {
         setLoadingIncidents(true);
 
         const iterationsParam = selectedIterations.map(iter => iter.id).join(',');
-        const response = await fetch(`/api/metrics/mttr?iterations=${iterationsParam}`);
+        const response = await apiFetch(`/api/metrics/mttr?iterations=${iterationsParam}`);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -207,7 +208,7 @@ export default function DataExplorerView({ selectedIterations }) {
         setLoadingMergeRequests(true);
 
         const iterationsParam = selectedIterations.map(iter => iter.id).join(',');
-        const response = await fetch(`/api/metrics/lead-time?iterations=${iterationsParam}`);
+        const response = await apiFetch(`/api/metrics/lead-time?iterations=${iterationsParam}`);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
