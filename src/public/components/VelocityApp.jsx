@@ -29,6 +29,7 @@ import styled from 'styled-components';
 import { useMetricsExport } from '../hooks/useMetricsExport.js';
 import { useCredentials } from '../contexts/CredentialsContext.jsx';
 import { apiFetch } from '../utils/apiFetch.js';
+import useAppModals from '../hooks/useAppModals.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import CompactHeaderWithIterations from './CompactHeaderWithIterations.jsx';
 import ViewNavigation from './ViewNavigation.jsx';
@@ -176,13 +177,25 @@ export default function VelocityApp() {
   const [selectedIterations, setSelectedIterations] = useState([]);
   // null = show all; Set<string> = explicit subset
   const [displayedIterationIds, setDisplayedIterationIds] = useState(null);
-  const [isDisplayFilterModalOpen, setIsDisplayFilterModalOpen] = useState(false);
   const { exportCSV, exporting } = useMetricsExport(selectedIterations);
   const [currentView, setCurrentView] = useState(() => credentials ? 'dashboard' : 'settings');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAnnotationModalOpen, setIsAnnotationModalOpen] = useState(false);
-  const [isManageAnnotationsModalOpen, setIsManageAnnotationsModalOpen] = useState(false);
-  const [editingAnnotation, setEditingAnnotation] = useState(null);
+  const {
+    isModalOpen,
+    isDisplayFilterModalOpen,
+    isAnnotationModalOpen,
+    isManageAnnotationsModalOpen,
+    editingAnnotation,
+    openIterationModal,
+    closeIterationModal,
+    openDisplayFilterModal,
+    closeDisplayFilterModal,
+    openAnnotationModal,
+    closeAnnotationModal,
+    openManageAnnotationsModal,
+    closeManageAnnotationsModal,
+    startEditAnnotation,
+    startCreateAnnotation,
+  } = useAppModals();
   const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
   const [annotationError, setAnnotationError] = useState(null);
   const [showAnnotations, setShowAnnotations] = useState(() => {
@@ -249,7 +262,7 @@ export default function VelocityApp() {
       // Check for Ctrl+N (or Cmd+N on Mac)
       if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
         event.preventDefault(); // Prevent browser's default "new window" behavior
-        setIsAnnotationModalOpen(true);
+        openAnnotationModal();
       }
     };
 
@@ -259,21 +272,7 @@ export default function VelocityApp() {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, []);
-
-  /**
-   * Handle opening the iteration selection modal (cache management)
-   */
-  const handleOpenModal = useCallback(() => {
-    setIsModalOpen(true);
-  }, []);
-
-  /**
-   * Handle opening the sprint display filter modal
-   */
-  const handleOpenDisplayFilter = useCallback(() => {
-    setIsDisplayFilterModalOpen(true);
-  }, []);
+  }, [openAnnotationModal]);
 
   /**
    * Handle applying the sprint display filter
@@ -286,29 +285,8 @@ export default function VelocityApp() {
     } else {
       setDisplayedIterationIds(new Set(newDisplayedIds));
     }
-    setIsDisplayFilterModalOpen(false);
-  }, [selectedIterations.length]);
-
-  /**
-   * Handle opening the annotation modal
-   */
-  const handleOpenAnnotationModal = useCallback(() => {
-    setIsAnnotationModalOpen(true);
-  }, []);
-
-  /**
-   * Handle opening the manage annotations modal
-   */
-  const handleOpenManageAnnotations = useCallback(() => {
-    setIsManageAnnotationsModalOpen(true);
-  }, []);
-
-  /**
-   * Handle closing the iteration selection modal
-   */
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
+    closeDisplayFilterModal();
+  }, [selectedIterations.length, closeDisplayFilterModal]);
 
   /**
    * Handle applying iteration selection from cache modal.
@@ -330,15 +308,7 @@ export default function VelocityApp() {
       setDisplayedIterationIds(reconciled.size === newIterations.length ? null : reconciled);
     }
     setSelectedIterations(newIterations);
-    setIsModalOpen(false);
-  };
-
-  /**
-   * Handle closing the annotation modal
-   */
-  const handleCloseAnnotationModal = () => {
-    setIsAnnotationModalOpen(false);
-    setEditingAnnotation(null);
+    closeIterationModal();
   };
 
   /**
@@ -365,8 +335,7 @@ export default function VelocityApp() {
       }
 
       // Close modal on success
-      setIsAnnotationModalOpen(false);
-      setEditingAnnotation(null);
+      closeAnnotationModal();
 
       // Trigger charts to refresh and show updated annotation
       setAnnotationRefreshKey(prev => prev + 1);
@@ -392,8 +361,7 @@ export default function VelocityApp() {
       }
 
       // Close modal on success
-      setIsAnnotationModalOpen(false);
-      setEditingAnnotation(null);
+      closeAnnotationModal();
 
       // Trigger charts to refresh and remove deleted annotation
       setAnnotationRefreshKey(prev => prev + 1);
@@ -401,33 +369,6 @@ export default function VelocityApp() {
       console.error('Error deleting annotation:', error);
       setAnnotationError(`Failed to delete annotation: ${error.message}`);
     }
-  };
-
-  /**
-   * Handle editing an annotation
-   * @param {Object} annotation - Annotation to edit
-   */
-  const handleEditAnnotation = (annotation) => {
-    setEditingAnnotation(annotation);
-    setIsManageAnnotationsModalOpen(false); // Close manage modal
-    setIsAnnotationModalOpen(true); // Open edit modal
-  };
-
-
-  /**
-   * Handle closing the manage annotations modal
-   */
-  const handleCloseManageAnnotations = () => {
-    setIsManageAnnotationsModalOpen(false);
-  };
-
-  /**
-   * Handle creating a new annotation from manage modal
-   */
-  const handleCreateAnnotation = () => {
-    setEditingAnnotation(null);
-    setIsManageAnnotationsModalOpen(false); // Close manage modal
-    setIsAnnotationModalOpen(true); // Open create modal
   };
 
   /**
@@ -483,10 +424,10 @@ export default function VelocityApp() {
         <CompactHeaderWithIterations
           selectedIterations={selectedIterations}
           displayedIterations={displayedIterations}
-          onOpenModal={handleOpenModal}
-          onOpenDisplayFilter={handleOpenDisplayFilter}
-          onOpenAnnotationModal={handleOpenAnnotationModal}
-          onOpenManageAnnotations={handleOpenManageAnnotations}
+          onOpenModal={openIterationModal}
+          onOpenDisplayFilter={openDisplayFilterModal}
+          onOpenAnnotationModal={openAnnotationModal}
+          onOpenManageAnnotations={openManageAnnotationsModal}
           onRemoveIteration={handleRemoveIteration}
           onExportCSV={exportCSV}
           exporting={exporting}
@@ -623,14 +564,14 @@ export default function VelocityApp() {
 
         <IterationSelectionModal
           isOpen={isModalOpen}
-          onClose={handleCloseModal}
+          onClose={closeIterationModal}
           onApply={handleApplyIterations}
           selectedIterationIds={selectedIterations.map(iter => iter.id)}
         />
 
         <SprintDisplayFilterModal
           isOpen={isDisplayFilterModalOpen}
-          onClose={() => setIsDisplayFilterModalOpen(false)}
+          onClose={closeDisplayFilterModal}
           onApply={handleApplyDisplayFilter}
           iterations={selectedIterations}
           displayedIds={displayedIterationIds}
@@ -661,7 +602,7 @@ export default function VelocityApp() {
 
         <AnnotationModal
           isOpen={isAnnotationModalOpen}
-          onClose={handleCloseAnnotationModal}
+          onClose={closeAnnotationModal}
           onSave={handleSaveAnnotation}
           onDelete={handleDeleteAnnotation}
           annotation={editingAnnotation}
@@ -669,10 +610,10 @@ export default function VelocityApp() {
 
         <AnnotationsManagementModal
           isOpen={isManageAnnotationsModalOpen}
-          onClose={handleCloseManageAnnotations}
-          onEdit={handleEditAnnotation}
+          onClose={closeManageAnnotationsModal}
+          onEdit={startEditAnnotation}
           onDelete={handleDeleteAnnotationFromManage}
-          onCreate={handleCreateAnnotation}
+          onCreate={startCreateAnnotation}
         />
 
       </AppContainer>
