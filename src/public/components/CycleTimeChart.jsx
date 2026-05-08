@@ -56,9 +56,11 @@ const FILTER_STORAGE_KEY = 'chart-filters-cycle-time';
  * @param {number} [props.annotationRefreshKey=0] - Key that triggers annotation re-fetch
  * @param {boolean} [props.showAnnotations=true] - Whether to render annotation markers on the chart
  * @param {boolean} [props.showP90=true] - Whether to include the P90 dataset
+ * @param {boolean} [props.showP50=true] - Whether to include the P50 dataset
+ * @param {boolean} [props.showAverage=true] - Whether to include the Average dataset
  * @returns {JSX.Element} Rendered component
  */
-const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnnotations = true, showP90 = true }) => {
+const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnnotations = true, showP90 = true, showP50 = true, showAverage = true }) => {
   const {
     chartData,
     setChartData,
@@ -251,9 +253,14 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
 
   const displayedChartData = useMemo(() => {
     if (!chartData) return null;
-    if (showP90) return chartData;
-    return { ...chartData, datasets: chartData.datasets.filter(d => d.label !== 'P90') };
-  }, [chartData, showP90]);
+    const datasets = chartData.datasets.filter(d => {
+      if (d.label === 'P90') return showP90;
+      if (d.label === 'P50') return showP50;
+      if (d.label === 'Average') return showAverage;
+      return true;
+    });
+    return { ...chartData, datasets };
+  }, [chartData, showP90, showP50, showAverage]);
 
   /**
    * Handle filter change from ChartFilterDropdown

@@ -429,4 +429,98 @@ describe('CycleTimeChart', () => {
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
     expect(chartData.datasets.map(d => d.label)).not.toContain('P90');
   });
+
+  test('shows P50 by default when showP50 prop is true', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} showP50={true} />, defaultTheme);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).toContain('P50');
+  });
+
+  test('shows P50 by default when showP50 prop is omitted', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).toContain('P50');
+  });
+
+  test('hides P50 dataset when showP50 prop is false', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} showP50={false} />, defaultTheme);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).not.toContain('P50');
+    expect(chartData.datasets.map(d => d.label)).toContain('Average');
+    expect(chartData.datasets.map(d => d.label)).toContain('P90');
+  });
+
+  test('updates displayed datasets when showP50 prop changes', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    const { rerender } = renderWithTheme(
+      <CycleTimeChart selectedIterations={mockIterations} showP50={true} />,
+      defaultTheme
+    );
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    rerender(
+      <ThemeProvider theme={defaultTheme}>
+        <CycleTimeChart selectedIterations={mockIterations} showP50={false} />
+      </ThemeProvider>
+    );
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).not.toContain('P50');
+  });
+
+  test('shows Average by default when showAverage prop is true', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} showAverage={true} />, defaultTheme);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).toContain('Average');
+  });
+
+  test('shows Average by default when showAverage prop is omitted', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).toContain('Average');
+  });
+
+  test('hides Average dataset when showAverage prop is false', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} showAverage={false} />, defaultTheme);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).not.toContain('Average');
+    expect(chartData.datasets.map(d => d.label)).toContain('P50');
+    expect(chartData.datasets.map(d => d.label)).toContain('P90');
+  });
+
+  test('updates displayed datasets when showAverage prop changes', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    const { rerender } = renderWithTheme(
+      <CycleTimeChart selectedIterations={mockIterations} showAverage={true} />,
+      defaultTheme
+    );
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    rerender(
+      <ThemeProvider theme={defaultTheme}>
+        <CycleTimeChart selectedIterations={mockIterations} showAverage={false} />
+      </ThemeProvider>
+    );
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).not.toContain('Average');
+  });
 });
