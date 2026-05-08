@@ -2,10 +2,16 @@
  * @jest-environment jsdom
  */
 import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import userEvent from '@testing-library/user-event';
 import CycleTimeChart from '../../../src/public/components/CycleTimeChart.jsx';
+import {
+  defaultTheme,
+  sampleIterations,
+  setupChartMocks,
+  renderWithTheme,
+} from '../setup/chartTestHelpers.js';
 
 // Mock Chart.js
 jest.mock('react-chartjs-2', () => {
@@ -29,6 +35,41 @@ jest.mock('chartjs-plugin-annotation', () => ({}));
 jest.mock('../../../src/public/utils/controlLimits.js', () => ({
   calculateControlLimits: jest.fn(() => ({ average: 5, upperLimit: 8, lowerLimit: 2 }))
 }));
+
+// Mock buildControlLimitAnnotations — pure util, chart tests don't assert on annotation output
+jest.mock('../../../src/public/utils/buildControlLimitAnnotations.js', () => ({
+  default: jest.fn(() => ({})),
+}));
+
+// Mock useChartState hook — uses real React hooks so component state works
+jest.mock('../../../src/public/hooks/useChartState.js', () => {
+  const { useState, useEffect, useMemo, useRef } = require('react');
+  return {
+    useChartState(iterations = []) {
+      const [chartData, setChartData] = useState(null);
+      const [controlLimits, setControlLimits] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [excludedIterationIds, setExcludedIterationIds] = useState([]);
+      const [isEnlarged, setIsEnlarged] = useState(false);
+      const chartRef = useRef(null);
+      useEffect(() => {
+        if (!iterations || iterations.length === 0) return;
+        const currentIds = iterations.map(iter => iter.id);
+        const valid = excludedIterationIds.filter(id => currentIds.includes(id));
+        if (valid.length !== excludedIterationIds.length) setExcludedIterationIds(valid);
+      }, [iterations]); // eslint-disable-line react-hooks/exhaustive-deps
+      const visibleIterations = useMemo(
+        () => iterations.filter(iter => !excludedIterationIds.includes(iter.id)),
+        [iterations, excludedIterationIds]
+      );
+      const iterationIds = useMemo(() => visibleIterations.map(iter => iter.id), [visibleIterations]);
+      return { chartData, setChartData, controlLimits, setControlLimits, loading, setLoading,
+        error, setError, excludedIterationIds, setExcludedIterationIds, isEnlarged, setIsEnlarged,
+        chartRef, visibleIterations, iterationIds };
+    }
+  };
+});
 
 // Mock useAnnotations hook
 jest.mock('../../../src/public/hooks/useAnnotations.js', () => ({
@@ -74,31 +115,11 @@ jest.mock('../../../src/public/components/ChartFilterDropdown.jsx', () => {
   ));
 });
 
-const theme = {
-  colors: { bgPrimary: '#ffffff', textPrimary: '#1f2937' },
-  spacing: { sm: '0.5rem', md: '1rem' },
-  typography: { fontSize: { sm: '0.875rem', base: '1rem' } },
-};
-
 describe('CycleTimeChart', () => {
   let mockFetch;
 
-  beforeEach(() => {
-    Storage.prototype.getItem = jest.fn(() => null);
-    Storage.prototype.setItem = jest.fn();
-    Storage.prototype.removeItem = jest.fn();
-    mockFetch = jest.fn();
-    global.fetch = mockFetch;
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  const mockIterations = [
-    { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1', startDate: '2024-01-01', dueDate: '2024-01-14' },
-    { id: 'gid://gitlab/Iteration/2', title: 'Sprint 2', startDate: '2024-01-15', dueDate: '2024-01-28' },
-  ];
+  // Use first two shared iterations to match the mockApiResponse fixture
+  const mockIterations = sampleIterations.slice(0, 2);
 
   const mockApiResponse = {
     metrics: [
@@ -107,32 +128,28 @@ describe('CycleTimeChart', () => {
     ],
   };
 
+  beforeEach(() => {
+    ({ mockFetch } = setupChartMocks());
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   test('renders empty state when no iterations selected', () => {
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={[]} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={[]} />, defaultTheme);
     expect(screen.getByText(/Select iterations to view cycle time/i)).toBeInTheDocument();
   });
 
   test('renders loading state while fetching data', async () => {
     mockFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ ok: true, json: async () => mockApiResponse }), 100)));
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
     expect(screen.getByText(/Loading cycle time data/i)).toBeInTheDocument();
   });
 
   test('renders error state when API call fails', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(screen.getByText(/Error loading cycle time data/i)).toBeInTheDocument();
     });
@@ -140,11 +157,7 @@ describe('CycleTimeChart', () => {
 
   test('renders chart with cycle time data on successful fetch', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(screen.getByTestId('cycle-time-line-chart')).toBeInTheDocument();
     });
@@ -152,11 +165,7 @@ describe('CycleTimeChart', () => {
 
   test('calls API with correct iteration IDs', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/metrics/cycle-time?iterations=gid://gitlab/Iteration/1,gid://gitlab/Iteration/2'
@@ -167,11 +176,7 @@ describe('CycleTimeChart', () => {
   test('handles filter change and re-fetches data', async () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('cycle-time-line-chart')).toBeInTheDocument());
     mockFetch.mockClear();
     await user.click(screen.getByText('Exclude Sprint 1'));
@@ -182,16 +187,10 @@ describe('CycleTimeChart', () => {
 
   test('clears chart data when iterations are removed', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    const { rerender } = renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('cycle-time-line-chart')).toBeInTheDocument());
     rerender(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={[]} />
-      </ThemeProvider>
+      <CycleTimeChart selectedIterations={[]} />
     );
     expect(screen.getByText(/Select iterations to view cycle time/i)).toBeInTheDocument();
   });
@@ -205,11 +204,7 @@ describe('CycleTimeChart', () => {
     });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(screen.getByTestId('cycle-time-line-chart')).toBeInTheDocument();
@@ -236,11 +231,7 @@ describe('CycleTimeChart', () => {
     });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     // Assert - Should call API with only non-excluded iteration
     await waitFor(() => {
@@ -257,10 +248,9 @@ describe('CycleTimeChart', () => {
       json: async () => mockApiResponse,
     });
 
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} annotationRefreshKey={0} />
-      </ThemeProvider>
+    const { rerender } = renderWithTheme(
+      <CycleTimeChart selectedIterations={mockIterations} annotationRefreshKey={0} />,
+      defaultTheme
     );
 
     await waitFor(() => {
@@ -271,7 +261,7 @@ describe('CycleTimeChart', () => {
 
     // Act - Change annotationRefreshKey (simulates annotation update)
     rerender(
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={defaultTheme}>
         <CycleTimeChart selectedIterations={mockIterations} annotationRefreshKey={1} />
       </ThemeProvider>
     );
@@ -291,11 +281,7 @@ describe('CycleTimeChart', () => {
       json: async () => mockApiResponse
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled();
@@ -322,11 +308,7 @@ describe('CycleTimeChart', () => {
       json: async () => mockApiResponse
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(screen.getByTestId('cycle-time-line-chart')).toBeInTheDocument();
@@ -342,16 +324,10 @@ describe('CycleTimeChart', () => {
   test('handles all iterations being filtered out', async () => {
     const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
 
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    const { rerender } = renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     rerender(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={[]} />
-      </ThemeProvider>
+      <CycleTimeChart selectedIterations={[]} />
     );
 
     expect(screen.getByText(/select iterations to view cycle time metrics/i)).toBeInTheDocument();
@@ -367,11 +343,7 @@ describe('CycleTimeChart', () => {
       status: 500
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(screen.getByText(/error loading cycle time data/i)).toBeInTheDocument();
@@ -385,11 +357,7 @@ describe('CycleTimeChart', () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
 
     // Assert
     await waitFor(() => {
@@ -399,11 +367,7 @@ describe('CycleTimeChart', () => {
 
   test('does not render Export PNG button in empty state', () => {
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <CycleTimeChart selectedIterations={[]} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<CycleTimeChart selectedIterations={[]} />, defaultTheme);
 
     // Assert
     expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument();
@@ -412,7 +376,7 @@ describe('CycleTimeChart', () => {
   test('Export PNG button triggers download with correct filename', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
 
-    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument());
 
     const user = userEvent.setup();
@@ -421,7 +385,7 @@ describe('CycleTimeChart', () => {
 
   test('shows P90 by default when showP90 prop is true', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} showP90={true} /></ThemeProvider>);
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} showP90={true} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
@@ -430,7 +394,7 @@ describe('CycleTimeChart', () => {
 
   test('shows P90 by default when showP90 prop is omitted', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
@@ -439,7 +403,7 @@ describe('CycleTimeChart', () => {
 
   test('hides P90 dataset when showP90 prop is false', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} showP90={false} /></ThemeProvider>);
+    renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} showP90={false} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
@@ -450,12 +414,17 @@ describe('CycleTimeChart', () => {
 
   test('updates displayed datasets when showP90 prop changes', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    const { rerender } = render(
-      <ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} showP90={true} /></ThemeProvider>
+    const { rerender } = renderWithTheme(
+      <CycleTimeChart selectedIterations={mockIterations} showP90={true} />,
+      defaultTheme
     );
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
-    rerender(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} showP90={false} /></ThemeProvider>);
+    rerender(
+      <ThemeProvider theme={defaultTheme}>
+        <CycleTimeChart selectedIterations={mockIterations} showP90={false} />
+      </ThemeProvider>
+    );
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
     expect(chartData.datasets.map(d => d.label)).not.toContain('P90');
