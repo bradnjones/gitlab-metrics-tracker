@@ -4,56 +4,15 @@
 
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { ThemeProvider } from 'styled-components';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import MTTRChart from '../../../src/public/components/MTTRChart.jsx';
-
-// Mock theme object matching application theme
-const theme = {
-  colors: {
-    primary: '#3b82f6',
-    primaryDark: '#2563eb',
-    textPrimary: '#111827',
-    textSecondary: '#6b7280',
-    bgPrimary: '#ffffff',
-    bgSecondary: '#f9fafb',
-    bgTertiary: '#f3f4f6',
-    border: '#e5e7eb',
-  },
-  spacing: {
-    xs: '4px',
-    sm: '8px',
-    md: '16px',
-    lg: '24px',
-  },
-  typography: {
-    fontSize: {
-      xs: '0.75rem',
-      sm: '0.875rem',
-      base: '1rem',
-    },
-    fontWeight: {
-      normal: 400,
-      medium: 500,
-      semibold: 600,
-    },
-  },
-  borderRadius: {
-    sm: '4px',
-    md: '6px',
-    lg: '8px',
-    full: '999px',
-  },
-};
-
-// Helper to render component with theme
-const renderWithTheme = (component) => {
-  return render(
-    <ThemeProvider theme={theme}>
-      {component}
-    </ThemeProvider>
-  );
-};
+import {
+  defaultTheme,
+  sampleIterations,
+  setupChartMocks,
+  renderWithTheme,
+} from '../setup/chartTestHelpers.js';
 
 // Mock Chart.js Line component
 jest.mock('react-chartjs-2', () => ({
@@ -64,6 +23,8 @@ jest.mock('react-chartjs-2', () => ({
   ))
 }));
 
+jest.mock('chartjs-plugin-annotation', () => ({}));
+
 // Mock calculateControlLimits utility
 jest.mock('../../../src/public/utils/controlLimits.js', () => ({
   calculateControlLimits: jest.fn((data) => ({
@@ -73,6 +34,47 @@ jest.mock('../../../src/public/utils/controlLimits.js', () => ({
     mrBar: 1.34
   }))
 }));
+
+// Mock buildControlLimitAnnotations — pure util, chart tests don't assert on annotation output
+jest.mock('../../../src/public/utils/buildControlLimitAnnotations.js', () => ({
+  default: jest.fn(() => ({
+    upperLimit: { type: 'line', yMin: 5.72, yMax: 5.72 },
+    average: { type: 'line', yMin: 2.15, yMax: 2.15 },
+    lowerLimit: { type: 'line', yMin: 0, yMax: 0 },
+  })),
+}));
+
+// Mock useChartState hook — uses real React hooks so component state works
+jest.mock('../../../src/public/hooks/useChartState.js', () => {
+  const { useState, useEffect, useMemo, useRef } = require('react');
+  return {
+    useChartState(iterations = []) {
+      const [chartData, setChartData] = useState(null);
+      const [controlLimits, setControlLimits] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [excludedIterationIds, setExcludedIterationIds] = useState([]);
+      const [isEnlarged, setIsEnlarged] = useState(false);
+      const chartRef = useRef(null);
+      useEffect(() => {
+        if (!iterations || iterations.length === 0) return;
+        const currentIds = iterations.map(iter => iter.id);
+        const valid = excludedIterationIds.filter(id => currentIds.includes(id));
+        if (valid.length !== excludedIterationIds.length) setExcludedIterationIds(valid);
+      }, [iterations]); // eslint-disable-line react-hooks/exhaustive-deps
+      const visibleIterations = useMemo(
+        () => iterations.filter(iter => !excludedIterationIds.includes(iter.id)),
+        [iterations, excludedIterationIds]
+      );
+      const iterationIds = useMemo(() => visibleIterations.map(iter => iter.id), [visibleIterations]);
+      return {
+        chartData, setChartData, controlLimits, setControlLimits, loading, setLoading,
+        error, setError, excludedIterationIds, setExcludedIterationIds, isEnlarged, setIsEnlarged,
+        chartRef, visibleIterations, iterationIds,
+      };
+    }
+  };
+});
 
 // Mock useAnnotations hook
 jest.mock('../../../src/public/hooks/useAnnotations.js', () => ({
@@ -113,9 +115,7 @@ describe('MTTRChart', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
-    // Mock global fetch
-    global.fetch = jest.fn();
-    // Clear all mocks before each test
+    setupChartMocks();
     jest.clearAllMocks();
   });
 
@@ -480,7 +480,7 @@ describe('MTTRChart', () => {
 
     // Simulate all iterations filtered out by providing empty array
     rerender(
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={defaultTheme}>
         <MTTRChart selectedIterations={[]} />
       </ThemeProvider>
     );
