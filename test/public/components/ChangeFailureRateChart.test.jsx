@@ -2,10 +2,15 @@
  * @jest-environment jsdom
  */
 import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
-import { ThemeProvider } from 'styled-components';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ChangeFailureRateChart from '../../../src/public/components/ChangeFailureRateChart.jsx';
+import {
+  defaultTheme,
+  sampleIterations,
+  setupChartMocks,
+  renderWithTheme,
+} from '../setup/chartTestHelpers.js';
 
 // Mock Chart.js
 jest.mock('react-chartjs-2', () => {
@@ -74,31 +79,18 @@ jest.mock('../../../src/public/components/ChartFilterDropdown.jsx', () => {
   ));
 });
 
-const theme = {
-  colors: { bgPrimary: '#ffffff', textPrimary: '#1f2937' },
-  spacing: { sm: '0.5rem', md: '1rem' },
-  typography: { fontSize: { sm: '0.875rem', base: '1rem' } },
-};
-
 describe('ChangeFailureRateChart', () => {
   let mockFetch;
 
   beforeEach(() => {
-    Storage.prototype.getItem = jest.fn(() => null);
-    Storage.prototype.setItem = jest.fn();
-    Storage.prototype.removeItem = jest.fn();
-    mockFetch = jest.fn();
-    global.fetch = mockFetch;
+    ({ mockFetch } = setupChartMocks());
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  const mockIterations = [
-    { id: 'gid://gitlab/Iteration/1', title: 'Sprint 1', startDate: '2024-01-01', dueDate: '2024-01-14' },
-    { id: 'gid://gitlab/Iteration/2', title: 'Sprint 2', startDate: '2024-01-15', dueDate: '2024-01-28' },
-  ];
+  const mockIterations = sampleIterations.slice(0, 2);
 
   const mockApiResponse = {
     metrics: [
@@ -108,31 +100,19 @@ describe('ChangeFailureRateChart', () => {
   };
 
   test('renders empty state when no iterations selected', () => {
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={[]} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={[]} />, defaultTheme);
     expect(screen.getByText(/Select iterations to view change failure rate/i)).toBeInTheDocument();
   });
 
   test('renders loading state while fetching data', async () => {
     mockFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ ok: true, json: async () => mockApiResponse }), 100)));
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
     expect(screen.getByText(/Loading change failure rate data/i)).toBeInTheDocument();
   });
 
   test('renders error state when API call fails', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(screen.getByText(/Error loading change failure rate data/i)).toBeInTheDocument();
     });
@@ -140,11 +120,7 @@ describe('ChangeFailureRateChart', () => {
 
   test('renders chart with change failure rate data on successful fetch', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(screen.getByTestId('change-failure-rate-line-chart')).toBeInTheDocument();
     });
@@ -152,11 +128,7 @@ describe('ChangeFailureRateChart', () => {
 
   test('calls API with correct iteration IDs', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/metrics/change-failure-rate?iterations=gid://gitlab/Iteration/1,gid://gitlab/Iteration/2'
@@ -167,11 +139,7 @@ describe('ChangeFailureRateChart', () => {
   test('handles filter change and re-fetches data', async () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('change-failure-rate-line-chart')).toBeInTheDocument());
     mockFetch.mockClear();
     await user.click(screen.getByText('Exclude Sprint 1'));
@@ -182,16 +150,10 @@ describe('ChangeFailureRateChart', () => {
 
   test('clears chart data when iterations are removed', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    const { rerender } = renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByTestId('change-failure-rate-line-chart')).toBeInTheDocument());
     rerender(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={[]} />
-      </ThemeProvider>
+      <ChangeFailureRateChart selectedIterations={[]} />
     );
     expect(screen.getByText(/Select iterations to view change failure rate/i)).toBeInTheDocument();
   });
@@ -205,11 +167,7 @@ describe('ChangeFailureRateChart', () => {
     });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(screen.getByTestId('change-failure-rate-line-chart')).toBeInTheDocument();
@@ -236,11 +194,7 @@ describe('ChangeFailureRateChart', () => {
     });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
 
     // Assert - Should call API with only non-excluded iteration
     await waitFor(() => {
@@ -257,10 +211,9 @@ describe('ChangeFailureRateChart', () => {
       json: async () => mockApiResponse,
     });
 
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} annotationRefreshKey={0} />
-      </ThemeProvider>
+    const { rerender } = renderWithTheme(
+      <ChangeFailureRateChart selectedIterations={mockIterations} annotationRefreshKey={0} />,
+      defaultTheme
     );
 
     await waitFor(() => {
@@ -271,13 +224,13 @@ describe('ChangeFailureRateChart', () => {
 
     // Act - Change annotationRefreshKey (simulates annotation update)
     rerender(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} annotationRefreshKey={1} />
-      </ThemeProvider>
+      <ChangeFailureRateChart selectedIterations={mockIterations} annotationRefreshKey={1} />
     );
 
     // Assert - The annotationRefreshKey is passed to useAnnotations, component still renders
-    expect(screen.getByTestId('change-failure-rate-line-chart')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('change-failure-rate-line-chart')).toBeInTheDocument();
+    });
   });
 
   test('handles localStorage read errors gracefully', async () => {
@@ -291,11 +244,7 @@ describe('ChangeFailureRateChart', () => {
       json: async () => mockApiResponse
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled();
@@ -322,11 +271,7 @@ describe('ChangeFailureRateChart', () => {
       json: async () => mockApiResponse
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(screen.getByTestId('change-failure-rate-line-chart')).toBeInTheDocument();
@@ -340,16 +285,10 @@ describe('ChangeFailureRateChart', () => {
   test('handles all iterations being filtered out', async () => {
     const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
 
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    const { rerender } = renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
 
     rerender(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={[]} />
-      </ThemeProvider>
+      <ChangeFailureRateChart selectedIterations={[]} />
     );
 
     expect(screen.getByText(/select iterations to view change failure rate metrics/i)).toBeInTheDocument();
@@ -365,11 +304,7 @@ describe('ChangeFailureRateChart', () => {
       status: 500
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
 
     await waitFor(() => {
       expect(screen.getByText(/error loading change failure rate data/i)).toBeInTheDocument();
@@ -383,11 +318,7 @@ describe('ChangeFailureRateChart', () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
 
     // Assert
     await waitFor(() => {
@@ -397,11 +328,7 @@ describe('ChangeFailureRateChart', () => {
 
   test('does not render Export PNG button in empty state', () => {
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <ChangeFailureRateChart selectedIterations={[]} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={[]} />, defaultTheme);
 
     // Assert
     expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument();
@@ -410,7 +337,7 @@ describe('ChangeFailureRateChart', () => {
   test('Export PNG button triggers download with correct filename', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
 
-    render(<ThemeProvider theme={theme}><ChangeFailureRateChart selectedIterations={mockIterations} /></ThemeProvider>);
+    renderWithTheme(<ChangeFailureRateChart selectedIterations={mockIterations} />, defaultTheme);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument());
 
     const user = userEvent.setup();

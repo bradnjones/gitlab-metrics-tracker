@@ -5,9 +5,8 @@
  * @module components/ChangeFailureRateChart
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { apiFetch } from '../utils/apiFetch.js';
-import styled from 'styled-components';
 import { Line } from 'react-chartjs-2';
 import { exportChartAsPng } from '../utils/exportChart.js';
 import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
@@ -15,9 +14,20 @@ import annotationPlugin from 'chartjs-plugin-annotation';
 import { calculateControlLimits } from '../utils/controlLimits.js';
 import { useAnnotations } from '../hooks/useAnnotations.js';
 import { useChartFilters } from '../hooks/useChartFilters.js';
+import { useChartState } from '../hooks/useChartState.js';
+import buildControlLimitAnnotations from '../utils/buildControlLimitAnnotations.js';
 import ChartFilterDropdown from './ChartFilterDropdown';
 import ChartEnlargementModal from './ChartEnlargementModal';
-import { FilterContainer } from './chart-shared.jsx';
+import {
+  Container,
+  LoadingMessage,
+  ErrorMessage,
+  EmptyState,
+  ChartContainer,
+  ChartToolbar,
+  ExportButton,
+  FilterContainer,
+} from './chart-shared.jsx';
 
 
 // Register Chart.js components
@@ -25,85 +35,6 @@ Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Too
 // localStorage key for per-chart filter exclusions
 const FILTER_STORAGE_KEY = 'chart-filters-change-failure-rate';
 
-
-/**
- * Styled components
- */
-const Container = styled.div`
-  padding: 20px;
-
-  /* Accessibility: Ensure container is keyboard navigable */
-  &:focus-within {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-  }
-`;
-
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 40px;
-  color: #6b7280;
-  font-size: 14px;
-`;
-
-const ErrorMessage = styled.div`
-  text-align: center;
-  padding: 40px;
-  color: #ef4444;
-  font-size: 14px;
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 40px;
-  color: #9ca3af;
-  font-size: 14px;
-`;
-
-const ChartContainer = styled.div`
-  position: relative;
-  height: 400px;
-  padding: 20px;
-  background: white;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: box-shadow 200ms ease-in-out;
-
-  &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  &:focus {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-  }
-`;
-
-const ChartToolbar = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-`;
-
-const ExportButton = styled.button`
-  padding: 4px 10px;
-  font-size: 12px;
-  color: #374151;
-  background: #f9fafb;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  cursor: pointer;
-  line-height: 1.5;
-
-  &:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-  }
-
-  &:active {
-    background: #e5e7eb;
-  }
-`;
 
 /**
  * ChangeFailureRateChart Component
@@ -115,28 +46,16 @@ const ExportButton = styled.button`
  * @returns {JSX.Element} Rendered component
  */
 const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnnotations = true }) => {
-  const [chartData, setChartData] = useState(null);
-  const [controlLimits, setControlLimits] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const {
+    chartData, setChartData,
+    controlLimits, setControlLimits,
+    loading, setLoading,
+    error, setError,
+    isEnlarged, setIsEnlarged,
+    chartRef,
+  } = useChartState(selectedIterations);
+
   const [excludedIterationIds, setExcludedIterationIds] = useChartFilters(FILTER_STORAGE_KEY);
-  const [isEnlarged, setIsEnlarged] = useState(false);
-  const chartRef = useRef(null);
-
-  // Clean up excluded iterations that are no longer in selectedIterations
-  useEffect(() => {
-    if (!selectedIterations || selectedIterations.length === 0) {
-      return;
-    }
-
-    const selectedIds = selectedIterations.map(iter => iter.id);
-    const validExcludedIds = excludedIterationIds.filter(id => selectedIds.includes(id));
-
-    // Only update if some excluded iterations were removed from selection
-    if (validExcludedIds.length !== excludedIterationIds.length) {
-      setExcludedIterationIds(validExcludedIds);
-    }
-  }, [selectedIterations]);
 
   // Filter iterations based on exclusions (memoized to prevent flickering)
   const visibleIterations = useMemo(
@@ -241,6 +160,7 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
   /**
    * Generate Chart.js options configuration with control limit annotations
    * @param {Object|null} limits - Control limits (average, upperLimit, lowerLimit)
+   * @param {Object} [eventAnnotations={}] - Annotation markers from useAnnotations
    * @returns {Object} Chart.js options
    */
   const getChartOptions = (limits, eventAnnotations = {}) => {
@@ -279,65 +199,14 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
     };
 
     // Build annotation config by merging control limits and event annotations
-    const allAnnotations = { ...eventAnnotations };
-
-    // Add control limit annotations if available
-    if (limits) {
-      allAnnotations.upperLimit = {
-        type: 'line',
-        yMin: limits.upperLimit,
-        yMax: limits.upperLimit,
-        borderColor: '#fca5a5', // Light red solid line
-        borderWidth: 2,
-        label: {
-          display: true,
-          content: `UCL: ${limits.upperLimit.toFixed(1)}%`,
-          position: 'end',
-          backgroundColor: 'rgba(252, 165, 165, 0.8)',
-          color: 'white',
-          font: {
-            size: 11
-          }
-        }
-      };
-
-      allAnnotations.average = {
-        type: 'line',
-        yMin: limits.average,
-        yMax: limits.average,
-        borderColor: '#ef4444', // Red dotted line (matches main data)
-        borderWidth: 2,
-        borderDash: [5, 5],
-        label: {
-          display: true,
-          content: `Avg: ${limits.average.toFixed(1)}%`,
-          position: 'end',
-          backgroundColor: 'rgba(239, 68, 68, 0.8)',
-          color: 'white',
-          font: {
-            size: 11
-          }
-        }
-      };
-
-      allAnnotations.lowerLimit = {
-        type: 'line',
-        yMin: limits.lowerLimit,
-        yMax: limits.lowerLimit,
-        borderColor: '#fca5a5', // Light red solid line
-        borderWidth: 2,
-        label: {
-          display: true,
-          content: `LCL: ${limits.lowerLimit.toFixed(1)}%`,
-          position: 'end',
-          backgroundColor: 'rgba(252, 165, 165, 0.8)',
-          color: 'white',
-          font: {
-            size: 11
-          }
-        }
-      };
-    }
+    const allAnnotations = {
+      ...eventAnnotations,
+      ...buildControlLimitAnnotations(limits, {
+        upperColor: '#fca5a5',
+        averageColor: '#ef4444',
+        lowerColor: '#fca5a5',
+      }),
+    };
 
     // Set annotations if we have any and annotations are visible
     if (showAnnotations && Object.keys(allAnnotations).length > 0) {
@@ -349,9 +218,9 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
     return options;
   };
 
- /**
+  /**
    * Handle filter change from ChartFilterDropdown
-   *  {Array<string>} newExcludedIds - New array of excluded iteration IDs
+   * @param {Array<string>} newExcludedIds - New array of excluded iteration IDs
    */
   const handleFilterChange = (newExcludedIds) => {
     setExcludedIterationIds(newExcludedIds);
