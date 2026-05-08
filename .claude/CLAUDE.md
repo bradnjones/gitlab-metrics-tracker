@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-**Version:** 2.2
-**Last Updated:** 2025-11-09
+**Version:** 3.0
+**Last Updated:** 2026-05-08
 **Project:** GitLab Sprint Metrics Tracker - Clean Architecture Edition
 **Development Approach:** Vertical Slices (delivering complete user value per story)
-**Branch Strategy:** Short-lived branches (one branch per PR, delete after merge)
+**Branch Strategy:** Trunk-based development (direct commits to main)
 
 ---
 
@@ -51,42 +51,41 @@ Each story delivers a complete feature touching all layers:
 3. 🤖 Launch other agents as needed (GitLab, UX/UI, etc.)
 
 FOR EACH LOGICAL UNIT (Component/Layer/Feature):
-4. 🌿 Create SHORT-LIVED feature branch from main (feat/ISSUE-description)
-   git checkout main && git pull origin main
-   git checkout -b feat/14-new-feature
-5. 🔴 Test Coverage Agent - Plan TDD for this unit
-6. 🔴 RED: Write failing tests
-7. 🟢 GREEN: Minimal implementation to pass
-8. 🔄 REFACTOR: Clean up code
-9. ✅ Run tests and verify coverage ≥85%
-10. 📝 UPDATE BACKLOG - Document completed work (see "Backlog Updates" section)
-11. ✅ Commit and push to feature branch (includes backlog changes)
-12. 🔀 Create Small PR (< 200 lines preferred)
-13. ✅ Merge PR with --squash --delete-branch
-14. 🔄 Return to step 4 for next unit (new branch from main)
+4. 🔴 Test Coverage Agent - Plan TDD for this unit
+5. 🔴 RED: Write failing tests
+6. 🟢 GREEN: Minimal implementation to pass
+7. 🔄 REFACTOR: Clean up code
+8. ✅ Run tests and verify coverage ≥85%
+9. 📝 UPDATE BACKLOG - Document completed work (includes backlog changes)
+10. ✅ Atomic commit directly to main:
+    git checkout main && git pull --rebase origin main
+    npm test && npm run lint
+    git add <specific files>
+    git commit -m "feat: description (#ISSUE)"
+    git push origin main
+11. 🔄 Return to step 4 for next unit
 
 AFTER ALL UNITS COMPLETE:
-15. 🤖 Clean Architecture Agent - Validate layer separation
-16. 🤖 Code Review Agent - Final review
-17. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
-18. 📝 FINAL BACKLOG UPDATE - Move story to completed.md with full summary
-19. ✅ Close GitHub issue
+12. 🤖 Clean Architecture Agent - Validate layer separation
+13. 🤖 Code Review Agent - Final review
+14. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
+15. 📝 FINAL BACKLOG UPDATE - Move story to completed.md with full summary
+16. ✅ Close GitHub issue
 ```
 
-**CRITICAL: Short-Lived Branches**
-- ✅ Create NEW branch from `main` for EACH PR
-- ✅ Delete branch after PR merge (use --delete-branch)
-- ✅ Pull latest `main` before creating next branch
-- ❌ NEVER reuse branches across multiple PRs
-- ❌ NEVER merge `main` into feature branches
-- ❌ NEVER use long-lived feature branches
+**TRUNK-BASED DEVELOPMENT**
+- ✅ Commit directly to `main` — no feature branches, no PRs
+- ✅ Each commit = one logical change (small and atomic)
+- ✅ `git pull --rebase origin main` before every commit
+- ✅ All tests + lint must pass before every `git push`
+- ❌ NEVER commit if `npm test` fails
+- ❌ NEVER `git push --force` to main
 
-**Why Short-Lived Branches?**
-- Prevents merge conflicts between your own PRs
-- Clean, linear git history
-- Each PR is independent and easy to review
-- Matches "small, frequent PRs" philosophy
-- Avoids complex merge scenarios
+**Why Trunk-Based?**
+- Atomic commits are independently revertible via `git revert`
+- No branch/PR overhead — changes land in seconds
+- Concurrent agents work on disjoint files — no merge conflicts
+- `git log` is the audit trail
 
 **IMPORTANT: Vertical Slice Characteristics**
 - Each story delivers COMPLETE user value (not just a layer)
@@ -109,18 +108,15 @@ AFTER ALL UNITS COMPLETE:
 1. **🔒 Security First** - NEVER access .env files, credentials, or secrets
 2. **🤖 Agents First** - Launch agents BEFORE proposing work
 3. **📋 GitHub Issues First** - Create issue BEFORE starting work (using `gh`)
-4. **🌿 Short-Lived Branches** - Create NEW branch from `main` for EACH PR, delete after merge
+4. **🚀 Trunk-Based Commits** - Commit directly to `main`; no feature branches, no PRs
 5. **🔴 TDD MANDATORY** - Write tests FIRST (RED-GREEN-REFACTOR)
-6. **✅ All Tests Must Pass** - Run all tests before EVERY commit
-7. **📊 Coverage ≥85%** - Verify with `npm run test:coverage`
+6. **✅ All Tests Must Pass** - Run `npm test` + `npm run lint` before EVERY `git push`
+7. **📊 Coverage ≥85%** - Verify with `npm run test:coverage` when changing source
 8. **🏗️ Clean Architecture** - Core → Infrastructure → Presentation
 9. **📝 JSDoc Everything** - Type annotations for all functions, classes, parameters
-10. **🔀 Small, Frequent PRs** - < 200 lines preferred, one branch per PR
+10. **⚛️ Atomic Commits** - One commit = one logical change; keep diffs small and focused
 11. **🚀 Defer Decisions** - Make architecture decisions when circumstances require it
-12. **❌ NO Long-Lived Branches** - Never reuse branches, never merge main into feature branches
-13. **⏸️ MANDATORY: ASK After PR Creation** - MUST ask "Have you merged PR #X?" and WAIT for confirmation before ANY new work
-14. **🚫 NEVER Add to Existing PR Branch** - One branch = One PR = One feature. Create NEW branch for new features
-15. **📝 MANDATORY: Update Backlog BEFORE Committing** - Update `_context/stories/` BEFORE every commit to keep backlog in sync
+12. **📝 MANDATORY: Update Backlog BEFORE Committing** - Update `_context/stories/` BEFORE every commit to keep backlog in sync
 
 ---
 
@@ -177,7 +173,7 @@ AFTER ALL UNITS COMPLETE:
 - `in-progress.md` - Currently active story
 - `completed.md` - All completed work (stories, bugs, improvements)
 
-**Remember:** Backlog updates are part of the deliverable - include them in your commit!
+**Remember:** Backlog updates are part of the deliverable — include them in the same commit as the code change!
 
 ---
 
@@ -265,240 +261,79 @@ npm start                # Start server
 npm run lint             # Lint code
 npm run format           # Format code
 
-# Git/GitHub (using gh CLI)
+# Git/GitHub (trunk-based)
 gh issue create          # Create new issue for story
 gh issue list            # View open issues
-git checkout -b feat/123-description  # Create feature branch
-git add . && git commit  # Commit changes
-git push -u origin feat/123-description  # Push feature branch
-gh pr create             # Create pull request
-gh pr merge              # Merge PR and close issue
+gh issue close 25        # Close when work is done
+git pull --rebase origin main               # Sync before committing
+git add <specific files>                    # Always specific files, never -A
+git commit -m "type: description (#N)"     # Atomic commit
+git push origin main                        # Push to trunk
 ```
 
 ---
 
-## 🐙 Git/GitHub Workflow
+## 🐙 Git Workflow (Trunk-Based)
 
 **Repository:** https://github.com/bradnjones/gitlab-metrics-tracker
 **Access:** SSH via `git@github.com:bradnjones/gitlab-metrics-tracker.git`
 
-### Story Lifecycle with GitHub
+### Commit Loop (every change)
 
-#### 1. Create GitHub Issue
 ```bash
-# Create issue for story
-gh issue create --title "Story 0.1: Project Foundation" \
-  --body "$(cat _context/stories/backlog.md | grep -A 50 'Story 0.1')" \
-  --label "story,phase-0"
+# 1. Sync
+git checkout main && git pull --rebase origin main
 
-# This returns an issue number (e.g., #1)
+# 2. Make ONE atomic change
+
+# 3. Gate (non-negotiable — all must pass)
+npm test
+npm run lint
+npm run test:coverage    # only when source files changed
+
+# 4. Commit
+git add <specific files>      # never git add -A or git add .
+git commit -m "feat: description (#ISSUE)"
+
+# 5. Push
+git push origin main
+# If rejected: git pull --rebase origin main && npm test && git push origin main
 ```
 
-#### 2. Create Feature Branch (Short-Lived!)
-```bash
-# ALWAYS start from latest main
-git checkout main
-git pull origin main
+### Commit Message Format
 
-# Create new branch for THIS PR only
-git checkout -b feat/14-alignment-fixes
-
-# Naming convention: feat/ISSUE-short-description
-# Each PR gets its own branch - no reusing branches!
-```
-
-#### 3. Work on Feature (TDD Cycle)
-```bash
-# Write tests FIRST, commit incrementally
-git add .
-git commit -m "test: add Metric entity tests (#1)"
-
-git add .
-git commit -m "feat: implement Metric entity (#1)"
-
-git add .
-git commit -m "refactor: simplify Metric validation (#1)"
-```
-
-**Commit Message Format:**
 - `feat:` - New feature
-- `test:` - Adding/updating tests
+- `fix:` - Bug fix
 - `refactor:` - Code refactoring
-- `docs:` - Documentation changes
-- `fix:` - Bug fixes
+- `test:` - Adding/updating tests
+- `docs:` - Documentation
+- `chore:` - Maintenance (cleanup, deps, config)
 - Always include issue number: `(#123)`
 
-#### 4. Push Feature Branch
+### Hard Rules
+
+- One commit = one logical change. Don't bundle.
+- Never push if `npm test` fails.
+- Never `git push --force` to main.
+- Always `git add <specific files>` — never `-A` or `.`
+- No feature branches. No PRs.
+
+### GitHub Issues (still used for traceability)
+
 ```bash
-# First push (set upstream)
-git push -u origin feat/1-project-foundation
-
-# Subsequent pushes
-git push
+gh issue create --title "Story V2: Throughput" --label "story,phase-1"
+gh issue list
+gh issue close 25   # close when all related commits are on main
 ```
-
-#### 5. Create Pull Request
-```bash
-# Create PR when feature is complete
-gh pr create --title "Story 0.1: Project Foundation" \
-  --body "Closes #1
-
-## Summary
-- Implemented core entities (Metric, Annotation, AnalysisResult)
-- Created repository interfaces
-- Implemented file system repositories
-- All tests passing (≥85% coverage)
-
-## Testing
-- ✅ All tests pass
-- ✅ Coverage: 87% (exceeds 85% target)
-- ✅ TDD approach followed (tests first)
-
-## Agent Reviews
-- ✅ Clean Architecture Agent - Approved
-- ✅ Test Coverage Agent - Validated
-- ✅ Code Review Agent - Approved
-
-## Checklist
-- [x] Tests written FIRST (TDD)
-- [x] All tests pass
-- [x] Coverage ≥85%
-- [x] JSDoc annotations complete
-- [x] Clean Architecture validated
-- [x] Code review passed" \
-  --label "story,phase-0"
-```
-
-**⚠️ CRITICAL: After Creating PR - MANDATORY WORKFLOW**
-- **STOP IMMEDIATELY** - Do not continue with any other work
-- **ASK THE USER:** "Have you merged PR #X yet?" - This is MANDATORY, not optional
-- **WAIT** for user to confirm merge before doing ANYTHING else
-- **DO NOT:**
-  - Create new branches until PR is merged
-  - Add more features to the existing PR branch
-  - Start new work on the same branch
-  - Assume the PR will be merged - always ask first
-- **ONLY AFTER** user confirms merge:
-  - Pull latest main: `git checkout main && git pull origin main`
-  - Delete old branch: `git branch -d old-branch-name`
-  - Create new branch for next work
-
-**Why This Matters:**
-- One branch = One PR = One feature/fix
-- Adding to an existing PR branch violates short-lived branch policy
-- Multiple features in one PR makes review harder
-- Prevents clean git history
-
-#### 6. Merge PR and Close Issue
-```bash
-# Merge PR (squash commits and DELETE branch)
-gh pr merge --squash --delete-branch
-
-# Issue closes automatically via "Closes #1" in PR body
-```
-
-#### 7. Start Next PR (Clean Slate)
-```bash
-# Pull latest main (includes your merged PR)
-git checkout main
-git pull origin main
-
-# Create NEW branch for next PR
-git checkout -b feat/14-next-feature
-
-# Repeat cycle - NEVER reuse old branch!
-```
-
-### Branch Naming Convention
-
-**SHORT-LIVED BRANCHES ONLY:**
-- **Feature/Story:** `feat/ISSUE-short-description` (e.g., feat/14-alignment-fixes)
-- **Bugfix:** `fix/ISSUE-short-description`
-- **Refactor:** `refactor/ISSUE-short-description`
-- **Docs:** `docs/ISSUE-short-description`
-
-**Rules:**
-- ✅ Always include issue number for traceability
-- ✅ One branch per PR (create new branch for each PR)
-- ✅ Delete branch after merge (--delete-branch)
-- ❌ NO long-lived branches (like feat/v1-velocity-tracking)
-- ❌ NO reusing branches across PRs
-
-### Commit Guidelines
-
-**DO:**
-- ✅ Commit incrementally (test, implementation, refactor)
-- ✅ Use conventional commit format
-- ✅ Include issue number in every commit
-- ✅ Write clear, concise commit messages
-- ✅ Run tests before committing
-
-**DON'T:**
-- ❌ Commit directly to `main` branch
-- ❌ Push without running tests
-- ❌ Squash locally (squash happens during PR merge)
-- ❌ Commit secrets or .env files
 
 ### GitHub Labels
 
-**Type labels** (what kind of work):
-- `story` - User story
-- `bug` - Bug fix
-- `enhancement` - New feature or improvement
-- `refactor` - Code refactoring
-- `docs` - Documentation
-- `test` - Test-related changes
-
-**Phase labels** (which phase):
-- `phase-0`, `phase-1`, `phase-2`, `phase-3`, `phase-4` - Story phases
-
-**Layer labels** (Clean Architecture):
-- `layer:core` - Core business logic (domain/use cases)
-- `layer:infrastructure` - Infrastructure (GitLab API, storage)
-- `layer:presentation` - Presentation (UI/API endpoints)
-
-**Component labels** (what part changed):
-- `component:ui` - React component or UI-related
-- `component:api` - API endpoint or route
-- `component:service` - Service/business logic
-
-**Feature labels** (which feature):
-- `feature:metrics` - Metrics calculation
-- `feature:annotations` - Annotation system
-- `feature:visualization` - Charts/visualization
-- `feature:gitlab-integration` - GitLab API integration
-
-**Quality labels** (TDD/testing):
-- `tdd-approved` - TDD approach validated by agent
-- `coverage-85+` - Test coverage ≥85%
-- `needs-tests` - Missing tests or low coverage
-
-**Agent review labels** (which agents approved):
-- `agent:product-owner` - Reviewed by Product Owner agent
-- `agent:clean-arch` - Reviewed by Clean Architecture agent
-- `agent:code-review` - Reviewed by Code Review agent
-- `agent:test-coverage` - Reviewed by Test Coverage agent
-- `agent:ux-ui` - Reviewed by UX/UI Design agent
-- `agent:gitlab` - Reviewed by GitLab Integration agent
-
-**Size labels** (PR size):
-- `size:xs` - < 50 lines changed
-- `size:s` - 50-200 lines changed (preferred!)
-- `size:m` - 200-500 lines changed
-- `size:l` - 500-1000 lines changed
-- `size:xl` - > 1000 lines changed (avoid!)
-
-**Workflow labels** (status):
-- `work-in-progress` - Still being worked on
-- `ready-for-review` - Ready for manual review
-- `ready-to-merge` - Approved and ready to merge
-- `blocked` - Blocked by another issue
-- `needs-rebase` - Needs rebase with main
-
-**Priority labels**:
-- `priority-high` - High priority
-- `priority-medium` - Medium priority
-- `priority-low` - Low priority
+**Type:** `story`, `bug`, `enhancement`, `refactor`, `docs`, `test`
+**Phase:** `phase-0` through `phase-4`
+**Layer:** `layer:core`, `layer:infrastructure`, `layer:presentation`
+**Feature:** `feature:metrics`, `feature:annotations`, `feature:visualization`, `feature:gitlab-integration`
+**Quality:** `tdd-approved`, `coverage-85+`, `needs-tests`
+**Priority:** `priority-high`, `priority-medium`, `priority-low`
 
 ---
 
@@ -677,4 +512,4 @@ The prototype has a **polished, working UI**. We're preserving it, not reinventi
 
 ---
 
-**Remember:** This is vertical slice, agent-driven, TDD-first, Clean Architecture development. Each story delivers complete user value (GitLab → Core → API → UI). Launch agents BEFORE proposing work. Write tests FIRST at each layer. Maintain Clean Architecture within slices. Defer decisions until needed. Build incrementally with discipline. 🚀
+**Remember:** Trunk-based, vertical slice, agent-driven, TDD-first, Clean Architecture development. Commit small and often directly to `main` — sync, one change, full test gate, push. Each story delivers complete user value (GitLab → Core → API → UI). Launch agents BEFORE proposing work. Write tests FIRST. Maintain Clean Architecture within slices. Defer decisions until needed. 🚀
