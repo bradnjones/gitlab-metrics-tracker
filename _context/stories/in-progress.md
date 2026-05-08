@@ -7,7 +7,7 @@ The project has been restructured from horizontal architectural layers to vertic
 **Previous Approach (Archived 2025-11-07):**
 - Horizontal layers: Foundation → Infrastructure → Core → API → UI
 - Delayed user value until all layers complete
-- See `archived-horizontal-backlog.md` for historical context
+- See `_archived/archived-horizontal-backlog.md` for historical context
 
 **New Approach (Vertical Slices):**
 - Each story delivers complete feature (GitLab → Core → API → UI)
