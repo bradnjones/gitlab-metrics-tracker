@@ -113,6 +113,8 @@ const ExportButton = styled.button`
  * @param {boolean} [props.showAnnotations=true] - Whether to render annotation markers on the chart
  * @returns {JSX.Element} Rendered component
  */
+const P90_STORAGE_KEY = 'chart-show-p90-lead-time';
+
 const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnnotations = true }) => {
   const [chartData, setChartData] = useState(null);
   const [controlLimits, setControlLimits] = useState(null);
@@ -120,6 +122,14 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
   const [error, setError] = useState(null);
   const [excludedIterationIds, setExcludedIterationIds] = useChartFilters(FILTER_STORAGE_KEY);
   const [isEnlarged, setIsEnlarged] = useState(false);
+  const [showP90, setShowP90] = useState(() => {
+    try {
+      const stored = localStorage.getItem(P90_STORAGE_KEY);
+      return stored === null ? true : stored !== 'false';
+    } catch {
+      return true;
+    }
+  });
   const chartRef = useRef(null);
 
   // Clean up excluded iterations that are no longer in selectedIterations
@@ -351,6 +361,22 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
     return options;
   };
 
+  const displayedChartData = useMemo(() => {
+    if (!chartData) return null;
+    if (showP90) return chartData;
+    return { ...chartData, datasets: chartData.datasets.filter(d => d.label !== 'P90') };
+  }, [chartData, showP90]);
+
+  const handleToggleP90 = () => {
+    const next = !showP90;
+    setShowP90(next);
+    try {
+      localStorage.setItem(P90_STORAGE_KEY, String(next));
+    } catch {
+      // ignore
+    }
+  };
+
   /**
    * Handle filter change from ChartFilterDropdown
    * @param {Array<string>} newExcludedIds - New array of excluded iteration IDs
@@ -413,9 +439,12 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
           chartTitle="Lead Time Chart"
         />
       </FilterContainer>
-      {chartData && (
+      {displayedChartData && (
         <>
           <ChartToolbar>
+            <ExportButton onClick={handleToggleP90}>
+              {showP90 ? 'Hide P90' : 'Show P90'}
+            </ExportButton>
             <ExportButton onClick={handleExport}>Export PNG</ExportButton>
           </ChartToolbar>
           <ChartContainer
@@ -432,7 +461,7 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
           >
             <Line
               ref={chartRef}
-              data={chartData}
+              data={displayedChartData}
               options={getChartOptions(controlLimits, leadTimeAnnotations)}
               aria-label="Line chart showing lead time trends with average, P50, and P90 metrics across selected iterations, including statistical control limits"
               role="img"
@@ -445,7 +474,7 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
             chartTitle="Lead Time Metrics"
             chartElement={
               <Line
-                data={chartData}
+                data={displayedChartData}
                 options={getChartOptions(controlLimits, leadTimeAnnotations)}
                 aria-label="Line chart showing lead time trends with average, P50, and P90 metrics across selected iterations, including statistical control limits"
                 role="img"

@@ -389,4 +389,73 @@ describe('CycleTimeChart', () => {
     const user = userEvent.setup();
     await expect(user.click(screen.getByRole('button', { name: 'Export PNG' }))).resolves.not.toThrow();
   });
+
+  test('shows P90 by default', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).toContain('P90');
+  });
+
+  test('Hide P90 button is visible when chart data is loaded', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    await waitFor(() => expect(screen.getByTestId('cycle-time-line-chart')).toBeInTheDocument());
+
+    expect(screen.getByRole('button', { name: /hide p90/i })).toBeInTheDocument();
+  });
+
+  test('clicking Hide P90 removes P90 dataset from chart', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /hide p90/i }));
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).not.toContain('P90');
+    expect(chartData.datasets.map(d => d.label)).toContain('Average');
+    expect(chartData.datasets.map(d => d.label)).toContain('P50');
+  });
+
+  test('clicking Hide P90 then Show P90 restores P90 dataset', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /hide p90/i }));
+    await user.click(screen.getByRole('button', { name: /show p90/i }));
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).toContain('P90');
+  });
+
+  test('P90 toggle state persists to localStorage', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /hide p90/i }));
+
+    expect(localStorage.setItem).toHaveBeenCalledWith('chart-show-p90-cycle-time', 'false');
+  });
+
+  test('loads P90 hidden state from localStorage on mount', async () => {
+    Storage.prototype.getItem = jest.fn((key) => {
+      if (key === 'chart-show-p90-cycle-time') return 'false';
+      return null;
+    });
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    render(<ThemeProvider theme={theme}><CycleTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).not.toContain('P90');
+    expect(screen.getByRole('button', { name: /show p90/i })).toBeInTheDocument();
+  });
 });
