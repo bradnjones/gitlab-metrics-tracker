@@ -63,14 +63,16 @@ FOR EACH LOGICAL UNIT (Component/Layer/Feature):
     git add <specific files>
     git commit -m "feat: description (#ISSUE)"
     git push origin main
-11. 🔄 Return to step 4 for next unit
+11. 🐳 Rebuild Docker and restart container:
+    docker compose up --build -d
+12. 🔄 Return to step 4 for next unit
 
 AFTER ALL UNITS COMPLETE:
-12. 🤖 Clean Architecture Agent - Validate layer separation
-13. 🤖 Code Review Agent - Final review
-14. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
-15. 📝 FINAL BACKLOG UPDATE - Move story to completed.md with full summary
-16. ✅ Close GitHub issue
+13. 🤖 Clean Architecture Agent - Validate layer separation
+14. 🤖 Code Review Agent - Final review
+15. 🧪 MANUAL VERIFICATION - User tests complete feature end-to-end
+16. 📝 FINAL BACKLOG UPDATE - Move story to completed.md with full summary
+17. ✅ Close GitHub issue
 ```
 
 **TRUNK-BASED DEVELOPMENT**
@@ -257,6 +259,9 @@ npm run test:coverage    # Coverage report (verify ≥85%)
 # Production
 npm start                # Start server
 
+# Docker (run after every commit to verify no functional breaks)
+docker compose up --build -d   # Rebuild image and restart container
+
 # Code Quality
 npm run lint             # Lint code
 npm run format           # Format code
@@ -298,6 +303,9 @@ git commit -m "feat: description (#ISSUE)"
 # 5. Push
 git push origin main
 # If rejected: git pull --rebase origin main && npm test && git push origin main
+
+# 6. Rebuild Docker
+docker compose up --build -d
 ```
 
 ### Commit Message Format
