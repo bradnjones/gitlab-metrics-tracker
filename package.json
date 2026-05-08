@@ -80,7 +80,10 @@
       "^@/(.*)$": "<rootDir>/src/$1",
       "^\\./chart-shared\\.jsx$": "<rootDir>/src/public/components/__mocks__/chart-shared.cjs",
       "^\\.\\./utils/exportChart\\.js$": "<rootDir>/src/public/utils/__mocks__/exportChart.cjs",
-      "^\\.\\./utils/apiFetch\\.js$": "<rootDir>/src/public/utils/__mocks__/apiFetch.cjs"
+      "^\\.\\./utils/apiFetch\\.js$": "<rootDir>/src/public/utils/__mocks__/apiFetch.cjs",
+      "^\\.\\./hooks/useChartState\\.js$": "<rootDir>/src/public/hooks/__mocks__/useChartState.cjs",
+      "^\\.\\./utils/buildControlLimitAnnotations\\.js$": "<rootDir>/src/public/utils/__mocks__/buildControlLimitAnnotations.cjs",
+      "^.*chartTestHelpers\\.js$": "<rootDir>/test/public/setup/chartTestHelpers.cjs"
     },
     "setupFilesAfterEnv": [
       "<rootDir>/src/test/setup.js"

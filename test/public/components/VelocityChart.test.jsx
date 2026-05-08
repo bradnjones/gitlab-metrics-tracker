@@ -2,11 +2,16 @@
  * @jest-environment jsdom
  */
 import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import userEvent from '@testing-library/user-event';
 import VelocityChart from '../../../src/public/components/VelocityChart.jsx';
 import { useAnnotations } from '../../../src/public/hooks/useAnnotations.js';
+import {
+  defaultTheme,
+  setupChartMocks,
+  renderWithTheme,
+} from '../setup/chartTestHelpers.js';
 
 // Mock Chart.js and react-chartjs-2
 jest.mock('react-chartjs-2', () => {
@@ -87,50 +92,16 @@ jest.mock('../../../src/public/components/ChartFilterDropdown.jsx', () => {
   ));
 });
 
-// Minimal theme object
-const theme = {
-  colors: {
-    bgPrimary: '#ffffff',
-    textPrimary: '#1f2937',
-    textSecondary: '#6b7280',
-  },
-  spacing: {
-    sm: '0.5rem',
-    md: '1rem',
-  },
-  typography: {
-    fontSize: {
-      sm: '0.875rem',
-      base: '1rem',
-    },
-  },
-};
-
 describe('VelocityChart', () => {
   let mockFetch;
 
   beforeEach(() => {
-    // Mock localStorage
-    Storage.prototype.getItem = jest.fn(() => null);
-    Storage.prototype.setItem = jest.fn();
-    Storage.prototype.removeItem = jest.fn();
-
-    // Mock global fetch
-    mockFetch = jest.fn();
-    global.fetch = mockFetch;
+    ({ mockFetch } = setupChartMocks());
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
-
-  const renderWithTheme = (component) => {
-    return render(
-      <ThemeProvider theme={theme}>
-        {component}
-      </ThemeProvider>
-    );
-  };
 
   const mockIterations = [
     {
@@ -418,7 +389,7 @@ describe('VelocityChart', () => {
 
     // Act - Remove all iterations
     rerender(
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={defaultTheme}>
         <VelocityChart selectedIterations={[]} />
       </ThemeProvider>
     );
@@ -447,7 +418,7 @@ describe('VelocityChart', () => {
 
     // Act - Change annotationRefreshKey (simulates annotation update)
     rerender(
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={defaultTheme}>
         <VelocityChart selectedIterations={mockIterations} annotationRefreshKey={1} />
       </ThemeProvider>
     );
