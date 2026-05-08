@@ -65,6 +65,9 @@ jest.mock('../../../src/public/components/MetricsSummary.jsx', () => {
   };
 });
 
+// Resolve ESM/CJS boundary: re-export the real implementation via a CJS-compatible factory
+jest.mock('../../../src/public/hooks/useAppModals.js', () => jest.requireActual('../../../src/public/hooks/useAppModals.js'));
+
 // Mock useMetricsExport hook
 jest.mock('../../../src/public/hooks/useMetricsExport.js', () => ({
   useMetricsExport: () => ({
