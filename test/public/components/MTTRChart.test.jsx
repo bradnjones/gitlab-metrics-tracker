@@ -74,6 +74,40 @@ jest.mock('../../../src/public/utils/controlLimits.js', () => ({
   }))
 }));
 
+// Mock useAnnotations hook
+jest.mock('../../../src/public/hooks/useAnnotations.js', () => ({
+  useAnnotations: jest.fn(() => ({ annotations: {}, loading: false, error: null }))
+}));
+
+// Mock useChartFilters hook — replicates localStorage behaviour that chart tests assert on
+jest.mock('../../../src/public/hooks/useChartFilters.js', () => {
+  const { useState, useEffect } = require('react');
+  return {
+    useChartFilters(storageKey) {
+      const [excludedIds, setExcludedIds] = useState([]);
+      useEffect(() => {
+        try {
+          const stored = global.localStorage.getItem(storageKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) setExcludedIds(parsed);
+          }
+        } catch (e) { console.warn('Failed to load chart filters from localStorage:', e); }
+      }, [storageKey]);
+      useEffect(() => {
+        try {
+          if (excludedIds.length > 0) {
+            global.localStorage.setItem(storageKey, JSON.stringify(excludedIds));
+          } else {
+            global.localStorage.removeItem(storageKey);
+          }
+        } catch (e) { console.warn('Failed to save chart filters to localStorage:', e); }
+      }, [excludedIds, storageKey]);
+      return [excludedIds, setExcludedIds];
+    }
+  };
+});
+
 describe('MTTRChart', () => {
   // Store original fetch
   const originalFetch = global.fetch;

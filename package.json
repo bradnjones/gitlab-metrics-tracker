@@ -78,9 +78,6 @@
     "moduleNameMapper": {
       "\\.(css|less|scss|sass)$": "identity-obj-proxy",
       "^@/(.*)$": "<rootDir>/src/$1",
-      "^\\.\\./utils/controlLimits\\.js$": "<rootDir>/src/public/utils/__mocks__/controlLimits.cjs",
-      "^\\.\\./hooks/useAnnotations\\.js$": "<rootDir>/src/public/hooks/__mocks__/useAnnotations.cjs",
-      "^\\.\\./hooks/useChartFilters\\.js$": "<rootDir>/src/public/hooks/__mocks__/useChartFilters.cjs",
       "^\\./chart-shared\\.jsx$": "<rootDir>/src/public/components/__mocks__/chart-shared.cjs",
       "^\\.\\./utils/exportChart\\.js$": "<rootDir>/src/public/utils/__mocks__/exportChart.cjs",
       "^\\.\\./utils/apiFetch\\.js$": "<rootDir>/src/public/utils/__mocks__/apiFetch.cjs"
