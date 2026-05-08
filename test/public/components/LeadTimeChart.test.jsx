@@ -361,7 +361,16 @@ describe('LeadTimeChart', () => {
     await expect(user.click(screen.getByRole('button', { name: 'Export PNG' }))).resolves.not.toThrow();
   });
 
-  test('shows P90 by default', async () => {
+  test('shows P90 by default when showP90 prop is true', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} showP90={true} /></ThemeProvider>);
+    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
+    expect(chartData.datasets.map(d => d.label)).toContain('P90');
+  });
+
+  test('shows P90 by default when showP90 prop is omitted', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
     render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
@@ -370,21 +379,10 @@ describe('LeadTimeChart', () => {
     expect(chartData.datasets.map(d => d.label)).toContain('P90');
   });
 
-  test('Hide P90 button is visible when chart data is loaded', async () => {
+  test('hides P90 dataset when showP90 prop is false', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
-    await waitFor(() => expect(screen.getByTestId('lead-time-line-chart')).toBeInTheDocument());
-
-    expect(screen.getByRole('button', { name: /hide p90/i })).toBeInTheDocument();
-  });
-
-  test('clicking Hide P90 removes P90 dataset from chart', async () => {
-    const user = userEvent.setup();
-    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} showP90={false} /></ThemeProvider>);
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
-
-    await user.click(screen.getByRole('button', { name: /hide p90/i }));
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
     expect(chartData.datasets.map(d => d.label)).not.toContain('P90');
@@ -392,41 +390,16 @@ describe('LeadTimeChart', () => {
     expect(chartData.datasets.map(d => d.label)).toContain('P50');
   });
 
-  test('clicking Hide P90 then Show P90 restores P90 dataset', async () => {
-    const user = userEvent.setup();
+  test('updates displayed datasets when showP90 prop changes', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
+    const { rerender } = render(
+      <ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} showP90={true} /></ThemeProvider>
+    );
     await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: /hide p90/i }));
-    await user.click(screen.getByRole('button', { name: /show p90/i }));
-
-    const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
-    expect(chartData.datasets.map(d => d.label)).toContain('P90');
-  });
-
-  test('P90 toggle state persists to localStorage', async () => {
-    const user = userEvent.setup();
-    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
-    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
-
-    await user.click(screen.getByRole('button', { name: /hide p90/i }));
-
-    expect(localStorage.setItem).toHaveBeenCalledWith('chart-show-p90-lead-time', 'false');
-  });
-
-  test('loads P90 hidden state from localStorage on mount', async () => {
-    Storage.prototype.getItem = jest.fn((key) => {
-      if (key === 'chart-show-p90-lead-time') return 'false';
-      return null;
-    });
-    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} /></ThemeProvider>);
-    await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+    rerender(<ThemeProvider theme={theme}><LeadTimeChart selectedIterations={mockIterations} showP90={false} /></ThemeProvider>);
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
     expect(chartData.datasets.map(d => d.label)).not.toContain('P90');
-    expect(screen.getByRole('button', { name: /show p90/i })).toBeInTheDocument();
   });
 });

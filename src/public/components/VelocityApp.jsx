@@ -169,6 +169,7 @@ const AnnotationToggleButton = styled.button`
  */
 const STORAGE_KEY = 'gitlab-metrics-selected-iterations';
 const SHOW_ANNOTATIONS_KEY = 'show-annotations';
+const SHOW_P90_KEY = 'chart-show-p90';
 
 export default function VelocityApp() {
   const { credentials, setCredentials } = useCredentials();
@@ -187,6 +188,14 @@ export default function VelocityApp() {
   const [showAnnotations, setShowAnnotations] = useState(() => {
     try {
       const stored = localStorage.getItem(SHOW_ANNOTATIONS_KEY);
+      return stored === null ? true : stored !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const [showP90, setShowP90] = useState(() => {
+    try {
+      const stored = localStorage.getItem(SHOW_P90_KEY);
       return stored === null ? true : stored !== 'false';
     } catch {
       return true;
@@ -439,6 +448,21 @@ export default function VelocityApp() {
   }, []);
 
   /**
+   * Toggle P90 visibility on Cycle Time and Lead Time charts and persist the preference
+   */
+  const handleToggleP90 = useCallback(() => {
+    setShowP90(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SHOW_P90_KEY, String(next));
+      } catch {
+        // Ignore write errors
+      }
+      return next;
+    });
+  }, []);
+
+  /**
    * Toggle annotation visibility on all charts and persist the preference
    */
   const handleToggleAnnotations = useCallback(() => {
@@ -506,6 +530,9 @@ export default function VelocityApp() {
                 <>
                   <MetricsSummary selectedIterations={displayedIterations} />
                   <ChartsToolbar>
+                    <AnnotationToggleButton onClick={handleToggleP90}>
+                      {showP90 ? 'P90: On' : 'P90: Off'}
+                    </AnnotationToggleButton>
                     <AnnotationToggleButton onClick={handleToggleAnnotations}>
                       {showAnnotations ? 'Annotations: On' : 'Annotations: Off'}
                     </AnnotationToggleButton>
@@ -526,6 +553,7 @@ export default function VelocityApp() {
                   selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                   showAnnotations={showAnnotations}
+                  showP90={showP90}
                 />
               </ChartCard>
 
@@ -544,6 +572,7 @@ export default function VelocityApp() {
                   selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
                   showAnnotations={showAnnotations}
+                  showP90={showP90}
                 />
               </ChartCard>
 
