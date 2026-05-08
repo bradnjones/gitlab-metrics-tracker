@@ -4,6 +4,16 @@ Stories are prepended to this file (most recent at top).
 
 ---
 
+## Bug Fixes & Improvements
+
+### 2026-05-08 - PR #151 - Add P90 toggle to Cycle Time and Lead Time charts
+- Added "Hide P90" / "Show P90" button to chart toolbars on both Cycle Time and Lead Time charts
+- Filtering the P90 dataset out entirely causes Chart.js to auto-rescale the y-axis, making Avg/P50 fluctuations visible when P90 outliers are extreme
+- Toggle state persists independently per chart in localStorage (`chart-show-p90-cycle-time`, `chart-show-p90-lead-time`)
+- 10 new tests added (5 per chart); all 1084 tests pass
+
+---
+
 ## Template
 
 ```markdown

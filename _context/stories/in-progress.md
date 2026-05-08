@@ -1,42 +1,5 @@
 # In Progress
 
-## P90 Toggle on Cycle Time & Lead Time Charts
-
-**Started:** 2026-05-08
-**Status:** Plan approved, implementation pending
-**Type:** Small enhancement (not a vertical slice story)
-
-### Problem
-P90 values can dwarf Avg/P50 (see Cycle Time chart with peaks at ~130 days vs Avg/P50 in single digits), flattening the rest of the lines and hiding their fluctuations. User wants to toggle P90 off so the y-axis rescales to show Avg/P50 detail.
-
-### Scope
-- `src/public/components/CycleTimeChart.jsx`
-- `src/public/components/LeadTimeChart.jsx`
-
-(Velocity / Throughput charts have no P90 — out of scope.)
-
-### Implementation Plan
-1. Add a "Hide P90" / "Show P90" toggle button in the chart toolbar next to "Export PNG" on both charts.
-2. Persist toggle per-chart in `localStorage`:
-   - `chart-show-p90-cycle-time`
-   - `chart-show-p90-lead-time`
-3. When P90 is hidden, filter the P90 dataset out of `chartData.datasets` via `useMemo`. Chart.js auto-rescales the y-axis when datasets shrink — that's what gives the zoom-in on Avg/P50.
-4. Tests on both `CycleTimeChart.test.jsx` and `LeadTimeChart.test.jsx`:
-   - Toggle hides P90 dataset from chart data
-   - Preference persists in localStorage
-   - Default = show P90 (preserves current behavior)
-
-### Key Decisions
-- **Filter dataset out** (don't use Chart.js `hidden: true`) → P90 disappears from the legend entirely, so the explicit button is the single control surface (no redundancy with Chart.js's clickable legend).
-- **Per-chart toggle state** (independent) → Cycle Time and Lead Time have different data shapes; user may want one hidden but not the other.
-- **Hardcode target on dataset label `'P90'`** → only 2 charts, only 1 outlier line; a generalized "toggle any dataset" abstraction would be premature.
-
-### Out of Scope
-- Refactoring the duplicated logic between `CycleTimeChart` and `LeadTimeChart` into a shared hook. That's pre-existing tech debt; bundling a refactor here would bloat the PR.
-- Toggle for other dataset types (Avg, P50) — no demonstrated need.
-
----
-
 ## No Story Currently In Progress
 
 The project has been restructured from horizontal architectural layers to vertical slices. See `backlog.md` for the new vertical slice stories (V1-V7).
