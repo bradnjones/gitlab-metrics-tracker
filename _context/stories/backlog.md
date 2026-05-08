@@ -2010,23 +2010,23 @@ V1 (Velocity) ✅
 ## 📊 Performance Investigation Results
 
 **Investigation Date:** 2025-11-13
-**Location:** `_performance-investigation/` directory
+**Location:** `_archived/performance-investigation-2025-11/` directory
 **Problem:** Dashboard takes 10+ seconds to load 6 iterations
 **Root Cause:** GitLab GraphQL API notes fetching (88% of query time)
 **Solution:** Persistent file-based caching (Stories V8-V9.3)
 
 **Key Documents:**
-- **Start here:** `_performance-investigation/README.md` - Investigation overview
-- **Executive summary:** `_performance-investigation/docs/PERFORMANCE-SOLUTION-SUMMARY.md`
-- **Story reference:** `_performance-investigation/docs/CACHING-STORIES-SUMMARY.md`
-- **Full analysis:** `_performance-investigation/docs/PERFORMANCE-ANALYSIS-REPORT.md`
-- **Architecture:** `_performance-investigation/docs/ARCHITECTURAL-CACHING-INVESTIGATION.md`
-- **Roadmap:** `_performance-investigation/docs/CACHING-IMPLEMENTATION-ROADMAP.md`
+- **Start here:** `_archived/performance-investigation-2025-11/README.md` - Investigation overview
+- **Executive summary:** `_archived/performance-investigation-2025-11/docs/PERFORMANCE-SOLUTION-SUMMARY.md`
+- **Story reference:** `_archived/performance-investigation-2025-11/docs/CACHING-STORIES-SUMMARY.md`
+- **Full analysis:** `_archived/performance-investigation-2025-11/docs/PERFORMANCE-ANALYSIS-REPORT.md`
+- **Architecture:** `_archived/performance-investigation-2025-11/docs/ARCHITECTURAL-CACHING-INVESTIGATION.md`
+- **Roadmap:** `_archived/performance-investigation-2025-11/docs/CACHING-IMPLEMENTATION-ROADMAP.md`
 
 **Performance Testing:**
-- `_performance-investigation/scripts/performance-test.js` - Current baseline testing
-- `_performance-investigation/scripts/cache-poc-test.js` - Cache proof-of-concept
-- `_performance-investigation/scripts/rest-api-investigation.sh` - REST API comparison
+- `_archived/performance-investigation-2025-11/scripts/performance-test.js` - Current baseline testing
+- `_archived/performance-investigation-2025-11/scripts/cache-poc-test.js` - Cache proof-of-concept
+- `_archived/performance-investigation-2025-11/scripts/rest-api-investigation.sh` - REST API comparison
 
 **Expected Results:**
 - First load (cold cache): ~10s (same as current)
