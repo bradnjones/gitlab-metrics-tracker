@@ -2,10 +2,15 @@
  * @jest-environment jsdom
  */
 import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
-import { ThemeProvider } from 'styled-components';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DeploymentFrequencyChart from '../../../src/public/components/DeploymentFrequencyChart.jsx';
+import {
+  defaultTheme,
+  setupChartMocks,
+  mockUseAnnotations,
+  renderWithTheme,
+} from '../setup/chartTestHelpers.js';
 
 // Mock Chart.js
 jest.mock('react-chartjs-2', () => {
@@ -32,8 +37,43 @@ jest.mock('../../../src/public/utils/controlLimits.js', () => ({
 
 // Mock useAnnotations hook
 jest.mock('../../../src/public/hooks/useAnnotations.js', () => ({
-  useAnnotations: jest.fn(() => ({ annotations: {}, loading: false, error: null }))
+  useAnnotations: jest.fn(() => mockUseAnnotations())
 }));
+
+// Mock buildControlLimitAnnotations — pure util, chart tests don't assert on annotation output
+jest.mock('../../../src/public/utils/buildControlLimitAnnotations.js', () => ({
+  default: jest.fn(() => ({})),
+}));
+
+// Mock useChartState hook — uses real React hooks so component state works
+jest.mock('../../../src/public/hooks/useChartState.js', () => {
+  const { useState, useEffect, useMemo, useRef } = require('react');
+  return {
+    useChartState(iterations = []) {
+      const [chartData, setChartData] = useState(null);
+      const [controlLimits, setControlLimits] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [excludedIterationIds, setExcludedIterationIds] = useState([]);
+      const [isEnlarged, setIsEnlarged] = useState(false);
+      const chartRef = useRef(null);
+      useEffect(() => {
+        if (!iterations || iterations.length === 0) return;
+        const currentIds = iterations.map(iter => iter.id);
+        const valid = excludedIterationIds.filter(id => currentIds.includes(id));
+        if (valid.length !== excludedIterationIds.length) setExcludedIterationIds(valid);
+      }, [iterations]); // eslint-disable-line react-hooks/exhaustive-deps
+      const visibleIterations = useMemo(
+        () => iterations.filter(iter => !excludedIterationIds.includes(iter.id)),
+        [iterations, excludedIterationIds]
+      );
+      const iterationIds = useMemo(() => visibleIterations.map(iter => iter.id), [visibleIterations]);
+      return { chartData, setChartData, controlLimits, setControlLimits, loading, setLoading,
+        error, setError, excludedIterationIds, setExcludedIterationIds, isEnlarged, setIsEnlarged,
+        chartRef, visibleIterations, iterationIds };
+    }
+  };
+});
 
 // Mock useChartFilters hook — replicates localStorage behaviour that chart tests assert on
 jest.mock('../../../src/public/hooks/useChartFilters.js', () => {
@@ -74,21 +114,11 @@ jest.mock('../../../src/public/components/ChartFilterDropdown.jsx', () => {
   ));
 });
 
-const theme = {
-  colors: { bgPrimary: '#ffffff', textPrimary: '#1f2937' },
-  spacing: { sm: '0.5rem', md: '1rem' },
-  typography: { fontSize: { sm: '0.875rem', base: '1rem' } },
-};
-
 describe('DeploymentFrequencyChart', () => {
   let mockFetch;
 
   beforeEach(() => {
-    Storage.prototype.getItem = jest.fn(() => null);
-    Storage.prototype.setItem = jest.fn();
-    Storage.prototype.removeItem = jest.fn();
-    mockFetch = jest.fn();
-    global.fetch = mockFetch;
+    ({ mockFetch } = setupChartMocks());
   });
 
   afterEach(() => {
@@ -108,31 +138,19 @@ describe('DeploymentFrequencyChart', () => {
   };
 
   test('renders empty state when no iterations selected', () => {
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={[]} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={[]} />);
     expect(screen.getByText(/Select iterations to view deployment frequency/i)).toBeInTheDocument();
   });
 
   test('renders loading state while fetching data', async () => {
     mockFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ ok: true, json: async () => mockApiResponse }), 100)));
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
     expect(screen.getByText(/Loading deployment frequency data/i)).toBeInTheDocument();
   });
 
   test('renders error state when API call fails', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
     await waitFor(() => {
       expect(screen.getByText(/Error loading deployment frequency data/i)).toBeInTheDocument();
     });
@@ -140,11 +158,7 @@ describe('DeploymentFrequencyChart', () => {
 
   test('renders chart with deployment frequency data on successful fetch', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
     await waitFor(() => {
       expect(screen.getByTestId('deployment-frequency-bar-chart')).toBeInTheDocument();
     });
@@ -152,11 +166,7 @@ describe('DeploymentFrequencyChart', () => {
 
   test('calls API with correct iteration IDs', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/metrics/deployment-frequency?iterations=gid://gitlab/Iteration/1,gid://gitlab/Iteration/2'
@@ -167,11 +177,7 @@ describe('DeploymentFrequencyChart', () => {
   test('handles filter change and re-fetches data', async () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
     await waitFor(() => expect(screen.getByTestId('deployment-frequency-bar-chart')).toBeInTheDocument());
     mockFetch.mockClear();
     await user.click(screen.getByText('Exclude Sprint 1'));
@@ -182,16 +188,10 @@ describe('DeploymentFrequencyChart', () => {
 
   test('clears chart data when iterations are removed', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    const { rerender } = renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
     await waitFor(() => expect(screen.getByTestId('deployment-frequency-bar-chart')).toBeInTheDocument());
     rerender(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={[]} />
-      </ThemeProvider>
+      <DeploymentFrequencyChart selectedIterations={[]} />
     );
     expect(screen.getByText(/Select iterations to view deployment frequency/i)).toBeInTheDocument();
   });
@@ -205,11 +205,7 @@ describe('DeploymentFrequencyChart', () => {
     });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('deployment-frequency-bar-chart')).toBeInTheDocument();
@@ -236,11 +232,7 @@ describe('DeploymentFrequencyChart', () => {
     });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
 
     // Assert - Should call API with only non-excluded iteration
     await waitFor(() => {
@@ -257,10 +249,8 @@ describe('DeploymentFrequencyChart', () => {
       json: async () => mockApiResponse,
     });
 
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} annotationRefreshKey={0} />
-      </ThemeProvider>
+    const { rerender } = renderWithTheme(
+      <DeploymentFrequencyChart selectedIterations={mockIterations} annotationRefreshKey={0} />
     );
 
     await waitFor(() => {
@@ -271,13 +261,13 @@ describe('DeploymentFrequencyChart', () => {
 
     // Act - Change annotationRefreshKey (simulates annotation update)
     rerender(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} annotationRefreshKey={1} />
-      </ThemeProvider>
+      <DeploymentFrequencyChart selectedIterations={mockIterations} annotationRefreshKey={1} />
     );
 
     // Assert - The annotationRefreshKey is passed to useAnnotations, component still renders
-    expect(screen.getByTestId('deployment-frequency-bar-chart')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('deployment-frequency-bar-chart')).toBeInTheDocument();
+    });
   });
 
   test('handles localStorage read errors gracefully', async () => {
@@ -291,11 +281,7 @@ describe('DeploymentFrequencyChart', () => {
       json: async () => mockApiResponse
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled();
@@ -313,16 +299,10 @@ describe('DeploymentFrequencyChart', () => {
   test('handles all iterations being filtered out', async () => {
     const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
 
-    const { rerender } = render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    const { rerender } = renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
 
     rerender(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={[]} />
-      </ThemeProvider>
+      <DeploymentFrequencyChart selectedIterations={[]} />
     );
 
     expect(screen.getByText(/select iterations to view deployment frequency metrics/i)).toBeInTheDocument();
@@ -338,11 +318,7 @@ describe('DeploymentFrequencyChart', () => {
       status: 500
     });
 
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
 
     await waitFor(() => {
       expect(screen.getByText(/error loading deployment frequency data/i)).toBeInTheDocument();
@@ -356,11 +332,7 @@ describe('DeploymentFrequencyChart', () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
 
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={mockIterations} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
 
     // Assert
     await waitFor(() => {
@@ -370,11 +342,7 @@ describe('DeploymentFrequencyChart', () => {
 
   test('does not render Export PNG button in empty state', () => {
     // Act
-    render(
-      <ThemeProvider theme={theme}>
-        <DeploymentFrequencyChart selectedIterations={[]} />
-      </ThemeProvider>
-    );
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={[]} />);
 
     // Assert
     expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument();
@@ -383,10 +351,31 @@ describe('DeploymentFrequencyChart', () => {
   test('Export PNG button triggers download with correct filename', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
 
-    render(<ThemeProvider theme={theme}><DeploymentFrequencyChart selectedIterations={mockIterations} /></ThemeProvider>);
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument());
 
     const user = userEvent.setup();
     await expect(user.click(screen.getByRole('button', { name: 'Export PNG' }))).resolves.not.toThrow();
+  });
+
+  test('reset filter button clears excluded iteration IDs', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+    renderWithTheme(<DeploymentFrequencyChart selectedIterations={mockIterations} />);
+    await waitFor(() => expect(screen.getByTestId('deployment-frequency-bar-chart')).toBeInTheDocument());
+
+    // Exclude an iteration then reset
+    await user.click(screen.getByText('Exclude Sprint 1'));
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/metrics/deployment-frequency?iterations=gid://gitlab/Iteration/2');
+    });
+
+    mockFetch.mockClear();
+    await user.click(screen.getByText('Reset Filter'));
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/metrics/deployment-frequency?iterations=gid://gitlab/Iteration/1,gid://gitlab/Iteration/2'
+      );
+    });
   });
 });
