@@ -43,6 +43,8 @@
     "react": "^18.2.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.2.0",
+    "react-markdown": "^8.0.7",
+    "remark-gfm": "^3.0.1",
     "simple-statistics": "^7.8.0",
     "styled-components": "^6.1.0"
   },
@@ -83,8 +85,11 @@
       "^\\.\\./utils/exportChart\\.js$": "<rootDir>/src/public/utils/__mocks__/exportChart.cjs",
       "^\\.\\./utils/apiFetch\\.js$": "<rootDir>/src/public/utils/__mocks__/apiFetch.cjs",
       "^\\.\\./hooks/useChartState\\.js$": "<rootDir>/src/public/hooks/__mocks__/useChartState.cjs",
+      "^\\.\\./hooks/useAIReview\\.js$": "<rootDir>/src/public/hooks/__mocks__/useAIReview.cjs",
       "^\\.\\./utils/buildControlLimitAnnotations\\.js$": "<rootDir>/src/public/utils/__mocks__/buildControlLimitAnnotations.cjs",
-      "^.*chartTestHelpers\\.js$": "<rootDir>/test/public/setup/chartTestHelpers.cjs"
+      "^.*chartTestHelpers\\.js$": "<rootDir>/test/public/setup/chartTestHelpers.cjs",
+      "^react-markdown$": "<rootDir>/src/public/utils/__mocks__/react-markdown.cjs",
+      "^remark-gfm$": "<rootDir>/src/public/utils/__mocks__/remark-gfm.cjs"
     },
     "setupFilesAfterEnv": [
       "<rootDir>/src/test/setup.js"
