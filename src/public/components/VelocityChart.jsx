@@ -26,7 +26,6 @@ import {
   ErrorMessage,
   EmptyState,
   ChartContainer,
-  ChartToolbar,
   ExportButton,
   FilterContainer
 } from './chart-shared.jsx';
@@ -280,6 +279,7 @@ const VelocityChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
   return (
     <Container>
       <FilterContainer>
+        {chartData && <ExportButton onClick={handleExport}>Export PNG</ExportButton>}
         <ChartFilterDropdown
           availableIterations={selectedIterations}
           excludedIterationIds={excludedIterationIds}
@@ -290,9 +290,6 @@ const VelocityChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
       </FilterContainer>
       {chartData && (
         <>
-          <ChartToolbar>
-            <ExportButton onClick={handleExport}>Export PNG</ExportButton>
-          </ChartToolbar>
           <ChartContainer
             onClick={() => setIsEnlarged(true)}
             role="button"

@@ -34,7 +34,6 @@ import {
   ErrorMessage,
   EmptyState,
   ChartContainer,
-  ChartToolbar,
   ExportButton,
   FilterContainer,
 } from './chart-shared.jsx';
@@ -276,6 +275,7 @@ const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnno
   return (
     <Container role="region" aria-label="Mean Time To Recovery Metrics Chart">
       <FilterContainer>
+        {chartData && <ExportButton onClick={handleExport}>Export PNG</ExportButton>}
         <ChartFilterDropdown
           availableIterations={selectedIterations}
           excludedIterationIds={excludedIterationIds}
@@ -286,9 +286,6 @@ const MTTRChart = ({ selectedIterations = [], annotationRefreshKey = 0, showAnno
       </FilterContainer>
       {chartData && (
         <>
-          <ChartToolbar>
-            <ExportButton onClick={handleExport}>Export PNG</ExportButton>
-          </ChartToolbar>
           <ChartContainer
             onClick={() => setIsEnlarged(true)}
             role="button"

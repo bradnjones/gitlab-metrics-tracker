@@ -25,7 +25,6 @@ import {
   ErrorMessage,
   EmptyState,
   ChartContainer,
-  ChartToolbar,
   ExportButton,
   FilterContainer,
 } from './chart-shared.jsx';
@@ -362,6 +361,7 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
   return (
     <Container role="region" aria-label="Lead Time Metrics Chart">
       <FilterContainer>
+        {displayedChartData && <ExportButton onClick={handleExport}>Export PNG</ExportButton>}
         <ChartFilterDropdown
           availableIterations={selectedIterations}
           excludedIterationIds={excludedIterationIds}
@@ -372,9 +372,6 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
       </FilterContainer>
       {displayedChartData && (
         <>
-          <ChartToolbar>
-            <ExportButton onClick={handleExport}>Export PNG</ExportButton>
-          </ChartToolbar>
           <ChartContainer
             onClick={() => setIsEnlarged(true)}
             role="button"

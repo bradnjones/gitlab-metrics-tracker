@@ -24,7 +24,6 @@ import {
   ErrorMessage,
   EmptyState,
   ChartContainer,
-  ChartToolbar,
   ExportButton,
   FilterContainer,
 } from './chart-shared.jsx';
@@ -273,6 +272,7 @@ const DeploymentFrequencyChart = ({ selectedIterations = [], annotationRefreshKe
   return (
     <Container role="region" aria-label="Deployment Frequency Metrics Chart">
       <FilterContainer>
+        {chartData && <ExportButton onClick={handleExport}>Export PNG</ExportButton>}
         <ChartFilterDropdown
           availableIterations={selectedIterations}
           excludedIterationIds={excludedIterationIds}
@@ -283,9 +283,6 @@ const DeploymentFrequencyChart = ({ selectedIterations = [], annotationRefreshKe
       </FilterContainer>
       {chartData && (
         <>
-          <ChartToolbar>
-            <ExportButton onClick={handleExport}>Export PNG</ExportButton>
-          </ChartToolbar>
           <ChartContainer
             onClick={() => setIsEnlarged(true)}
             role="button"

@@ -24,7 +24,6 @@ import {
   ErrorMessage,
   EmptyState,
   ChartContainer,
-  ChartToolbar,
   ExportButton,
   FilterContainer,
 } from './chart-shared.jsx';
@@ -272,6 +271,7 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
   return (
     <Container role="region" aria-label="Change Failure Rate Metrics Chart">
       <FilterContainer>
+        {chartData && <ExportButton onClick={handleExport}>Export PNG</ExportButton>}
         <ChartFilterDropdown
           availableIterations={selectedIterations}
           excludedIterationIds={excludedIterationIds}
@@ -282,9 +282,6 @@ const ChangeFailureRateChart = ({ selectedIterations = [], annotationRefreshKey 
       </FilterContainer>
       {chartData && (
         <>
-          <ChartToolbar>
-            <ExportButton onClick={handleExport}>Export PNG</ExportButton>
-          </ChartToolbar>
           <ChartContainer
             onClick={() => setIsEnlarged(true)}
             role="button"

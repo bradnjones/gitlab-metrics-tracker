@@ -27,7 +27,6 @@ import {
   ErrorMessage,
   EmptyState,
   ChartContainer,
-  ChartToolbar,
   ExportButton,
   FilterContainer,
 } from './chart-shared.jsx';
@@ -382,6 +381,7 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
   return (
     <Container role="region" aria-label="Cycle Time Metrics Chart">
       <FilterContainer>
+        {displayedChartData && <ExportButton onClick={handleExport}>Export PNG</ExportButton>}
         <ChartFilterDropdown
           availableIterations={selectedIterations}
           excludedIterationIds={excludedIterationIds}
@@ -392,9 +392,6 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
       </FilterContainer>
       {displayedChartData && (
         <>
-          <ChartToolbar>
-            <ExportButton onClick={handleExport}>Export PNG</ExportButton>
-          </ChartToolbar>
           <ChartContainer
             onClick={() => setIsEnlarged(true)}
             role="button"
