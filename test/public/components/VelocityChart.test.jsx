@@ -460,9 +460,9 @@ describe('VelocityChart', () => {
   });
 
   /**
-   * Test: showAnnotations=false suppresses annotation plugin even when annotations exist
+   * Test: showAnnotations=false suppresses only custom event annotations, not UCL/LCL
    */
-  test('omits annotation plugin config when showAnnotations is false', async () => {
+  test('omits custom event annotations but keeps control limits when showAnnotations is false', async () => {
     // Arrange - non-empty annotation present, but toggle is off
     useAnnotations.mockReturnValue({
       annotations: { event1: { type: 'line', xMin: '1/14', xMax: '1/14' } },
@@ -484,9 +484,14 @@ describe('VelocityChart', () => {
       expect(screen.getByTestId('velocity-line-chart')).toBeInTheDocument();
     });
 
-    // Assert - options should NOT have annotation plugin set
+    // Assert - control limit annotations (UCL/LCL/average) still present; custom event excluded
     const chartOptions = JSON.parse(screen.getByTestId('chart-options').textContent);
-    expect(chartOptions.plugins.annotation).toBeUndefined();
+    const annotations = chartOptions.plugins.annotation?.annotations;
+    expect(annotations).toBeDefined();
+    expect(annotations.upperLimit).toBeDefined();
+    expect(annotations.lowerLimit).toBeDefined();
+    expect(annotations.average).toBeDefined();
+    expect(annotations.event1).toBeUndefined();
   });
 
   test('renders Export PNG button when chart data is available', async () => {

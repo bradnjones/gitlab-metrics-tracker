@@ -232,14 +232,13 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
       }
     };
 
-    // Build annotation config by merging control limits and event annotations
+    // Control limits always shown; custom event annotations toggled by showAnnotations
     const allAnnotations = {
-      ...eventAnnotations,
+      ...(showAnnotations ? eventAnnotations : {}),
       ...buildControlLimitAnnotations(limits),
     };
 
-    // Set annotations if we have any and annotations are visible
-    if (showAnnotations && Object.keys(allAnnotations).length > 0) {
+    if (Object.keys(allAnnotations).length > 0) {
       options.plugins.annotation = { annotations: allAnnotations };
     }
 

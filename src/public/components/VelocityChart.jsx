@@ -209,14 +209,13 @@ const VelocityChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
       }
     };
 
-    // Build annotation config by merging control limits and event annotations
+    // Control limits always shown; custom event annotations toggled by annotationsVisible
     const allAnnotations = {
-      ...eventAnnotations,
+      ...(annotationsVisible ? eventAnnotations : {}),
       ...buildControlLimitAnnotations(limits),
     };
 
-    // Set annotations if we have any and annotations are visible
-    if (annotationsVisible && Object.keys(allAnnotations).length > 0) {
+    if (Object.keys(allAnnotations).length > 0) {
       options.plugins.annotation = {
         annotations: allAnnotations
       };
