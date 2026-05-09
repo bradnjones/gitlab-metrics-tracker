@@ -148,11 +148,12 @@ export class ServiceFactory {
    * Returns null (rather than throwing) so the rest of the app can start normally
    * without LLM credentials.
    *
+   * @param {string} [apiKey] - Anthropic API key from the request header
    * @returns {AnthropicLLMClient|null}
    */
-  static createLLMClient() {
+  static createLLMClient(apiKey) {
     try {
-      return new AnthropicLLMClient();
+      return new AnthropicLLMClient(apiKey);
     } catch (err) {
       if (err instanceof LLMNotConfiguredError) return null;
       throw err;
@@ -164,13 +165,13 @@ export class ServiceFactory {
    * If the LLM is not configured, llmClient will be null and analyze() will
    * throw LLMNotConfiguredError at call time (not at construction time).
    *
-   * @param {Object} [config] - GitLab configuration (token, projectPath, url)
+   * @param {Object} [config] - Configuration (gitlabToken, projectPath, anthropicApiKey)
    * @returns {MetricAnalysisService}
    */
   static createMetricAnalysisService(config = {}) {
     const metricsService = this.createMetricsService(config);
     const annotationsRepository = this.createAnnotationsRepository();
-    const llmClient = this.createLLMClient();
+    const llmClient = this.createLLMClient(config.anthropicApiKey);
     const analysesRepository = this.createAnalysesRepository();
     return new MetricAnalysisService({
       metricsService,

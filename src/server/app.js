@@ -197,10 +197,11 @@ export function createApp() {
     }));
   }
 
-  // Per-request GitLab credentials — read from headers only (never from env)
+  // Per-request credentials — read from headers only (never from env)
   app.use('/api', (req, res, next) => {
     req.gitlabToken = req.headers['x-gitlab-token'];
     req.gitlabProject = req.headers['x-gitlab-project'];
+    req.anthropicApiKey = req.headers['x-anthropic-key'];
     next();
   });
 

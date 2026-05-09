@@ -59,10 +59,10 @@ function validateChatMessage(req, res, next) {
  * Attaches the client to req.llmClient for downstream use.
  */
 function requireLLMClient(req, res, next) {
-  const llmClient = ServiceFactory.createLLMClient();
+  const llmClient = ServiceFactory.createLLMClient(req.anthropicApiKey);
   if (!llmClient) {
     return res.status(503).json({
-      error: 'AI review is not configured — set ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true',
+      error: 'AI review is not configured — set AI_REVIEW_ENABLED=true and add your Anthropic API key in Settings',
     });
   }
   req.llmClient = llmClient;
@@ -79,16 +79,17 @@ function requireLLMClient(req, res, next) {
 router.post('/review/stream', validateIterationIds, reviewLimiter, async (req, res) => {
   const { iterationIds } = req.body;
 
-  const llmClient = ServiceFactory.createLLMClient();
+  const llmClient = ServiceFactory.createLLMClient(req.anthropicApiKey);
   if (!llmClient) {
     return res.status(503).json({
-      error: 'AI review is not configured — set ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true',
+      error: 'AI review is not configured — set AI_REVIEW_ENABLED=true and add your Anthropic API key in Settings',
     });
   }
 
   const service = ServiceFactory.createMetricAnalysisService({
     gitlabToken: req.gitlabToken,
     projectPath: req.gitlabProject,
+    anthropicApiKey: req.anthropicApiKey,
   });
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -127,10 +128,10 @@ router.post('/review', validateIterationIds, reviewLimiter, async (req, res) => 
   const { iterationIds } = req.body;
 
   // Gate on LLM availability — createLLMClient returns null when not configured
-  const llmClient = ServiceFactory.createLLMClient();
+  const llmClient = ServiceFactory.createLLMClient(req.anthropicApiKey);
   if (!llmClient) {
     return res.status(503).json({
-      error: 'AI review is not configured — set ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true',
+      error: 'AI review is not configured — set AI_REVIEW_ENABLED=true and add your Anthropic API key in Settings',
     });
   }
 
@@ -138,6 +139,7 @@ router.post('/review', validateIterationIds, reviewLimiter, async (req, res) => 
   const service = ServiceFactory.createMetricAnalysisService({
     gitlabToken: req.gitlabToken,
     projectPath: req.gitlabProject,
+    anthropicApiKey: req.anthropicApiKey,
   });
 
   try {
@@ -179,6 +181,7 @@ router.post('/:id/chat', validateChatMessage, requireLLMClient, reviewLimiter, a
   const service = ServiceFactory.createMetricAnalysisService({
     gitlabToken: req.gitlabToken,
     projectPath: req.gitlabProject,
+    anthropicApiKey: req.anthropicApiKey,
   });
 
   res.setHeader('Content-Type', 'text/event-stream');

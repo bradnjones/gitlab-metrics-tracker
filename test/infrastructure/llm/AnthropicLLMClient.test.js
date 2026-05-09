@@ -48,25 +48,23 @@ describe('AnthropicLLMClient', () => {
   beforeEach(() => {
     mockCreate.mockReset();
     mockStream.mockReset();
-    delete process.env.ANTHROPIC_API_KEY;
     delete process.env.ANTHROPIC_MODEL;
     delete process.env.AI_REVIEW_ENABLED;
   });
 
   describe('constructor / LLMNotConfiguredError', () => {
-    it('throws LLMNotConfiguredError when ANTHROPIC_API_KEY is missing', () => {
+    it('throws LLMNotConfiguredError when no API key is provided', () => {
+      process.env.AI_REVIEW_ENABLED = 'true';
       expect(() => new AnthropicLLMClient()).toThrow(LLMNotConfiguredError);
     });
 
     it('throws LLMNotConfiguredError when AI_REVIEW_ENABLED is not "true"', () => {
-      process.env.ANTHROPIC_API_KEY = 'sk-test';
-      expect(() => new AnthropicLLMClient()).toThrow(LLMNotConfiguredError);
+      expect(() => new AnthropicLLMClient('sk-test')).toThrow(LLMNotConfiguredError);
     });
 
-    it('constructs successfully when both flags are set', () => {
-      process.env.ANTHROPIC_API_KEY = 'sk-test';
+    it('constructs successfully when API key is provided and AI_REVIEW_ENABLED is true', () => {
       process.env.AI_REVIEW_ENABLED = 'true';
-      expect(() => new AnthropicLLMClient()).not.toThrow();
+      expect(() => new AnthropicLLMClient('sk-test')).not.toThrow();
     });
   });
 
@@ -74,9 +72,8 @@ describe('AnthropicLLMClient', () => {
     let client;
 
     beforeEach(() => {
-      process.env.ANTHROPIC_API_KEY = 'sk-test';
       process.env.AI_REVIEW_ENABLED = 'true';
-      client = new AnthropicLLMClient();
+      client = new AnthropicLLMClient('sk-test');
     });
 
     it('uses claude-sonnet-4-6 as the default model', async () => {
@@ -91,8 +88,7 @@ describe('AnthropicLLMClient', () => {
 
     it('uses ANTHROPIC_MODEL env var when set', async () => {
       process.env.ANTHROPIC_MODEL = 'claude-opus-4-7';
-      // Re-instantiate so constructor picks up the new env var
-      const overrideClient = new AnthropicLLMClient();
+      const overrideClient = new AnthropicLLMClient('sk-test');
       mockCreate.mockResolvedValue(makeSuccessResponse('ok', 'claude-opus-4-7'));
 
       await overrideClient.generate({ system: 'sys', user: 'usr' });
@@ -160,9 +156,8 @@ describe('AnthropicLLMClient', () => {
     let client;
 
     beforeEach(() => {
-      process.env.ANTHROPIC_API_KEY = 'sk-test';
       process.env.AI_REVIEW_ENABLED = 'true';
-      client = new AnthropicLLMClient();
+      client = new AnthropicLLMClient('sk-test');
     });
 
     it('yields delta events for each text chunk', async () => {
@@ -257,9 +252,8 @@ describe('AnthropicLLMClient', () => {
     let client;
 
     beforeEach(() => {
-      process.env.ANTHROPIC_API_KEY = 'sk-test';
       process.env.AI_REVIEW_ENABLED = 'true';
-      client = new AnthropicLLMClient();
+      client = new AnthropicLLMClient('sk-test');
     });
 
     it('yields delta and done events for a multi-turn messages array', async () => {

@@ -8,7 +8,7 @@
  * @module public/utils/apiFetch
  */
 
-/** @type {{ gitlabToken: string, projectPath: string } | null} */
+/** @type {{ gitlabToken: string, projectPath: string, anthropicApiKey?: string } | null} */
 let _credentials = null;
 
 /**
@@ -16,7 +16,7 @@ let _credentials = null;
  * Called by CredentialsContext whenever the user saves new credentials.
  * Pass null to clear (e.g. on logout).
  *
- * @param {{ gitlabToken: string, projectPath: string } | null} creds
+ * @param {{ gitlabToken: string, projectPath: string, anthropicApiKey?: string } | null} creds
  * @returns {void}
  */
 export function setCredentialsStore(creds) {
@@ -24,7 +24,7 @@ export function setCredentialsStore(creds) {
 }
 
 /**
- * Drop-in replacement for fetch() that injects GitLab credential headers.
+ * Drop-in replacement for fetch() that injects credential headers.
  * All other behaviour (method, body, existing headers) is passed through unchanged.
  *
  * @param {string} url - Request URL
@@ -39,6 +39,9 @@ export async function apiFetch(url, options = {}) {
   }
   if (_credentials?.projectPath) {
     headers['X-GitLab-Project'] = _credentials.projectPath;
+  }
+  if (_credentials?.anthropicApiKey) {
+    headers['X-Anthropic-Key'] = _credentials.anthropicApiKey;
   }
 
   return fetch(url, { ...options, headers });

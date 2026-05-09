@@ -13,7 +13,7 @@ import { setCredentialsStore } from '../utils/apiFetch.js';
 const CREDENTIALS_KEY = 'gitlab-metrics-credentials';
 
 /**
- * @typedef {{ gitlabToken: string, projectPath: string }} Credentials
+ * @typedef {{ gitlabToken: string, projectPath: string, anthropicApiKey?: string }} Credentials
  */
 
 /** @type {React.Context<{ credentials: Credentials|null, setCredentials: Function }|null>} */

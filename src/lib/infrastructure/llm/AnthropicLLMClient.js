@@ -17,7 +17,7 @@ const DEFAULT_MAX_TOKENS = 4096;
 
 /**
  * Thrown when the Anthropic client is instantiated without the required
- * environment flags (ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true).
+ * configuration (API key from request + AI_REVIEW_ENABLED=true env flag).
  */
 export class LLMNotConfiguredError extends Error {
   constructor(message) {
@@ -32,14 +32,15 @@ export class LLMNotConfiguredError extends Error {
  */
 export class AnthropicLLMClient extends ILLMClient {
   /**
-   * @throws {LLMNotConfiguredError} If ANTHROPIC_API_KEY or AI_REVIEW_ENABLED is missing
+   * @param {string} apiKey - Anthropic API key supplied by the caller (from the request header)
+   * @throws {LLMNotConfiguredError} If apiKey is missing or AI_REVIEW_ENABLED is not set
    */
-  constructor() {
+  constructor(apiKey) {
     super();
 
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!apiKey) {
       throw new LLMNotConfiguredError(
-        'ANTHROPIC_API_KEY is not set — AI review is unavailable'
+        'Anthropic API key not provided — configure it in Settings'
       );
     }
 
@@ -49,7 +50,7 @@ export class AnthropicLLMClient extends ILLMClient {
       );
     }
 
-    this._client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    this._client = new Anthropic({ apiKey });
     this._defaultModel = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
   }
 

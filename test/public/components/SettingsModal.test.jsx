@@ -97,7 +97,7 @@ describe('SettingsModal (inline view)', () => {
     await user.type(screen.getByLabelText(/Personal Access Token/i), '  glpat-abc123  ');
     await user.type(screen.getByLabelText(/Project Path/i), '  group/project  ');
     await user.click(screen.getByRole('button', { name: /^save$/i }));
-    expect(mockOnSave).toHaveBeenCalledWith({ gitlabToken: 'glpat-abc123', projectPath: 'group/project' });
+    expect(mockOnSave).toHaveBeenCalledWith({ gitlabToken: 'glpat-abc123', projectPath: 'group/project', anthropicApiKey: '' });
   });
 
   test('shows success banner after saving', async () => {
@@ -151,7 +151,7 @@ describe('SettingsModal (inline view)', () => {
       target: { value: '{"gitlabToken":"glpat-xyz","projectPath":"org/repo"}' },
     });
     await user.click(screen.getByRole('button', { name: /import & save/i }));
-    expect(mockOnSave).toHaveBeenCalledWith({ gitlabToken: 'glpat-xyz', projectPath: 'org/repo' });
+    expect(mockOnSave).toHaveBeenCalledWith({ gitlabToken: 'glpat-xyz', projectPath: 'org/repo', anthropicApiKey: '' });
   });
 
   test('shows error for invalid JSON on import', async () => {

@@ -31,7 +31,6 @@ describe('ServiceFactory — AI review methods', () => {
 
   beforeEach(() => {
     originalEnv = { ...process.env };
-    delete process.env.ANTHROPIC_API_KEY;
     delete process.env.AI_REVIEW_ENABLED;
   });
 
@@ -42,22 +41,21 @@ describe('ServiceFactory — AI review methods', () => {
   // ─── createLLMClient ───────────────────────────────────────────────────────
 
   describe('createLLMClient', () => {
-    it('returns null when ANTHROPIC_API_KEY is missing', () => {
+    it('returns null when no API key is provided', () => {
+      process.env.AI_REVIEW_ENABLED = 'true';
       const client = ServiceFactory.createLLMClient();
       expect(client).toBeNull();
     });
 
     it('returns null when AI_REVIEW_ENABLED is not "true"', () => {
-      process.env.ANTHROPIC_API_KEY = 'sk-test';
       // AI_REVIEW_ENABLED not set
-      const client = ServiceFactory.createLLMClient();
+      const client = ServiceFactory.createLLMClient('sk-test');
       expect(client).toBeNull();
     });
 
-    it('returns an LLM client instance when both flags are set', () => {
-      process.env.ANTHROPIC_API_KEY = 'sk-test';
+    it('returns an LLM client instance when API key and AI_REVIEW_ENABLED are set', () => {
       process.env.AI_REVIEW_ENABLED = 'true';
-      const client = ServiceFactory.createLLMClient();
+      const client = ServiceFactory.createLLMClient('sk-test');
       expect(client).not.toBeNull();
       expect(typeof client.generate).toBe('function');
     });

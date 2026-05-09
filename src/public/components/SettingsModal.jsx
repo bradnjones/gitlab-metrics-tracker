@@ -146,14 +146,14 @@ const ExportLabelRow = styled.div`
  * SettingsView
  *
  * @param {Object} props
- * @param {Function} props.onSave - Called with { gitlabToken, projectPath } on save
+ * @param {Function} props.onSave - Called with { gitlabToken, projectPath, anthropicApiKey? } on save
  * @param {boolean} [props.hasCredentials=false]
- * @param {{ gitlabToken: string, projectPath: string } | null} [props.currentCredentials=null]
+ * @param {{ gitlabToken: string, projectPath: string, anthropicApiKey?: string } | null} [props.currentCredentials=null]
  * @returns {JSX.Element}
  */
 export default function SettingsModal({ onSave, hasCredentials = false, currentCredentials = null }) {
   const [tab, setTab] = useState('manual');
-  const [formData, setFormData] = useState({ gitlabToken: '', projectPath: '' });
+  const [formData, setFormData] = useState({ gitlabToken: '', projectPath: '', anthropicApiKey: '' });
   const [errors, setErrors] = useState({});
   const [importJson, setImportJson] = useState('');
   const [importError, setImportError] = useState('');
@@ -173,7 +173,11 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
     if (!formData.gitlabToken.trim()) newErrors.gitlabToken = 'Personal Access Token is required';
     if (!formData.projectPath.trim()) newErrors.projectPath = 'Project path is required';
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
-    onSave({ gitlabToken: formData.gitlabToken.trim(), projectPath: formData.projectPath.trim() });
+    onSave({
+      gitlabToken: formData.gitlabToken.trim(),
+      projectPath: formData.projectPath.trim(),
+      anthropicApiKey: formData.anthropicApiKey.trim(),
+    });
     setSaved(true);
   };
 
@@ -187,7 +191,7 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
       setImportError('Invalid JSON — check the format and try again');
       return;
     }
-    const { gitlabToken, projectPath } = parsed;
+    const { gitlabToken, projectPath, anthropicApiKey } = parsed;
     if (!gitlabToken || typeof gitlabToken !== 'string') {
       setImportError('Missing or invalid "gitlabToken" field');
       return;
@@ -196,22 +200,30 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
       setImportError('Missing or invalid "projectPath" field');
       return;
     }
-    onSave({ gitlabToken: gitlabToken.trim(), projectPath: projectPath.trim() });
+    onSave({
+      gitlabToken: gitlabToken.trim(),
+      projectPath: projectPath.trim(),
+      anthropicApiKey: typeof anthropicApiKey === 'string' ? anthropicApiKey.trim() : '',
+    });
     setSaved(true);
   };
 
   const handleCopy = () => {
     if (!currentCredentials) return;
-    const json = JSON.stringify({ gitlabToken: currentCredentials.gitlabToken, projectPath: currentCredentials.projectPath }, null, 2);
-    navigator.clipboard.writeText(json).then(() => {
+    const exportObj = { gitlabToken: currentCredentials.gitlabToken, projectPath: currentCredentials.projectPath };
+    if (currentCredentials.anthropicApiKey) exportObj.anthropicApiKey = currentCredentials.anthropicApiKey;
+    navigator.clipboard.writeText(JSON.stringify(exportObj, null, 2)).then(() => {
       setCopyLabel('Copied!');
       setTimeout(() => setCopyLabel('Copy'), 2000);
     });
   };
 
-  const exportJson = currentCredentials
-    ? JSON.stringify({ gitlabToken: currentCredentials.gitlabToken, projectPath: currentCredentials.projectPath }, null, 2)
-    : '';
+  const exportJson = (() => {
+    if (!currentCredentials) return '';
+    const exportObj = { gitlabToken: currentCredentials.gitlabToken, projectPath: currentCredentials.projectPath };
+    if (currentCredentials.anthropicApiKey) exportObj.anthropicApiKey = currentCredentials.anthropicApiKey;
+    return JSON.stringify(exportObj, null, 2);
+  })();
 
   return (
     <PageContainer>
@@ -229,7 +241,8 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
         <TabContent>
           <MemoryNotice>
             Credentials are saved to browser localStorage and will persist across page reloads.
-            They are never sent to any server other than your configured GitLab instance.
+            They are never stored server-side — GitLab credentials are sent only to your GitLab instance,
+            and the Anthropic API key is sent only to the Anthropic API.
           </MemoryNotice>
 
           {saved && <SuccessBanner>Credentials saved — you can now use the Dashboard.</SuccessBanner>}
@@ -265,6 +278,19 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
                 {errors.projectPath && <span role="alert" style={{ color: 'red', fontSize: '0.875rem' }}>{errors.projectPath}</span>}
               </FormGroup>
 
+              <FormGroup>
+                <label htmlFor="settings-anthropic-key">Anthropic API Key <span style={{ fontWeight: 'normal', color: 'inherit', opacity: 0.6 }}>(optional — required for AI Metric Review)</span></label>
+                <Input
+                  type="password"
+                  id="settings-anthropic-key"
+                  name="anthropicApiKey"
+                  value={formData.anthropicApiKey}
+                  onChange={handleChange}
+                  autoComplete="off"
+                  placeholder="sk-ant-..."
+                />
+              </FormGroup>
+
               <ModalFooter>
                 <div style={{ marginLeft: 'auto' }}>
                   <PrimaryButton type="submit">Save</PrimaryButton>
@@ -281,7 +307,7 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
                   id="settings-import-json"
                   value={importJson}
                   onChange={e => { setImportJson(e.target.value); setImportError(''); setSaved(false); }}
-                  placeholder={'{\n  "gitlabToken": "glpat-...",\n  "projectPath": "group/project"\n}'}
+                  placeholder={'{\n  "gitlabToken": "glpat-...",\n  "projectPath": "group/project",\n  "anthropicApiKey": "sk-ant-..." \n}'}
                   $hasError={!!importError}
                   spellCheck={false}
                 />
