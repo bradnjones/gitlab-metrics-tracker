@@ -20,6 +20,7 @@ import metricsRoutes from './routes/metrics.js';
 import iterationsRoutes from './routes/iterations.js';
 import cacheRoutes from './routes/cache.js';
 import annotationsRoutes from './routes/annotations.js';
+import analysisRoutes from './routes/analysis.js';
 import { ConsoleLogger } from '../lib/infrastructure/logging/ConsoleLogger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -208,6 +209,7 @@ export function createApp() {
   app.use('/api/metrics', metricsRoutes);
   app.use('/api/cache', cacheRoutes);
   app.use('/api/annotations', annotationsRoutes);
+  app.use('/api/analysis', analysisRoutes);
 
   // Health check
   app.get('/health', (req, res) => {

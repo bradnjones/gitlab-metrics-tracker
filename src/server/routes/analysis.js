@@ -1,0 +1,118 @@
+/**
+ * Analysis API routes
+ * POST /api/analysis/review — run AI metric review
+ * GET  /api/analysis        — list all past analyses
+ * GET  /api/analysis/:id    — get single analysis by id
+ *
+ * @module server/routes/analysis
+ */
+
+import express from 'express';
+import { rateLimit } from 'express-rate-limit';
+import { ServiceFactory } from '../services/ServiceFactory.js';
+import { MetricAnalysisService } from '../../lib/core/services/MetricAnalysisService.js';
+import { ConsoleLogger } from '../../lib/infrastructure/logging/ConsoleLogger.js';
+
+const router = express.Router();
+
+const logger = new ConsoleLogger({ serviceName: 'analysis-api' });
+
+/**
+ * Dedicated rate limiter for the AI review endpoint: 10 requests/hour per IP.
+ * Stricter than the general 500/min limiter applied to all /api routes.
+ */
+const reviewLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 10,
+  standardHeaders: 'draft-6',
+  legacyHeaders: false,
+  message: { error: 'Too many AI review requests — limit is 10 per hour' },
+});
+
+/**
+ * POST /api/analysis/review
+ * Trigger an AI metric review for the given iteration IDs.
+ *
+ * Body: { iterationIds: string[] }
+ * Returns: Analysis (toJSON)
+ */
+router.post('/review', reviewLimiter, async (req, res) => {
+  const { iterationIds } = req.body;
+
+  // Validate body
+  if (!Array.isArray(iterationIds)) {
+    return res.status(400).json({ error: 'iterationIds must be an array' });
+  }
+  if (iterationIds.length > 100) {
+    return res.status(400).json({ error: 'iterationIds cannot exceed 100 items' });
+  }
+
+  // Gate on LLM availability — createLLMClient returns null when not configured
+  const llmClient = ServiceFactory.createLLMClient();
+  if (!llmClient) {
+    return res.status(503).json({
+      error: 'AI review is not configured — set ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true',
+    });
+  }
+
+  // Build service inline with the pre-checked llmClient
+  const service = ServiceFactory.createMetricAnalysisService({
+    gitlabToken: req.gitlabToken,
+    projectPath: req.gitlabProject,
+  });
+
+  try {
+    const analysis = await service.analyze(iterationIds);
+    return res.json(analysis.toJSON());
+  } catch (err) {
+    if (err.name === 'LLMNotConfiguredError') {
+      return res.status(503).json({ error: err.message });
+    }
+
+    logger.error('AI metric review failed', err, {
+      route: 'POST /api/analysis/review',
+    });
+
+    return res.status(500).json({
+      error: 'Analysis failed — the run has been persisted for debugging',
+    });
+  }
+});
+
+/**
+ * GET /api/analysis
+ * List all past analyses, newest first.
+ */
+router.get('/', async (req, res) => {
+  try {
+    const repo = ServiceFactory.createAnalysesRepository();
+    const all = await repo.findAll();
+    return res.json(all.map((a) => a.toJSON()));
+  } catch (err) {
+    logger.error('Failed to list analyses', err, { route: 'GET /api/analysis' });
+    return res.status(500).json({ error: 'Failed to list analyses' });
+  }
+});
+
+/**
+ * GET /api/analysis/:id
+ * Retrieve a single analysis by id.
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const repo = ServiceFactory.createAnalysesRepository();
+    const analysis = await repo.findById(req.params.id);
+    if (!analysis) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+    return res.json(analysis.toJSON());
+  } catch (err) {
+    logger.error('Failed to fetch analysis', err, {
+      route: 'GET /api/analysis/:id',
+      id: req.params.id,
+    });
+    return res.status(500).json({ error: 'Failed to fetch analysis' });
+  }
+});
+
+export default router;
