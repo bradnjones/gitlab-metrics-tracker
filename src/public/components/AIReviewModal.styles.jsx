@@ -225,6 +225,18 @@ export const ChatBubble = styled.div`
   color: ${(p) =>
     p.$isUser ? '#fff' : p.theme.colors.textPrimary};
   word-break: break-word;
+
+  /* Markdown styles for assistant bubbles */
+  p { margin: 0 0 0.5em 0; }
+  p:last-child { margin-bottom: 0; }
+  h1, h2, h3 { margin: 0.75em 0 0.25em; font-size: 1em; font-weight: 600; }
+  ul, ol { margin: 0.25em 0 0.5em 1.25em; padding: 0; }
+  li { margin-bottom: 0.2em; }
+  strong { font-weight: 600; }
+  code { background: rgba(0,0,0,0.08); padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.5em 0; font-size: 0.85em; }
+  th, td { border: 1px solid ${(p) => p.theme.colors.border}; padding: 4px 8px; text-align: left; }
+  th { background: rgba(0,0,0,0.05); font-weight: 600; }
 `;
 
 export const ChatInputRow = styled.div`

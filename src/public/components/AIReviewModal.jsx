@@ -158,13 +158,21 @@ const AIReviewModal = ({
               <ChatSection>
                 {((analysis.conversationHistory && analysis.conversationHistory.length > 0) || (chatLoading && chatStreamingText)) && (
                   <ChatThread>
-                    {(analysis.conversationHistory || []).map((msg, i) => (
-                      <ChatBubble key={i} $isUser={msg.role === 'user'}>
-                        {msg.content}
-                      </ChatBubble>
-                    ))}
+                    {(analysis.conversationHistory || []).map((msg, i) =>
+                      msg.role === 'user' ? (
+                        <ChatBubble key={i} $isUser={true}>
+                          {msg.content}
+                        </ChatBubble>
+                      ) : (
+                        <ChatBubble key={i} $isUser={false}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                        </ChatBubble>
+                      )
+                    )}
                     {chatLoading && chatStreamingText && (
-                      <ChatBubble $isUser={false}>{chatStreamingText}</ChatBubble>
+                      <ChatBubble $isUser={false}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{chatStreamingText}</ReactMarkdown>
+                      </ChatBubble>
                     )}
                   </ChatThread>
                 )}
