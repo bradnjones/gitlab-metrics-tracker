@@ -30,6 +30,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "chart.js": "^4.5.1",
     "chartjs-plugin-annotation": "^3.1.0",
     "cors": "^2.8.6",
