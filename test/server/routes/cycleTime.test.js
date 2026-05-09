@@ -190,6 +190,27 @@ describe('GET /api/metrics/cycle-time', () => {
     });
   });
 
+  it('should include cycleTimeExcludedCount in response when present', async () => {
+    const mockMetrics = {
+      iterationId: 'gid://gitlab/Iteration/123',
+      iterationTitle: 'Sprint 1',
+      startDate: '2025-01-01',
+      endDate: '2025-01-14',
+      cycleTimeAvg: 3,
+      cycleTimeP50: 3,
+      cycleTimeP90: 4,
+      cycleTimeExcludedCount: 3,
+    };
+
+    mockMetricsService.calculateMultipleMetrics.mockResolvedValue([mockMetrics]);
+
+    const response = await request(app)
+      .get('/api/metrics/cycle-time?iterations=gid://gitlab/Iteration/123')
+      .expect(200);
+
+    expect(response.body.metrics[0].cycleTimeExcludedCount).toBe(3);
+  });
+
   it('should return 500 when MetricsService throws error', async () => {
     mockMetricsService.calculateMultipleMetrics.mockRejectedValue(
       new Error('Failed to fetch iteration data')

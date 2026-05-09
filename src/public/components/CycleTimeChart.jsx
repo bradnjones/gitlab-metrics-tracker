@@ -47,6 +47,13 @@ ChartJS.register(
 // localStorage key for per-chart filter exclusions
 const FILTER_STORAGE_KEY = 'chart-filters-cycle-time';
 
+const ExcludedNotice = styled.p`
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  color: ${props => props.theme.colors.textSecondary};
+  margin: 0.25rem 0 0;
+  font-style: italic;
+`;
+
 const ModalToggleButton = styled.button`
   background: ${props => props.theme.colors.bgPrimary};
   border: 1px solid ${props => props.theme.colors.border};
@@ -92,6 +99,9 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
 
   // localStorage-persisted filter exclusions — overrides the plain useState from useChartState
   const [excludedIterationIds, setExcludedIterationIds] = useChartFilters(FILTER_STORAGE_KEY);
+
+  // Total issues excluded from cycle time across all displayed iterations (no In Progress transition)
+  const [totalExcluded, setTotalExcluded] = useState(0);
 
   // Filter iterations based on exclusions (memoized to prevent flickering)
   const visibleIterations = useMemo(
@@ -149,6 +159,10 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
         const avgData = data.metrics.map(m => m.cycleTimeAvg);
         const limits = calculateControlLimits(avgData);
         setControlLimits(limits);
+
+        // Sum excluded counts across all iterations for the notice
+        const excluded = data.metrics.reduce((sum, m) => sum + (m.cycleTimeExcludedCount ?? 0), 0);
+        setTotalExcluded(excluded);
       } catch (err) {
         setError(`Error loading cycle time data: ${err.message}`);
       } finally {
@@ -426,6 +440,12 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
               />
             }
           />
+
+          {totalExcluded > 0 && (
+            <ExcludedNotice data-testid="cycle-time-excluded-notice">
+              {totalExcluded} {totalExcluded === 1 ? 'issue' : 'issues'} excluded — no In Progress transition recorded
+            </ExcludedNotice>
+          )}
         </>
       )}
     </Container>

@@ -539,6 +539,56 @@ describe('CycleTimeChart', () => {
     expect(chartData.datasets.map(d => d.label)).not.toContain('Average');
   });
 
+  describe('excludedCount subtext', () => {
+    test('renders excluded count notice when any metric has excludedCount > 0', async () => {
+      const responseWithExcluded = {
+        metrics: [
+          { iterationId: 'gid://gitlab/Iteration/1', dueDate: '2024-01-14', cycleTimeAvg: 4.5, cycleTimeP50: 4, cycleTimeP90: 7, cycleTimeExcludedCount: 3 },
+          { iterationId: 'gid://gitlab/Iteration/2', dueDate: '2024-01-28', cycleTimeAvg: 5.2, cycleTimeP50: 5, cycleTimeP90: 8, cycleTimeExcludedCount: 0 },
+        ],
+      };
+
+      mockFetch.mockResolvedValue({ ok: true, json: async () => responseWithExcluded });
+      renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('cycle-time-excluded-notice')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('cycle-time-excluded-notice').textContent).toMatch(/3.*excluded/i);
+    });
+
+    test('does not render excluded count notice when all excludedCounts are 0', async () => {
+      const responseAllZero = {
+        metrics: [
+          { iterationId: 'gid://gitlab/Iteration/1', dueDate: '2024-01-14', cycleTimeAvg: 4.5, cycleTimeP50: 4, cycleTimeP90: 7, cycleTimeExcludedCount: 0 },
+          { iterationId: 'gid://gitlab/Iteration/2', dueDate: '2024-01-28', cycleTimeAvg: 5.2, cycleTimeP50: 5, cycleTimeP90: 8, cycleTimeExcludedCount: 0 },
+        ],
+      };
+
+      mockFetch.mockResolvedValue({ ok: true, json: async () => responseAllZero });
+      renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('cycle-time-line-chart')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('cycle-time-excluded-notice')).not.toBeInTheDocument();
+    });
+
+    test('does not render excluded count notice when excludedCount is absent', async () => {
+      // mockApiResponse has no cycleTimeExcludedCount fields (backward compat)
+      mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+      renderWithTheme(<CycleTimeChart selectedIterations={mockIterations} />, defaultTheme);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('cycle-time-line-chart')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('cycle-time-excluded-notice')).not.toBeInTheDocument();
+    });
+  });
+
   describe('enlarged modal local toggles', () => {
     test('enlarged modal shows local toggle buttons for series and annotations', async () => {
       mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });

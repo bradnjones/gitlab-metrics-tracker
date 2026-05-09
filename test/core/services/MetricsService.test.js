@@ -275,6 +275,41 @@ describe('MetricsService', () => {
     });
   });
 
+  describe('cycleTimeExcludedCount passthrough', () => {
+    it('should include cycleTimeExcludedCount in result when calculator returns excludedCount', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      // Simulate Track B contract: calculator returns excludedCount
+      CycleTimeCalculator.calculate = jest.fn().mockReturnValue({
+        avg: 3.5,
+        p50: 3.0,
+        p90: 5.0,
+        includedCount: 4,
+        excludedCount: 3,
+      });
+
+      const result = await service.calculateMetrics(iterationId);
+
+      expect(result.cycleTimeExcludedCount).toBe(3);
+    });
+
+    it('should pass cycleTimeExcludedCount of 0 through when all issues have valid source', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      CycleTimeCalculator.calculate = jest.fn().mockReturnValue({
+        avg: 2.0,
+        p50: 2.0,
+        p90: 3.0,
+        includedCount: 5,
+        excludedCount: 0,
+      });
+
+      const result = await service.calculateMetrics(iterationId);
+
+      expect(result.cycleTimeExcludedCount).toBe(0);
+    });
+  });
+
   describe('calculateMultipleMetrics', () => {
     // NOTE: Metrics persistence removed (see ADR 001)
     // These tests removed as repository.save() no longer called:

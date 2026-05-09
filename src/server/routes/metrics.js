@@ -100,11 +100,20 @@ router.get('/velocity', withMetricsHandler('velocity', allMetrics =>
  * Response:
  * {
  *   "metrics": [
- *     { "iterationId": "...", "cycleTimeAvg": 3.5, "cycleTimeP50": 3.0, "cycleTimeP90": 5.2 },
+ *     {
+ *       "iterationId": "...",
+ *       "cycleTimeAvg": 3.5,
+ *       "cycleTimeP50": 3.0,
+ *       "cycleTimeP90": 5.2,
+ *       "cycleTimeExcludedCount": 2
+ *     },
  *     ...
  *   ],
  *   "count": 2
  * }
+ *
+ * cycleTimeExcludedCount: count of closed issues excluded from cycle time because
+ * they had no recognized "In Progress" status transition recorded.
  */
 router.get('/cycle-time', withMetricsHandler('cycle time', allMetrics =>
   allMetrics.map(metrics => ({
@@ -114,7 +123,8 @@ router.get('/cycle-time', withMetricsHandler('cycle time', allMetrics =>
     dueDate: metrics.endDate,
     cycleTimeAvg: metrics.cycleTimeAvg,
     cycleTimeP50: metrics.cycleTimeP50,
-    cycleTimeP90: metrics.cycleTimeP90
+    cycleTimeP90: metrics.cycleTimeP90,
+    cycleTimeExcludedCount: metrics.cycleTimeExcludedCount ?? 0,
   }))
 ));
 

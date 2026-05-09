@@ -21,6 +21,7 @@ import { Metric } from '../entities/Metric.js';
  * @property {number} cycleTimeAvg - Average cycle time (days)
  * @property {number} cycleTimeP50 - Median cycle time (days)
  * @property {number} cycleTimeP90 - 90th percentile cycle time (days)
+ * @property {number} cycleTimeExcludedCount - Count of closed issues excluded from cycle time (no recognized In Progress transition)
  * @property {number} deploymentFrequency - Deployments per day
  * @property {number} leadTimeAvg - Average lead time (days)
  * @property {number} leadTimeP50 - Median lead time (days)
@@ -144,6 +145,7 @@ export class MetricsService {
       cycleTimeAvg: cycleTime.avg,
       cycleTimeP50: cycleTime.p50,
       cycleTimeP90: cycleTime.p90,
+      cycleTimeExcludedCount: cycleTime.excludedCount ?? 0,
       deploymentFrequency,
       leadTimeAvg: leadTime.avg,
       leadTimeP50: leadTime.p50,
