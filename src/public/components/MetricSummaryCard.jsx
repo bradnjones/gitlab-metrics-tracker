@@ -1,30 +1,20 @@
 /**
  * MetricSummaryCard Component
  *
- * Displays a metric summary with gradient background.
- * Used in the dashboard to show key metric values.
+ * Displays a metric summary with gradient background and an optional info
+ * icon that reveals a tooltip (hover or click) explaining the metric and
+ * its good/bad direction.
  *
- * Design specifications from prototype:
- * - Gradient: 135deg, #3b82f6 → #2563eb (blue gradient)
- * - Border radius: 12px
- * - Padding: 1.5rem (desktop), 1rem (mobile)
- * - Shadow: 0 4px 6px rgba(0, 0, 0, 0.1)
- * - White text on gradient background
- *
- * @param {Object} props - Component props
- * @param {string} props.label - Metric label (e.g., "Velocity")
- * @param {string} props.value - Metric value (e.g., "42")
- * @returns {JSX.Element} Styled metric summary card
+ * @param {Object} props
+ * @param {string} props.label - Metric label (e.g., "Last Sprint Velocity")
+ * @param {string} props.value - Formatted metric value (e.g., "42 pts")
+ * @param {{ description: string, goodDirection: 'up'|'down', goodLabel: string }} [props.tooltip]
+ * @returns {JSX.Element}
  */
 
+import { useState } from 'react';
 import styled from 'styled-components';
 
-/**
- * Styled card container with subtle muted background
- * Updated to use soft blue-gray tones that complement the dashboard
- *
- * @component
- */
 const Card = styled.div`
   background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
   border: 1px solid #cbd5e1;
@@ -38,23 +28,19 @@ const Card = styled.div`
   }
 `;
 
-/**
- * Styled label text
- *
- * @component
- */
+const LabelRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+`;
+
 const Label = styled.div`
   font-size: ${props => props.theme.typography.fontSize.sm};
   font-weight: ${props => props.theme.typography.fontWeight.medium};
   color: ${props => props.theme.colors.textSecondary};
-  margin-bottom: 0.5rem;
 `;
 
-/**
- * Styled value text
- *
- * @component
- */
 const Value = styled.div`
   font-size: ${props => props.theme.typography.fontSize['3xl']};
   font-weight: ${props => props.theme.typography.fontWeight.bold};
@@ -62,18 +48,104 @@ const Value = styled.div`
   color: ${props => props.theme.colors.textPrimary};
 `;
 
-/**
- * MetricSummaryCard Component
- *
- * @param {Object} props - Component props
- * @param {string} props.label - Metric label
- * @param {string} props.value - Metric value
- * @returns {JSX.Element} Rendered component
- */
-export default function MetricSummaryCard({ label, value }) {
+const InfoWrapper = styled.span`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+`;
+
+const InfoButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: ${props => props.theme.colors.textSecondary};
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  line-height: 1;
+
+  &:hover {
+    color: ${props => props.theme.colors.primary};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${props => props.theme.colors.primary};
+    outline-offset: 2px;
+    border-radius: 50%;
+  }
+`;
+
+const TooltipBubble = styled.div`
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: ${props => props.theme.zIndex.tooltip};
+  background: ${props => props.theme.colors.bgPrimary};
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: ${props => props.theme.borderRadius.md};
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0.75rem;
+  width: 240px;
+`;
+
+const TooltipDescription = styled.p`
+  margin: 0;
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  color: ${props => props.theme.colors.textPrimary};
+  line-height: 1.5;
+`;
+
+const TooltipIndicator = styled.div`
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid ${props => props.theme.colors.border};
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  color: ${props => props.$positive ? '#16a34a' : '#dc2626'};
+  font-weight: ${props => props.theme.typography.fontWeight.medium};
+`;
+
+/** Inline info SVG — no external dependency */
+function InfoIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
+export default function MetricSummaryCard({ label, value, tooltip }) {
+  const [visible, setVisible] = useState(false);
+
   return (
     <Card>
-      <Label>{label}</Label>
+      <LabelRow>
+        <Label>{label}</Label>
+        {tooltip && (
+          <InfoWrapper
+            onMouseEnter={() => setVisible(true)}
+            onMouseLeave={() => setVisible(false)}
+          >
+            <InfoButton
+              type="button"
+              aria-label={`About ${label}`}
+              onClick={() => setVisible(v => !v)}
+            >
+              <InfoIcon />
+            </InfoButton>
+            {visible && (
+              <TooltipBubble role="tooltip">
+                <TooltipDescription>{tooltip.description}</TooltipDescription>
+                <TooltipIndicator $positive={tooltip.goodDirection === 'up'}>
+                  {tooltip.goodDirection === 'up' ? '↑ Higher is better' : '↓ Lower is better'} — {tooltip.goodLabel}
+                </TooltipIndicator>
+              </TooltipBubble>
+            )}
+          </InfoWrapper>
+        )}
+      </LabelRow>
       <Value>{value}</Value>
     </Card>
   );

@@ -28,6 +28,35 @@ import {
   formatPercentage
 } from '../utils/metricFormatters.js';
 
+/** @type {Record<string, { description: string, goodDirection: 'up'|'down', goodLabel: string }>} */
+const METRIC_TOOLTIPS = {
+  velocity: {
+    description: 'Story points and issues completed in a sprint. Measures team output and throughput over time.',
+    goodDirection: 'up',
+    goodLabel: 'increasing velocity indicates growing throughput and team capacity',
+  },
+  cycleTime: {
+    description: 'Average time from when work starts to when it is delivered. Measures flow efficiency and execution speed.',
+    goodDirection: 'down',
+    goodLabel: 'lower cycle time means faster feedback loops and reduced delivery risk',
+  },
+  deployFreq: {
+    description: 'How often code is released to production. Frequent small releases reduce batch size and deployment risk.',
+    goodDirection: 'up',
+    goodLabel: 'higher frequency signals a healthy, low-risk delivery pipeline',
+  },
+  leadTime: {
+    description: 'Time from first commit to production deployment. Measures end-to-end delivery speed from code to customer.',
+    goodDirection: 'down',
+    goodLabel: 'shorter lead time means faster delivery of value and quicker response to feedback',
+  },
+  mttr: {
+    description: 'Mean Time to Recovery — how quickly the team restores service after an incident. Reflects operational maturity.',
+    goodDirection: 'down',
+    goodLabel: 'lower MTTR limits user impact and indicates strong incident response practices',
+  },
+};
+
 /**
  * Responsive grid container for metric summary cards
  *
@@ -158,22 +187,27 @@ export default function MetricsSummary({ selectedIterations }) {
       <MetricSummaryCard
         label="Last Sprint Velocity"
         value={velocityValue}
+        tooltip={METRIC_TOOLTIPS.velocity}
       />
       <MetricSummaryCard
         label="Last Sprint Cycle Time"
         value={lastCycleTime !== null ? formatDays(lastCycleTime) : 'N/A'}
+        tooltip={METRIC_TOOLTIPS.cycleTime}
       />
       <MetricSummaryCard
         label="Last Sprint Deploy Freq"
         value={lastDeployFreq !== null ? formatFrequency(lastDeployFreq) : 'N/A'}
+        tooltip={METRIC_TOOLTIPS.deployFreq}
       />
       <MetricSummaryCard
         label="Last Sprint Lead Time"
         value={lastLeadTime !== null ? formatDays(lastLeadTime) : 'N/A'}
+        tooltip={METRIC_TOOLTIPS.leadTime}
       />
       <MetricSummaryCard
         label="Last Sprint MTTR"
         value={lastMttr !== null ? formatHours(lastMttr) : 'N/A'}
+        tooltip={METRIC_TOOLTIPS.mttr}
       />
     </SummaryGrid>
   );
