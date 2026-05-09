@@ -153,7 +153,11 @@ const ExportLabelRow = styled.div`
  */
 export default function SettingsModal({ onSave, hasCredentials = false, currentCredentials = null }) {
   const [tab, setTab] = useState('manual');
-  const [formData, setFormData] = useState({ gitlabToken: '', projectPath: '', anthropicApiKey: '' });
+  const [formData, setFormData] = useState({
+    gitlabToken: currentCredentials?.gitlabToken ?? '',
+    projectPath: currentCredentials?.projectPath ?? '',
+    anthropicApiKey: currentCredentials?.anthropicApiKey ?? '',
+  });
   const [errors, setErrors] = useState({});
   const [importJson, setImportJson] = useState('');
   const [importError, setImportError] = useState('');
@@ -281,7 +285,7 @@ export default function SettingsModal({ onSave, hasCredentials = false, currentC
               <FormGroup>
                 <label htmlFor="settings-anthropic-key">Anthropic API Key <span style={{ fontWeight: 'normal', color: 'inherit', opacity: 0.6 }}>(optional — required for AI Metric Review)</span></label>
                 <Input
-                  type="password"
+                  type="text"
                   id="settings-anthropic-key"
                   name="anthropicApiKey"
                   value={formData.anthropicApiKey}
