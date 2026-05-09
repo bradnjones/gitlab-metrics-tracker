@@ -9,7 +9,10 @@ import { GitLabClient } from '../../lib/infrastructure/api/GitLabClient.js';
 import { GitLabIterationDataProvider } from '../../lib/infrastructure/adapters/GitLabIterationDataProvider.js';
 import { IterationCacheRepository } from '../../lib/infrastructure/repositories/IterationCacheRepository.js';
 import { FileAnnotationsRepository } from '../../lib/infrastructure/repositories/FileAnnotationsRepository.js';
+import { FileAnalysesRepository } from '../../lib/infrastructure/repositories/FileAnalysesRepository.js';
+import { AnthropicLLMClient, LLMNotConfiguredError } from '../../lib/infrastructure/llm/AnthropicLLMClient.js';
 import { MetricsService } from '../../lib/core/services/MetricsService.js';
+import { MetricAnalysisService } from '../../lib/core/services/MetricAnalysisService.js';
 import { GetCacheStatusUseCase } from '../../lib/core/use-cases/GetCacheStatusUseCase.js';
 
 /**
@@ -128,5 +131,52 @@ export class ServiceFactory {
    */
   static createAnnotationsRepository(dataDir = './src/data') {
     return new FileAnnotationsRepository(dataDir);
+  }
+
+  /**
+   * Create FileAnalysesRepository with configuration
+   *
+   * @param {string} [dataDir='./src/data'] - Data directory path
+   * @returns {FileAnalysesRepository} Configured analyses repository instance
+   */
+  static createAnalysesRepository(dataDir = './src/data') {
+    return new FileAnalysesRepository(dataDir);
+  }
+
+  /**
+   * Create an AnthropicLLMClient, or return null if AI review is not configured.
+   * Returns null (rather than throwing) so the rest of the app can start normally
+   * without LLM credentials.
+   *
+   * @returns {AnthropicLLMClient|null}
+   */
+  static createLLMClient() {
+    try {
+      return new AnthropicLLMClient();
+    } catch (err) {
+      if (err instanceof LLMNotConfiguredError) return null;
+      throw err;
+    }
+  }
+
+  /**
+   * Create a fully-wired MetricAnalysisService.
+   * If the LLM is not configured, llmClient will be null and analyze() will
+   * throw LLMNotConfiguredError at call time (not at construction time).
+   *
+   * @param {Object} [config] - GitLab configuration (token, projectPath, url)
+   * @returns {MetricAnalysisService}
+   */
+  static createMetricAnalysisService(config = {}) {
+    const metricsService = this.createMetricsService(config);
+    const annotationsRepository = this.createAnnotationsRepository();
+    const llmClient = this.createLLMClient();
+    const analysesRepository = this.createAnalysesRepository();
+    return new MetricAnalysisService({
+      metricsService,
+      annotationsRepository,
+      llmClient,
+      analysesRepository,
+    });
   }
 }
