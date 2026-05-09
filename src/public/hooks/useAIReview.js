@@ -1,6 +1,6 @@
 /**
  * useAIReview Hook
- * Manages AI metric review state: run analysis, track loading/error, maintain history.
+ * Manages AI metric review state: stream analysis, track loading/streaming/error, maintain history.
  *
  * @module hooks/useAIReview
  */
@@ -16,6 +16,7 @@ import { apiFetch } from '../utils/apiFetch.js';
  *   loading: boolean,
  *   error: string|null,
  *   lastAnalysis: Object|null,
+ *   streamingText: string,
  *   history: Object[]
  * }}
  */
@@ -23,6 +24,7 @@ export function useAIReview() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastAnalysis, setLastAnalysis] = useState(null);
+  const [streamingText, setStreamingText] = useState('');
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function useAIReview() {
   }
 
   /**
-   * Run a new AI analysis over the given iteration IDs.
+   * Run a new AI analysis over the given iteration IDs via SSE streaming.
    * No-ops if a request is already in flight.
    *
    * @param {string[]} iterationIds - IDs of iterations to analyse
@@ -59,9 +61,10 @@ export function useAIReview() {
 
     setLoading(true);
     setError(null);
+    setStreamingText('');
 
     try {
-      const response = await apiFetch('/api/analysis/review', {
+      const response = await apiFetch('/api/analysis/review/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ iterationIds }),
@@ -72,9 +75,40 @@ export function useAIReview() {
         throw new Error(body.error || `HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
-      setLastAnalysis(result);
-      await loadHistory();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Split on SSE double-newline boundaries
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop(); // Keep any trailing incomplete part
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.type === 'delta') {
+              setStreamingText((prev) => prev + data.text);
+            } else if (data.type === 'done') {
+              setLastAnalysis(data.analysis);
+              await loadHistory();
+            } else if (data.type === 'error') {
+              setError(data.message);
+            }
+          } catch (_) {
+            // Ignore malformed SSE lines
+          }
+        }
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -82,5 +116,5 @@ export function useAIReview() {
     }
   }
 
-  return { run, loading, error, lastAnalysis, history };
+  return { run, loading, error, lastAnalysis, streamingText, history };
 }

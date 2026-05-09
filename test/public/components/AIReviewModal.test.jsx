@@ -151,4 +151,25 @@ describe('AIReviewModal', () => {
     expect(screen.queryByText(/model:/i)).toBeNull();
     expect(screen.queryByText(/latency:/i)).toBeNull();
   });
+
+  it('shows spinner when loading=true and no streamingText', () => {
+    renderModal({ loading: true, analysis: null, streamingText: '' });
+    expect(screen.getByText(/analyzing/i)).toBeInTheDocument();
+  });
+
+  it('renders streaming partial markdown when loading=true and streamingText is non-empty', () => {
+    renderModal({ loading: true, analysis: null, streamingText: '## Partial heading' });
+    expect(screen.queryByText(/analyzing/i)).toBeNull();
+    expect(screen.getByText(/Partial heading/)).toBeInTheDocument();
+  });
+
+  it('renders final analysis (not streamingText) when loading=false and analysis is set', () => {
+    renderModal({
+      loading: false,
+      analysis: makeAnalysis({ response: '## Final report' }),
+      streamingText: '## Partial heading',
+    });
+    expect(screen.getByText(/Final report/)).toBeInTheDocument();
+    expect(screen.queryByText(/Partial heading/)).toBeNull();
+  });
 });

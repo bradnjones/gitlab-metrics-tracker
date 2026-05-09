@@ -36,9 +36,10 @@ import {
  * @param {Object|null} props.analysis - Analysis entity (toJSON output) or null
  * @param {boolean} props.loading - True while request is in flight
  * @param {string|null} props.error
+ * @param {string} [props.streamingText] - Partial text being streamed; shown while loading
  * @returns {React.ReactElement|null}
  */
-const AIReviewModal = ({ isOpen, onClose, analysis = null, loading = false, error = null }) => {
+const AIReviewModal = ({ isOpen, onClose, analysis = null, loading = false, error = null, streamingText = '' }) => {
   const closeButtonRef = useRef(null);
 
   useEffect(() => {
@@ -93,11 +94,16 @@ const AIReviewModal = ({ isOpen, onClose, analysis = null, loading = false, erro
         </Header>
 
         <ContentBody>
-          {loading && (
+          {loading && !streamingText && (
             <LoadingState>
               <Spinner />
               <StatusMessage>Analyzing metrics…</StatusMessage>
             </LoadingState>
+          )}
+          {loading && streamingText && (
+            <MarkdownContent>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingText}</ReactMarkdown>
+            </MarkdownContent>
           )}
           {!loading && error && <ErrorMessage>{error}</ErrorMessage>}
           {!loading && !error && analysis && (
@@ -143,6 +149,7 @@ AIReviewModal.propTypes = {
   }),
   loading: PropTypes.bool,
   error: PropTypes.string,
+  streamingText: PropTypes.string,
 };
 
 

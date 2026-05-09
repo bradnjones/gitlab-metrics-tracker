@@ -51,6 +51,11 @@ function makeDeps(overrides = {}) {
       model: 'claude-sonnet-4-6',
       latencyMs: 1500,
     }),
+    stream: jest.fn().mockImplementation(async function* () {
+      yield { type: 'delta', text: 'Hello ' };
+      yield { type: 'delta', text: 'world' };
+      yield { type: 'done', text: 'Hello world', usage: { input: 500, output: 200 }, model: 'claude-sonnet-4-6', latencyMs: 2000 };
+    }),
   };
   const analysesRepository = {
     save: jest.fn().mockResolvedValue(undefined),
@@ -161,6 +166,100 @@ describe('MetricAnalysisService', () => {
       const result = await service.analyze(['id1']);
 
       expect(result.createdAt).toBe(fixedDate.toISOString());
+    });
+  });
+
+  describe('analyzeStream()', () => {
+    it('throws LLMNotConfiguredError when llmClient is null', async () => {
+      const deps = makeDeps({ llmClient: null });
+      const service = new MetricAnalysisService(deps);
+
+      const gen = service.analyzeStream(['id1']);
+      await expect(gen.next()).rejects.toThrow(LLMNotConfiguredError);
+
+      expect(deps.metricsService.calculateMultipleMetrics).not.toHaveBeenCalled();
+      expect(deps.analysesRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('yields delta events through from llmClient.stream()', async () => {
+      const deps = makeDeps();
+      const service = new MetricAnalysisService(deps);
+
+      const collected = [];
+      for await (const event of service.analyzeStream(['id1', 'id2'])) {
+        collected.push(event);
+      }
+
+      const deltas = collected.filter((e) => e.type === 'delta');
+      expect(deltas).toHaveLength(2);
+      expect(deltas[0]).toEqual({ type: 'delta', text: 'Hello ' });
+      expect(deltas[1]).toEqual({ type: 'delta', text: 'world' });
+    });
+
+    it('persists succeeded Analysis and yields { type:"done", analysis } on completion', async () => {
+      const deps = makeDeps();
+      const service = new MetricAnalysisService(deps);
+
+      const collected = [];
+      for await (const event of service.analyzeStream(['id1', 'id2'])) {
+        collected.push(event);
+      }
+
+      expect(deps.analysesRepository.save).toHaveBeenCalledTimes(1);
+      const savedArg = deps.analysesRepository.save.mock.calls[0][0];
+      expect(savedArg).toBeInstanceOf(Analysis);
+      expect(savedArg.status).toBe('succeeded');
+      expect(savedArg.response).toBe('Hello world');
+      expect(savedArg.usage).toEqual({ input: 500, output: 200 });
+      expect(savedArg.model).toBe('claude-sonnet-4-6');
+      expect(savedArg.latencyMs).toBe(2000);
+
+      const doneEvent = collected.find((e) => e.type === 'done');
+      expect(doneEvent).toBeDefined();
+      expect(doneEvent.analysis).toBeInstanceOf(Analysis);
+      expect(doneEvent.analysis.status).toBe('succeeded');
+    });
+
+    it('persists failed Analysis and yields { type:"error" } when llmClient.stream throws', async () => {
+      const boom = new Error('Rate limit exceeded');
+      const deps = makeDeps({
+        llmClient: {
+          generate: jest.fn(),
+          stream: jest.fn().mockImplementation(async function* () {
+            throw boom;
+          }),
+        },
+      });
+      const service = new MetricAnalysisService(deps);
+
+      const collected = [];
+      for await (const event of service.analyzeStream(['id1'])) {
+        collected.push(event);
+      }
+
+      expect(deps.analysesRepository.save).toHaveBeenCalledTimes(1);
+      const savedArg = deps.analysesRepository.save.mock.calls[0][0];
+      expect(savedArg).toBeInstanceOf(Analysis);
+      expect(savedArg.status).toBe('failed');
+      expect(savedArg.errorMessage).toBe('Rate limit exceeded');
+
+      const errorEvent = collected.find((e) => e.type === 'error');
+      expect(errorEvent).toBeDefined();
+      expect(errorEvent.message).toBe('Rate limit exceeded');
+    });
+
+    it('uses injected clock date for streamed analysis.createdAt', async () => {
+      const fixedDate = new Date('2025-06-15T12:00:00.000Z');
+      const deps = makeDeps({ clock: () => fixedDate });
+      const service = new MetricAnalysisService(deps);
+
+      const collected = [];
+      for await (const event of service.analyzeStream(['id1'])) {
+        collected.push(event);
+      }
+
+      const doneEvent = collected.find((e) => e.type === 'done');
+      expect(doneEvent.analysis.createdAt).toBe(fixedDate.toISOString());
     });
   });
 });

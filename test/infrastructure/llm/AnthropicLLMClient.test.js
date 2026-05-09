@@ -1,13 +1,34 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
-// Declare the mock fn before jest.unstable_mockModule so the factory closure captures it.
+// Declare the mock fns before jest.unstable_mockModule so the factory closure captures them.
 const mockCreate = jest.fn();
+const mockStream = jest.fn();
 
 jest.unstable_mockModule('@anthropic-ai/sdk', () => ({
   default: jest.fn().mockImplementation(() => ({
-    messages: { create: mockCreate },
+    messages: { create: mockCreate, stream: mockStream },
   })),
 }));
+
+/**
+ * Build a mock Anthropic stream object — async-iterable events + finalMessage().
+ * @param {Object[]} events - Raw SDK streaming events to yield
+ * @param {Object} finalMsg - Partial final message fields
+ */
+function makeMockStream(events = [], finalMsg = {}) {
+  return {
+    async *[Symbol.asyncIterator]() {
+      for (const event of events) {
+        yield event;
+      }
+    },
+    finalMessage: jest.fn().mockResolvedValue({
+      model: 'claude-sonnet-4-6',
+      usage: { input_tokens: 100, output_tokens: 50 },
+      ...finalMsg,
+    }),
+  };
+}
 
 // Import AFTER mocking so the module under test picks up the stub.
 const { AnthropicLLMClient, LLMNotConfiguredError } = await import(
@@ -26,6 +47,7 @@ function makeSuccessResponse(text = 'Analysis complete.', model = 'claude-sonnet
 describe('AnthropicLLMClient', () => {
   beforeEach(() => {
     mockCreate.mockReset();
+    mockStream.mockReset();
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.ANTHROPIC_MODEL;
     delete process.env.AI_REVIEW_ENABLED;
@@ -131,6 +153,103 @@ describe('AnthropicLLMClient', () => {
       await expect(client.generate({ system: 'sys', user: 'usr' })).rejects.toThrow(
         'Rate limit exceeded'
       );
+    });
+  });
+
+  describe('stream()', () => {
+    let client;
+
+    beforeEach(() => {
+      process.env.ANTHROPIC_API_KEY = 'sk-test';
+      process.env.AI_REVIEW_ENABLED = 'true';
+      client = new AnthropicLLMClient();
+    });
+
+    it('yields delta events for each text chunk', async () => {
+      const events = [
+        { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello ' } },
+        { type: 'content_block_delta', delta: { type: 'text_delta', text: 'world' } },
+        { type: 'message_stop' },
+      ];
+      mockStream.mockReturnValue(makeMockStream(events));
+
+      const collected = [];
+      for await (const event of client.stream({ system: 'sys', user: 'usr' })) {
+        collected.push(event);
+      }
+
+      const deltas = collected.filter((e) => e.type === 'delta');
+      expect(deltas).toHaveLength(2);
+      expect(deltas[0]).toEqual({ type: 'delta', text: 'Hello ' });
+      expect(deltas[1]).toEqual({ type: 'delta', text: 'world' });
+    });
+
+    it('yields a final done event with accumulated text, usage, model, and latencyMs', async () => {
+      const events = [
+        { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Done!' } },
+      ];
+      mockStream.mockReturnValue(
+        makeMockStream(events, {
+          model: 'claude-sonnet-4-6',
+          usage: { input_tokens: 200, output_tokens: 80 },
+        })
+      );
+
+      const collected = [];
+      for await (const event of client.stream({ system: 'sys', user: 'usr' })) {
+        collected.push(event);
+      }
+
+      const done = collected.find((e) => e.type === 'done');
+      expect(done).toBeDefined();
+      expect(done.text).toBe('Done!');
+      expect(done.usage).toEqual({ input: 200, output: 80 });
+      expect(done.model).toBe('claude-sonnet-4-6');
+      expect(typeof done.latencyMs).toBe('number');
+      expect(done.latencyMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('sends system prompt with cache_control ephemeral', async () => {
+      mockStream.mockReturnValue(makeMockStream([]));
+
+      for await (const _ of client.stream({ system: 'My system prompt', user: 'My user prompt' })) {}
+
+      const call = mockStream.mock.calls[0][0];
+      expect(call.system).toEqual([
+        { type: 'text', text: 'My system prompt', cache_control: { type: 'ephemeral' } },
+      ]);
+    });
+
+    it('non-text delta events are ignored and do not appear in output', async () => {
+      const events = [
+        { type: 'content_block_start', content_block: { type: 'text' } },
+        { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hi' } },
+        { type: 'message_delta', usage: { output_tokens: 10 } },
+      ];
+      mockStream.mockReturnValue(makeMockStream(events));
+
+      const collected = [];
+      for await (const event of client.stream({ system: 'sys', user: 'usr' })) {
+        collected.push(event);
+      }
+
+      // Only one delta + one done
+      expect(collected.filter((e) => e.type === 'delta')).toHaveLength(1);
+      expect(collected.filter((e) => e.type === 'done')).toHaveLength(1);
+    });
+
+    it('propagates stream errors as-is', async () => {
+      async function* failingGen() {
+        throw new Error('Stream failure');
+      }
+      mockStream.mockReturnValue({
+        [Symbol.asyncIterator]: failingGen,
+        finalMessage: jest.fn(),
+      });
+
+      await expect(async () => {
+        for await (const _ of client.stream({ system: 'sys', user: 'usr' })) {}
+      }).rejects.toThrow('Stream failure');
     });
   });
 });

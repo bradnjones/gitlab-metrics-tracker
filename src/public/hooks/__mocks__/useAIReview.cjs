@@ -5,6 +5,7 @@ function useAIReview() {
     loading: false,
     error: null,
     lastAnalysis: null,
+    streamingText: '',
     history: [],
   };
 }

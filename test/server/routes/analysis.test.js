@@ -59,9 +59,13 @@ describe('Analysis API', () => {
     // Mock LLM client (non-null = configured)
     mockLLMClient = { generate: jest.fn() };
 
-    // Mock service with analyze method
+    // Mock service with analyze and analyzeStream methods
     mockService = {
       analyze: jest.fn().mockResolvedValue(makeAnalysis()),
+      analyzeStream: jest.fn().mockImplementation(async function* () {
+        yield { type: 'delta', text: 'Hello ' };
+        yield { type: 'done', analysis: makeAnalysis() };
+      }),
     };
 
     // Wire ServiceFactory mocks — route will call these
@@ -148,6 +152,97 @@ describe('Analysis API', () => {
         .expect(500);
 
       expect(response.body.error).toMatch(/analysis failed/i);
+    });
+  });
+
+  // ─── POST /api/analysis/review/stream ─────────────────────────────────────
+
+  describe('POST /api/analysis/review/stream', () => {
+    it('returns 200 SSE response with delta and done events on happy path', async () => {
+      const analysis = makeAnalysis();
+      mockService.analyzeStream = jest.fn().mockImplementation(async function* () {
+        yield { type: 'delta', text: 'Hello ' };
+        yield { type: 'done', analysis };
+      });
+
+      const response = await request(app)
+        .post('/api/analysis/review/stream')
+        .auth('test', 'test')
+        .send({ iterationIds: ['id1', 'id2'] })
+        .expect(200);
+
+      expect(response.headers['content-type']).toMatch(/text\/event-stream/);
+      expect(response.text).toContain('data: {"type":"delta","text":"Hello "}');
+      expect(response.text).toContain('"type":"done"');
+      expect(response.text).toContain('"id":"test-analysis-id"');
+      expect(mockService.analyzeStream).toHaveBeenCalledWith(['id1', 'id2']);
+    });
+
+    it('returns 503 JSON when LLM client is not configured', async () => {
+      ServiceFactory.createLLMClient = jest.fn().mockReturnValue(null);
+
+      const response = await request(app)
+        .post('/api/analysis/review/stream')
+        .auth('test', 'test')
+        .send({ iterationIds: ['id1'] })
+        .expect('Content-Type', /json/)
+        .expect(503);
+
+      expect(response.body.error).toMatch(/not configured/i);
+      expect(mockService.analyzeStream).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 when iterationIds is not an array', async () => {
+      const response = await request(app)
+        .post('/api/analysis/review/stream')
+        .auth('test', 'test')
+        .send({ iterationIds: 'bad' })
+        .expect('Content-Type', /json/)
+        .expect(400);
+
+      expect(response.body.error).toBe('iterationIds must be an array');
+    });
+
+    it('returns 400 when iterationIds exceeds 100 items', async () => {
+      const ids = Array.from({ length: 101 }, (_, i) => `id${i}`);
+
+      const response = await request(app)
+        .post('/api/analysis/review/stream')
+        .auth('test', 'test')
+        .send({ iterationIds: ids })
+        .expect('Content-Type', /json/)
+        .expect(400);
+
+      expect(response.body.error).toBe('iterationIds cannot exceed 100 items');
+    });
+
+    it('streams error event when analyzeStream yields { type:"error" }', async () => {
+      mockService.analyzeStream = jest.fn().mockImplementation(async function* () {
+        yield { type: 'error', message: 'Rate limit exceeded' };
+      });
+
+      const response = await request(app)
+        .post('/api/analysis/review/stream')
+        .auth('test', 'test')
+        .send({ iterationIds: ['id1'] })
+        .expect(200);
+
+      expect(response.text).toContain('data: {"type":"error","message":"Rate limit exceeded"}');
+    });
+
+    it('streams error event when analyzeStream throws unexpectedly', async () => {
+      mockService.analyzeStream = jest.fn().mockImplementation(async function* () {
+        yield { type: 'delta', text: 'partial' };
+        throw new Error('unexpected crash');
+      });
+
+      const response = await request(app)
+        .post('/api/analysis/review/stream')
+        .auth('test', 'test')
+        .send({ iterationIds: ['id1'] })
+        .expect(200);
+
+      expect(response.text).toContain('"type":"error"');
     });
   });
 

@@ -157,4 +157,97 @@ export class MetricAnalysisService {
     await this._analysesRepository.save(analysis);
     return analysis;
   }
+
+  /**
+   * Stream an AI metric review for the given iterations.
+   * Yields `{ type: 'delta', text }` events from the LLM, then
+   * `{ type: 'done', analysis }` with the persisted Analysis on completion.
+   * On LLM failure yields `{ type: 'error', message }` and persists a failed Analysis.
+   *
+   * @param {string[]} iterationIds
+   * @yields {{ type: 'delta', text: string } | { type: 'done', analysis: Analysis } | { type: 'error', message: string }}
+   * @throws {LLMNotConfiguredError} If llmClient is null
+   */
+  async *analyzeStream(iterationIds) {
+    if (this._llmClient === null) {
+      throw new LLMNotConfiguredError(
+        'AI review is not configured — set ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true'
+      );
+    }
+
+    // 1. Compute metrics and fetch annotations
+    const metrics = await this._metricsService.calculateMultipleMetrics(iterationIds);
+    const annotations = await this._annotationsRepository.findAll();
+
+    // 2. Build deterministic signal package
+    const signalPackage = SignalPackageBuilder.build({ metrics, annotations });
+
+    // 3. Compute digest
+    const inputsDigest = 'sha256:' + createHash('sha256')
+      .update(JSON.stringify(signalPackage))
+      .digest('hex');
+
+    // 4. Build prompts
+    const systemPrompt = SYSTEM_PROMPT;
+    const userPrompt = `Analyze the following sprint metrics signal package:\n\n${JSON.stringify(signalPackage, null, 2)}`;
+
+    // 5. Derive iteration range and annotation IDs
+    const iterationRange = signalPackage.iterationRange;
+    const annotationIds = annotations.map((a) => a.id);
+    const createdAt = this._clock().toISOString();
+
+    // 6. Stream from the LLM, passing deltas through
+    let llmDone = null;
+
+    try {
+      for await (const event of this._llmClient.stream({ system: systemPrompt, user: userPrompt })) {
+        if (event.type === 'delta') {
+          yield event;
+        } else if (event.type === 'done') {
+          llmDone = event;
+        }
+      }
+    } catch (err) {
+      const failedAnalysis = new Analysis({
+        createdAt,
+        iterationIds,
+        iterationRange,
+        annotationIds,
+        inputsDigest,
+        signalPackage,
+        model: null,
+        systemPrompt,
+        userPrompt,
+        response: null,
+        usage: null,
+        latencyMs: null,
+        status: 'failed',
+        errorMessage: err.message,
+      });
+      await this._analysesRepository.save(failedAnalysis);
+      yield { type: 'error', message: err.message };
+      return;
+    }
+
+    // 7. Persist and yield the succeeded analysis
+    const analysis = new Analysis({
+      createdAt,
+      iterationIds,
+      iterationRange,
+      annotationIds,
+      inputsDigest,
+      signalPackage,
+      model: llmDone?.model ?? null,
+      systemPrompt,
+      userPrompt,
+      response: llmDone?.text ?? null,
+      usage: llmDone?.usage ?? null,
+      latencyMs: llmDone?.latencyMs ?? null,
+      status: 'succeeded',
+      errorMessage: null,
+    });
+
+    await this._analysesRepository.save(analysis);
+    yield { type: 'done', analysis };
+  }
 }

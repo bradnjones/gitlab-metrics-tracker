@@ -54,6 +54,21 @@ export class AnthropicLLMClient extends ILLMClient {
   }
 
   /**
+   * Build the shared message params for both generate() and stream().
+   *
+   * @param {import('../../core/interfaces/ILLMClient.js').LLMRequest} request
+   * @returns {{ model: string, max_tokens: number, system: Object[], messages: Object[] }}
+   */
+  _buildParams({ system, user, model, maxTokens }) {
+    return {
+      model: model || this._defaultModel,
+      max_tokens: maxTokens || DEFAULT_MAX_TOKENS,
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: user }],
+    };
+  }
+
+  /**
    * Generate text via the Anthropic Messages API.
    * The system prompt is sent with cache_control ephemeral for prompt-cache discounts
    * on repeat calls within the 5-minute TTL window.
@@ -62,25 +77,9 @@ export class AnthropicLLMClient extends ILLMClient {
    * @returns {Promise<import('../../core/interfaces/ILLMClient.js').LLMResponse>}
    * @throws {Error} On network errors, auth failures, or rate limiting — callers handle
    */
-  async generate({ system, user, model, maxTokens }) {
-    const resolvedModel = model || this._defaultModel;
-    const resolvedMaxTokens = maxTokens || DEFAULT_MAX_TOKENS;
-
+  async generate(request) {
     const start = Date.now();
-
-    const response = await this._client.messages.create({
-      model: resolvedModel,
-      max_tokens: resolvedMaxTokens,
-      system: [
-        {
-          type: 'text',
-          text: system,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages: [{ role: 'user', content: user }],
-    });
-
+    const response = await this._client.messages.create(this._buildParams(request));
     const latencyMs = Date.now() - start;
 
     const text = response.content
@@ -95,6 +94,45 @@ export class AnthropicLLMClient extends ILLMClient {
         output: response.usage.output_tokens,
       },
       model: response.model,
+      latencyMs,
+    };
+  }
+
+  /**
+   * Stream text via the Anthropic Messages streaming API.
+   * Yields `{ type: 'delta', text }` for each text chunk and
+   * `{ type: 'done', text, usage, model, latencyMs }` when complete.
+   * The system prompt uses cache_control ephemeral for prompt-cache discounts.
+   *
+   * @param {import('../../core/interfaces/ILLMClient.js').LLMRequest} request
+   * @returns {AsyncGenerator<import('../../core/interfaces/ILLMClient.js').LLMStreamEvent>}
+   * @throws {Error} On network errors, auth failures, or rate limiting
+   */
+  async *stream(request) {
+    const start = Date.now();
+    const sdkStream = this._client.messages.stream(this._buildParams(request));
+
+    let fullText = '';
+
+    for await (const event of sdkStream) {
+      if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+        const text = event.delta.text;
+        fullText += text;
+        yield { type: 'delta', text };
+      }
+    }
+
+    const finalMessage = await sdkStream.finalMessage();
+    const latencyMs = Date.now() - start;
+
+    yield {
+      type: 'done',
+      text: fullText,
+      usage: {
+        input: finalMessage.usage.input_tokens,
+        output: finalMessage.usage.output_tokens,
+      },
+      model: finalMessage.model,
       latencyMs,
     };
   }

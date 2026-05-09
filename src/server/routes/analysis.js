@@ -30,22 +30,76 @@ const reviewLimiter = rateLimit({
 });
 
 /**
- * POST /api/analysis/review
- * Trigger an AI metric review for the given iteration IDs.
- *
- * Body: { iterationIds: string[] }
- * Returns: Analysis (toJSON)
+ * Validate iterationIds before the rate limiter so malformed requests don't
+ * consume quota. Shared by both /review and /review/stream.
  */
-router.post('/review', reviewLimiter, async (req, res) => {
+function validateIterationIds(req, res, next) {
   const { iterationIds } = req.body;
-
-  // Validate body
   if (!Array.isArray(iterationIds)) {
     return res.status(400).json({ error: 'iterationIds must be an array' });
   }
   if (iterationIds.length > 100) {
     return res.status(400).json({ error: 'iterationIds cannot exceed 100 items' });
   }
+  next();
+}
+
+/**
+ * POST /api/analysis/review/stream
+ * Stream an AI metric review via Server-Sent Events.
+ *
+ * Body: { iterationIds: string[] }
+ * Response: text/event-stream — delta and done events, or an error event
+ */
+router.post('/review/stream', validateIterationIds, reviewLimiter, async (req, res) => {
+  const { iterationIds } = req.body;
+
+  const llmClient = ServiceFactory.createLLMClient();
+  if (!llmClient) {
+    return res.status(503).json({
+      error: 'AI review is not configured — set ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true',
+    });
+  }
+
+  const service = ServiceFactory.createMetricAnalysisService({
+    gitlabToken: req.gitlabToken,
+    projectPath: req.gitlabProject,
+  });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+
+  try {
+    for await (const event of service.analyzeStream(iterationIds)) {
+      if (event.type === 'done') {
+        send({ type: 'done', analysis: event.analysis.toJSON() });
+      } else {
+        send(event);
+      }
+    }
+  } catch (err) {
+    logger.error('AI metric stream failed', err, {
+      route: 'POST /api/analysis/review/stream',
+    });
+    send({ type: 'error', message: 'Analysis failed — the run has been persisted for debugging' });
+  } finally {
+    res.end();
+  }
+});
+
+/**
+ * POST /api/analysis/review
+ * Trigger an AI metric review for the given iteration IDs.
+ *
+ * Body: { iterationIds: string[] }
+ * Returns: Analysis (toJSON)
+ */
+router.post('/review', validateIterationIds, reviewLimiter, async (req, res) => {
+  const { iterationIds } = req.body;
 
   // Gate on LLM availability — createLLMClient returns null when not configured
   const llmClient = ServiceFactory.createLLMClient();
