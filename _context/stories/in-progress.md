@@ -1,6 +1,32 @@
 # In Progress
 
-## No Story Currently In Progress
+## AI Metric Review (Issue #155)
+
+**Started:** 2026-05-08
+**Status:** In Progress
+**GitHub Issue:** #155
+
+**Goal:** Add "Review with AI" button to dashboard toolbar that produces an in-app on-demand analyst report. LLM receives pre-computed deterministic signal package; interprets only. Results persist to `src/data/analyses.json`.
+
+**Progress:**
+- [x] GitHub issue created (#155)
+- [x] Product Owner Agent consulted — scope validated ✅
+- [x] Step 1: `SignalPackageBuilder` + `ILLMClient` interface (commit TBD)
+- [ ] Step 2: `AnthropicLLMClient` adapter
+- [ ] Step 3: `Analysis` entity + `IAnalysesRepository` + `FileAnalysesRepository`
+- [ ] Step 4: `MetricAnalysisService` orchestrator
+- [ ] Step 5: `ServiceFactory` wiring
+- [ ] Step 6: Route `analysis.js` + mount
+- [ ] Step 7: `useAIReview` hook
+- [ ] Step 8: `AIReviewModal` component
+- [ ] Step 9: `AIReviewButton` + wire into `ChartsToolbar`
+
+**Key Decisions:**
+- LLM does interpretation only; stats computed server-side via trendCalculator + nelsonRules
+- Two-flag gate: ANTHROPIC_API_KEY + AI_REVIEW_ENABLED=true
+- 1-before/2-after annotation window (deliberate divergence from prototype's 3/3 — matches analyze-sprint.md spec)
+- inputsDigest = always re-fetch (no cache-hit short-circuit for MVP)
+- History-view UI deferred; GET /api/analysis route built now
 
 The project has been restructured from horizontal architectural layers to vertical slices. See `backlog.md` for the new vertical slice stories (V1-V7).
 
