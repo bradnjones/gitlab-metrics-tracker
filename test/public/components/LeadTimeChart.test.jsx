@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, test, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import userEvent from '@testing-library/user-event';
 import LeadTimeChart from '../../../src/public/components/LeadTimeChart.jsx';
@@ -78,6 +78,21 @@ jest.mock('../../../src/public/components/ChartFilterDropdown.jsx', () => {
       <button onClick={() => onReset()}>Reset Filter</button>
     </div>
   ));
+});
+
+// Mock ChartEnlargementModal — avoids full styled-components theme requirements;
+// we test the modal itself in ChartEnlargementModal.test.jsx
+jest.mock('../../../src/public/components/ChartEnlargementModal.jsx', () => {
+  return jest.fn(({ isOpen, onClose, chartElement, toolbar }) => {
+    if (!isOpen) return null;
+    return (
+      <div role="dialog" aria-modal="true" aria-labelledby="enlarged-chart-title">
+        {toolbar}
+        <button onClick={onClose} aria-label="Close enlarged chart view">&times;</button>
+        {chartElement}
+      </div>
+    );
+  });
 });
 
 // Two-sprint subset of sampleIterations — matches mockApiResponse IDs and dates
@@ -466,5 +481,60 @@ describe('LeadTimeChart', () => {
 
     const chartData = JSON.parse(screen.getByTestId('chart-data').textContent);
     expect(chartData.datasets.map(d => d.label)).not.toContain('Average');
+  });
+
+  describe('enlarged modal local toggles', () => {
+    test('enlarged modal shows local toggle buttons for series and annotations', async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+      const user = userEvent.setup();
+      renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
+      await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /click to enlarge lead time chart/i }));
+
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('button', { name: /average/i })).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: /p50/i })).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: /p90/i })).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: /annotations/i })).toBeInTheDocument();
+    });
+
+    test('local P90 toggle in modal hides P90 from modal chart without affecting main chart', async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+      const user = userEvent.setup();
+      renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
+      await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /click to enlarge lead time chart/i }));
+      const dialog = screen.getByRole('dialog');
+
+      await user.click(within(dialog).getByRole('button', { name: /p90: on/i }));
+
+      const modalChartData = JSON.parse(within(dialog).getByTestId('chart-data').textContent);
+      expect(modalChartData.datasets.map(d => d.label)).not.toContain('P90');
+
+      const allChartDatas = screen.getAllByTestId('chart-data');
+      const mainData = JSON.parse(allChartDatas.find(el => !dialog.contains(el)).textContent);
+      expect(mainData.datasets.map(d => d.label)).toContain('P90');
+    });
+
+    test('reopening modal after close resets local toggles to global state', async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => mockApiResponse });
+      const user = userEvent.setup();
+      renderWithTheme(<LeadTimeChart selectedIterations={mockIterations} />, defaultTheme);
+      await waitFor(() => expect(screen.getByTestId('chart-data')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /click to enlarge lead time chart/i }));
+      const dialog = screen.getByRole('dialog');
+
+      await user.click(within(dialog).getByRole('button', { name: /p90: on/i }));
+      expect(JSON.parse(within(dialog).getByTestId('chart-data').textContent).datasets.map(d => d.label)).not.toContain('P90');
+
+      await user.click(within(dialog).getByRole('button', { name: /close enlarged chart view/i }));
+
+      await user.click(screen.getByRole('button', { name: /click to enlarge lead time chart/i }));
+      const newDialog = screen.getByRole('dialog');
+      expect(JSON.parse(within(newDialog).getByTestId('chart-data').textContent).datasets.map(d => d.label)).toContain('P90');
+    });
   });
 });

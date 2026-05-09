@@ -340,7 +340,44 @@ describe('ChartEnlargementModal', () => {
   });
 
   /**
-   * Test 5: Focus management when modal opens
+   * Test 5: Optional toolbar prop
+   * Verifies toolbar content is rendered when provided and absent when omitted
+   */
+  describe('Toolbar', () => {
+    test('renders toolbar content when toolbar prop is provided', () => {
+      const toolbar = <div data-testid="modal-toolbar">toolbar content</div>;
+      render(
+        <ThemeProvider theme={theme}>
+          <ChartEnlargementModal
+            isOpen={true}
+            onClose={() => {}}
+            chartTitle="Test Chart"
+            chartElement={<MockChart />}
+            toolbar={toolbar}
+          />
+        </ThemeProvider>
+      );
+      expect(screen.getByTestId('modal-toolbar')).toBeInTheDocument();
+      expect(screen.getByText('toolbar content')).toBeInTheDocument();
+    });
+
+    test('does not render toolbar when toolbar prop is omitted', () => {
+      render(
+        <ThemeProvider theme={theme}>
+          <ChartEnlargementModal
+            isOpen={true}
+            onClose={() => {}}
+            chartTitle="Test Chart"
+            chartElement={<MockChart />}
+          />
+        </ThemeProvider>
+      );
+      expect(screen.queryByTestId('modal-toolbar')).not.toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Test 6: Focus management when modal opens
    * Verifies close button receives focus when modal opens
    */
   describe('Focus Management', () => {

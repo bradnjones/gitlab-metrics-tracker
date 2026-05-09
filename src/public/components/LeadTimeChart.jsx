@@ -5,7 +5,8 @@
  * @module components/LeadTimeChart
  */
 
-import { useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import styled from 'styled-components';
 import { apiFetch } from '../utils/apiFetch.js';
 import { Line } from 'react-chartjs-2';
 import { exportChartAsPng } from '../utils/exportChart.js';
@@ -34,6 +35,21 @@ Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Too
 
 // localStorage key for per-chart filter exclusions
 const FILTER_STORAGE_KEY = 'chart-filters-lead-time';
+
+const ModalToggleButton = styled.button`
+  background: ${props => props.theme.colors.bgPrimary};
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: ${props => props.theme.borderRadius.full};
+  color: ${props => props.theme.colors.textSecondary};
+  cursor: pointer;
+  font-size: ${props => props.theme.typography.fontSize.sm};
+  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  padding: 4px 12px;
+  transition: background 150ms ease, color 150ms ease;
+  &:hover { background: ${props => props.theme.colors.bgTertiary}; color: ${props => props.theme.colors.textPrimary}; }
+  &:focus { outline: 2px solid ${props => props.theme.colors.primary}; outline-offset: 2px; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+`;
 
 /**
  * LeadTimeChart Component
@@ -242,6 +258,56 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
     return { ...chartData, datasets };
   }, [chartData, showP90, showP50, showAverage]);
 
+  // Local toggle state — only active while the enlargement modal is open; resets on close
+  const [localShowP90, setLocalShowP90] = useState(showP90);
+  const [localShowP50, setLocalShowP50] = useState(showP50);
+  const [localShowAverage, setLocalShowAverage] = useState(showAverage);
+  const [localShowAnnotations, setLocalShowAnnotations] = useState(showAnnotations);
+
+  useEffect(() => {
+    if (!isEnlarged) {
+      setLocalShowP90(showP90);
+      setLocalShowP50(showP50);
+      setLocalShowAverage(showAverage);
+      setLocalShowAnnotations(showAnnotations);
+    }
+  }, [isEnlarged, showP90, showP50, showAverage, showAnnotations]);
+
+  const localDisplayedChartData = useMemo(() => {
+    if (!chartData) return null;
+    const datasets = chartData.datasets.filter(d => {
+      if (d.label === 'P90') return localShowP90;
+      if (d.label === 'P50') return localShowP50;
+      if (d.label === 'Average') return localShowAverage;
+      return true;
+    });
+    return { ...chartData, datasets };
+  }, [chartData, localShowP90, localShowP50, localShowAverage]);
+
+  const handleLocalToggleP90 = useCallback(() => setLocalShowP90(v => !v), []);
+  const handleLocalToggleP50 = useCallback(() => setLocalShowP50(v => !v), []);
+  const handleLocalToggleAverage = useCallback(() => setLocalShowAverage(v => !v), []);
+  const handleLocalToggleAnnotations = useCallback(() => setLocalShowAnnotations(v => !v), []);
+
+  const localOnlyOneVisible = [localShowAverage, localShowP50, localShowP90].filter(Boolean).length === 1;
+
+  const modalToolbar = (
+    <>
+      <ModalToggleButton onClick={handleLocalToggleAverage} disabled={localShowAverage && localOnlyOneVisible}>
+        {localShowAverage ? 'Average: On' : 'Average: Off'}
+      </ModalToggleButton>
+      <ModalToggleButton onClick={handleLocalToggleP50} disabled={localShowP50 && localOnlyOneVisible}>
+        {localShowP50 ? 'P50: On' : 'P50: Off'}
+      </ModalToggleButton>
+      <ModalToggleButton onClick={handleLocalToggleP90} disabled={localShowP90 && localOnlyOneVisible}>
+        {localShowP90 ? 'P90: On' : 'P90: Off'}
+      </ModalToggleButton>
+      <ModalToggleButton onClick={handleLocalToggleAnnotations}>
+        {localShowAnnotations ? 'Annotations: On' : 'Annotations: Off'}
+      </ModalToggleButton>
+    </>
+  );
+
   /**
    * Handle filter change from ChartFilterDropdown
    * @param {Array<string>} newExcludedIds - New array of excluded iteration IDs
@@ -334,10 +400,11 @@ const LeadTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, show
             isOpen={isEnlarged}
             onClose={() => setIsEnlarged(false)}
             chartTitle="Lead Time Metrics"
+            toolbar={modalToolbar}
             chartElement={
               <Line
-                data={displayedChartData}
-                options={getChartOptions(controlLimits, leadTimeAnnotations)}
+                data={localDisplayedChartData}
+                options={getChartOptions(controlLimits, localShowAnnotations ? leadTimeAnnotations : {})}
                 aria-label="Line chart showing lead time trends with average, P50, and P90 metrics across selected iterations, including statistical control limits"
                 role="img"
               />

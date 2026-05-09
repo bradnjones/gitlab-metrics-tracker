@@ -49,17 +49,55 @@ import { jest } from '@jest/globals';
 export const defaultTheme = {
   colors: {
     bgPrimary: '#ffffff',
+    bgSecondary: '#f9fafb',
+    bgTertiary: '#e5e7eb',
     textPrimary: '#1f2937',
+    textSecondary: '#6b7280',
+    border: '#d1d5db',
+    primary: '#3b82f6',
   },
   spacing: {
+    xs: '4px',
     sm: '0.5rem',
     md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
   },
   typography: {
     fontSize: {
       sm: '0.875rem',
       base: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
     },
+    fontWeight: {
+      medium: 500,
+      semibold: 600,
+    },
+  },
+  borderRadius: {
+    sm: '4px',
+    md: '6px',
+    lg: '8px',
+    xl: '12px',
+    full: '9999px',
+  },
+  shadows: {
+    md: '0 2px 8px rgba(0,0,0,0.1)',
+    xl: '0 20px 25px -5px rgba(0,0,0,0.1)',
+  },
+  breakpoints: {
+    mobile: '640px',
+    tablet: '768px',
+    desktop: '1024px',
+  },
+  transitions: {
+    fast: '150ms',
+    normal: '200ms',
+    easing: 'ease-in-out',
+  },
+  zIndex: {
+    modal: 1000,
   },
 };
 

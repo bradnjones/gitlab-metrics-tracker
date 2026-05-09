@@ -179,6 +179,22 @@ export const ChartContainer = styled.div`
 `;
 
 /**
+ * Toolbar strip between header and chart — hosts per-chart local toggle buttons
+ *
+ * @component
+ */
+export const ModalToolbar = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: ${(props) => props.theme.spacing.sm};
+  padding: ${(props) => props.theme.spacing.sm} ${(props) => props.theme.spacing.lg};
+  flex-shrink: 0;
+  border-bottom: 1px solid ${(props) => props.theme.colors.border};
+  background: ${(props) => props.theme.colors.bgPrimary};
+`;
+
+/**
  * Keyboard hint - Small text showing "Press ESC to close"
  *
  * @component

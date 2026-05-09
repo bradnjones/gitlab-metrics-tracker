@@ -22,6 +22,7 @@ import {
   CloseButton,
   ChartContainer,
   KeyboardHint,
+  ModalToolbar,
 } from './ChartEnlargementModal.styles.jsx';
 
 /**
@@ -32,9 +33,10 @@ import {
  * @param {Function} props.onClose - Callback when modal closes
  * @param {string} props.chartTitle - Title to display in modal header
  * @param {React.ReactElement} props.chartElement - Chart component to render
+ * @param {React.ReactNode} [props.toolbar] - Optional toolbar strip rendered between header and chart
  * @returns {React.ReactElement|null} Modal component or null if not open
  */
-const ChartEnlargementModal = ({ isOpen, onClose, chartTitle, chartElement }) => {
+const ChartEnlargementModal = ({ isOpen, onClose, chartTitle, chartElement, toolbar }) => {
   const closeButtonRef = useRef(null);
   // Handle Escape key to close modal
   useEffect(() => {
@@ -100,6 +102,7 @@ const ChartEnlargementModal = ({ isOpen, onClose, chartTitle, chartElement }) =>
           </CloseButton>
         </EnlargementHeader>
 
+        {toolbar && <ModalToolbar>{toolbar}</ModalToolbar>}
         <ChartContainer>{chartElement}</ChartContainer>
 
         <KeyboardHint>Press ESC to close</KeyboardHint>
@@ -113,6 +116,7 @@ ChartEnlargementModal.propTypes = {
   onClose: PropTypes.func.isRequired,
   chartTitle: PropTypes.string.isRequired,
   chartElement: PropTypes.element.isRequired,
+  toolbar: PropTypes.node,
 };
 
 export default ChartEnlargementModal;

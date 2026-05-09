@@ -6,6 +6,14 @@ Stories are prepended to this file (most recent at top).
 
 ## Bug Fixes & Improvements
 
+### 2026-05-08 - Issue #154 - Per-chart toggles in enlarged modal view
+- Added Average/P50/P90/Annotations toggle buttons to the Cycle Time and Lead Time enlargement modals
+- Local state initializes from global dashboard props; resets automatically when the modal is closed (useEffect on isEnlarged)
+- Toggling inside the modal has no effect on global state or other charts
+- At-least-one guard (Average/P50/P90) applies locally, same rule as dashboard
+- Added optional `toolbar` prop to ChartEnlargementModal; added ModalToolbar styled component to styles file
+- 8 new tests (ChartEnlargementModal toolbar prop + enlarged-modal toggle tests in CycleTime/LeadTime); all 1196 tests pass, 87.82% coverage
+
 ### 2026-05-08 - Issue #153 - Add P50 and Average chart toggles
 - Added Average: On/Off and P50: On/Off toggle buttons to the dashboard toolbar, alongside the existing P90 toggle
 - At-least-one guard: when only one series remains enabled, its button is disabled (`opacity: 0.5; pointer-events: none`) to prevent rendering an empty chart
