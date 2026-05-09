@@ -47,6 +47,9 @@ import LeadTimeChart from './LeadTimeChart.jsx';
 import MTTRChart from './MTTRChart.jsx';
 import ChangeFailureRateChart from './ChangeFailureRateChart.jsx';
 import DataExplorerView from './DataExplorerView.jsx';
+import AIReviewButton from './AIReviewButton.jsx';
+import AIReviewModal from './AIReviewModal.jsx';
+import { useAIReview } from '../hooks/useAIReview.js';
 
 /**
  * Main app container
@@ -205,6 +208,9 @@ export default function VelocityApp() {
     startEditAnnotation,
     startCreateAnnotation,
   } = useAppModals();
+  const { run: runAIReview, loading: aiLoading, error: aiError, lastAnalysis } = useAIReview();
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
   const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
   const [annotationError, setAnnotationError] = useState(null);
   const [showAnnotations, setShowAnnotations] = useState(() => {
@@ -245,6 +251,11 @@ export default function VelocityApp() {
     if (!displayedIterationIds) return selectedIterations;
     return selectedIterations.filter(iter => displayedIterationIds.has(iter.id));
   }, [selectedIterations, displayedIterationIds]);
+
+  const handleAIReview = useCallback(() => {
+    setIsReviewModalOpen(true);
+    runAIReview(displayedIterations.map((i) => i.id));
+  }, [displayedIterations, runAIReview]);
 
   // Load selected iterations from localStorage on mount
   useEffect(() => {
@@ -554,7 +565,20 @@ export default function VelocityApp() {
                     <AnnotationToggleButton onClick={handleToggleAnnotations}>
                       {showAnnotations ? 'Annotations: On' : 'Annotations: Off'}
                     </AnnotationToggleButton>
+                    <AIReviewButton
+                      onClick={handleAIReview}
+                      loading={aiLoading}
+                      disabled={displayedIterations.length === 0}
+                      lastAnalysis={lastAnalysis}
+                    />
                   </ChartsToolbar>
+                  <AIReviewModal
+                    isOpen={isReviewModalOpen}
+                    onClose={() => setIsReviewModalOpen(false)}
+                    analysis={lastAnalysis}
+                    loading={aiLoading}
+                    error={aiError}
+                  />
                   <ChartsGrid>
               <ChartCard>
                 <ChartTitle>Velocity Trend</ChartTitle>
