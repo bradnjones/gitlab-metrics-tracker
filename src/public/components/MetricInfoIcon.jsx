@@ -5,13 +5,17 @@
  * The tooltip explains what a metric measures and whether higher or
  * lower values indicate good performance.
  *
+ * The bubble auto-flips from left-aligned to right-aligned when it
+ * would overflow the viewport, using useLayoutEffect so the correction
+ * happens before the browser paints (no visible flash).
+ *
  * @param {Object} props
  * @param {string} props.label - Metric name, used for aria-label
  * @param {{ description: string, goodDirection: 'up'|'down', goodLabel: string }} props.tooltip
  * @returns {JSX.Element}
  */
 
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import styled from 'styled-components';
 
 const Wrapper = styled.span`
@@ -45,7 +49,7 @@ const IconButton = styled.button`
 const Bubble = styled.div`
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  ${props => props.$flipped ? 'right: 0;' : 'left: 0;'}
   z-index: ${props => props.theme.zIndex.tooltip};
   background: ${props => props.theme.colors.bgPrimary};
   border: 1px solid ${props => props.theme.colors.border};
@@ -85,6 +89,19 @@ function InfoIcon() {
 
 export default function MetricInfoIcon({ label, tooltip }) {
   const [visible, setVisible] = useState(false);
+  const [flipped, setFlipped] = useState(false);
+  const bubbleRef = useRef(null);
+
+  // After the bubble renders, check if it overflows the right edge of the viewport.
+  // useLayoutEffect runs before the browser paints so there's no visible flash.
+  useLayoutEffect(() => {
+    if (visible && bubbleRef.current) {
+      const rect = bubbleRef.current.getBoundingClientRect();
+      setFlipped(rect.right > window.innerWidth - 8);
+    } else {
+      setFlipped(false);
+    }
+  }, [visible]);
 
   return (
     <Wrapper
@@ -99,7 +116,7 @@ export default function MetricInfoIcon({ label, tooltip }) {
         <InfoIcon />
       </IconButton>
       {visible && (
-        <Bubble role="tooltip">
+        <Bubble ref={bubbleRef} role="tooltip" $flipped={flipped}>
           <Description>{tooltip.description}</Description>
           <Indicator $positive={tooltip.goodDirection === 'up'}>
             {tooltip.goodDirection === 'up' ? '↑ Higher is better' : '↓ Lower is better'} — {tooltip.goodLabel}

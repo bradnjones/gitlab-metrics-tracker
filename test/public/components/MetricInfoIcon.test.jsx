@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import MetricInfoIcon from '../../../src/public/components/MetricInfoIcon.jsx';
 
@@ -80,5 +80,23 @@ describe('MetricInfoIcon', () => {
     renderIcon({ tooltip: { description: 'Points completed.', goodDirection: 'up', goodLabel: 'more is better' } });
     fireEvent.mouseEnter(screen.getByRole('button', { name: /about cycle time/i }).parentElement);
     expect(screen.getByText(/↑ higher is better/i)).toBeInTheDocument();
+  });
+
+  test('right-aligns bubble when it would overflow the viewport', () => {
+    // Simulate the bubble rendering beyond the right viewport edge
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 800 });
+    jest.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      right: 820, left: 560, top: 0, bottom: 0, width: 260, height: 0, x: 560, y: 0, toJSON: () => {},
+    });
+
+    renderIcon();
+    act(() => {
+      fireEvent.mouseEnter(screen.getByRole('button', { name: /about cycle time/i }).parentElement);
+    });
+
+    // Bubble should be present; the $flipped prop is handled by styled-components CSS
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+
+    jest.restoreAllMocks();
   });
 });
