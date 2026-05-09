@@ -9,6 +9,7 @@ function useAIReview() {
     streamingText: '',
     chatLoading: false,
     chatStreamingText: '',
+    pendingChatMessage: '',
     history: [],
   };
 }

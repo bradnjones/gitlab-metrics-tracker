@@ -20,6 +20,7 @@ import { apiFetch } from '../utils/apiFetch.js';
  *   streamingText: string,
  *   chatLoading: boolean,
  *   chatStreamingText: string,
+ *   pendingChatMessage: string,
  *   history: Object[]
  * }}
  */
@@ -30,6 +31,7 @@ export function useAIReview() {
   const [streamingText, setStreamingText] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatStreamingText, setChatStreamingText] = useState('');
+  const [pendingChatMessage, setPendingChatMessage] = useState('');
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
@@ -135,6 +137,7 @@ export function useAIReview() {
     setChatLoading(true);
     setError(null);
     setChatStreamingText('');
+    setPendingChatMessage(message);
 
     try {
       const response = await apiFetch(`/api/analysis/${analysisId}/chat`, {
@@ -173,6 +176,7 @@ export function useAIReview() {
             } else if (data.type === 'done') {
               setLastAnalysis(data.analysis);
               setChatStreamingText('');
+              setPendingChatMessage('');
             } else if (data.type === 'error') {
               setError(data.message);
             }
@@ -183,10 +187,11 @@ export function useAIReview() {
       }
     } catch (err) {
       setError(err.message);
+      setPendingChatMessage('');
     } finally {
       setChatLoading(false);
     }
   }
 
-  return { run, chat, loading, error, lastAnalysis, streamingText, chatLoading, chatStreamingText, history };
+  return { run, chat, loading, error, lastAnalysis, streamingText, chatLoading, chatStreamingText, pendingChatMessage, history };
 }

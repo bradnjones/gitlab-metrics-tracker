@@ -329,7 +329,7 @@ describe('useAIReview', () => {
 
   // ─── chat() ────────────────────────────────────────────────────────────────
 
-  it('hook exposes chat, chatLoading, and chatStreamingText', async () => {
+  it('hook exposes chat, chatLoading, chatStreamingText, and pendingChatMessage', async () => {
     global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useAIReview());
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
@@ -337,6 +337,28 @@ describe('useAIReview', () => {
     expect(typeof result.current.chat).toBe('function');
     expect(result.current.chatLoading).toBe(false);
     expect(result.current.chatStreamingText).toBe('');
+    expect(result.current.pendingChatMessage).toBe('');
+  });
+
+  it('chat() sets pendingChatMessage immediately and clears it on done', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    const { result } = renderHook(() => useAIReview());
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    const updatedAnalysis = { id: 'a1', conversationHistory: [{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'Hello' }] };
+    global.fetch.mockResolvedValueOnce(
+      makeSSEResponse([
+        { type: 'delta', text: 'Hello' },
+        { type: 'done', analysis: updatedAnalysis },
+      ])
+    );
+
+    await act(async () => {
+      await result.current.chat('a1', 'hi');
+    });
+
+    expect(result.current.pendingChatMessage).toBe('');
+    expect(result.current.lastAnalysis).toEqual(updatedAnalysis);
   });
 
   it('chat() accumulates chatStreamingText from delta events', async () => {

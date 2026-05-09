@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import AIReviewModal from '../../../src/public/components/AIReviewModal.jsx';
 
@@ -52,6 +52,7 @@ function renderModal(props = {}) {
     onChat: jest.fn(),
     chatLoading: false,
     chatStreamingText: '',
+    pendingChatMessage: '',
   };
   return render(
     <ThemeProvider theme={theme}>
@@ -117,19 +118,34 @@ describe('AIReviewModal', () => {
     expect(screen.getByText(/2\.5s/)).toBeInTheDocument();
   });
 
-  it('calls clipboard writeText with JSON payload (report + signalPackage + conversationHistory) when copy button is clicked', () => {
-    Object.assign(navigator, { clipboard: { writeText: jest.fn() } });
+  it('copies JSON payload (report + signalPackage + conversationHistory) to clipboard when copy button is clicked', async () => {
+    Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
     const analysis = makeAnalysis({
       signalPackage: { schemaVersion: 1, velocity: { mean: 30 } },
       conversationHistory: [{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a' }],
     });
     renderModal({ analysis });
-    fireEvent.click(screen.getByText(/copy as json/i));
+    await act(async () => { fireEvent.click(screen.getByText(/copy as json/i)); });
     const written = navigator.clipboard.writeText.mock.calls[0][0];
     const parsed = JSON.parse(written);
     expect(parsed.report).toBe('## Headline\n\nAll metrics stable.');
     expect(parsed.signalPackage).toEqual({ schemaVersion: 1, velocity: { mean: 30 } });
     expect(parsed.conversationHistory).toEqual([{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a' }]);
+  });
+
+  it('shows "Copied!" feedback after copy button is clicked', async () => {
+    Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
+    renderModal();
+    await act(async () => { fireEvent.click(screen.getByText(/copy as json/i)); });
+    expect(screen.getByText('Copied!')).toBeInTheDocument();
+  });
+
+  it('falls back to execCommand copy when clipboard API is unavailable', () => {
+    Object.assign(navigator, { clipboard: undefined });
+    document.execCommand = jest.fn().mockReturnValue(true);
+    renderModal();
+    fireEvent.click(screen.getByText(/copy as json/i));
+    expect(document.execCommand).toHaveBeenCalledWith('copy');
   });
 
   it('does not render copy button when analysis has no response', () => {
@@ -256,9 +272,14 @@ describe('AIReviewModal', () => {
     expect(screen.getByText('It means velocity is stable.')).toBeInTheDocument();
   });
 
-  it('renders streaming assistant bubble when chatLoading and chatStreamingText is non-empty', () => {
+  it('renders streaming assistant bubble when chatStreamingText is non-empty', () => {
     renderModal({ chatLoading: true, chatStreamingText: 'Partial answer...' });
     expect(screen.getByText('Partial answer...')).toBeInTheDocument();
+  });
+
+  it('renders pending user message optimistically before the API responds', () => {
+    renderModal({ chatLoading: true, pendingChatMessage: 'What does velocity mean?' });
+    expect(screen.getByText('What does velocity mean?')).toBeInTheDocument();
   });
 
   it('clears input after sending', () => {

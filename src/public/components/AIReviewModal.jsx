@@ -58,9 +58,11 @@ const AIReviewModal = ({
   onChat = null,
   chatLoading = false,
   chatStreamingText = '',
+  pendingChatMessage = '',
 }) => {
   const closeButtonRef = useRef(null);
   const [chatInput, setChatInput] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -95,7 +97,29 @@ const AIReviewModal = ({
       signalPackage: analysis.signalPackage,
       conversationHistory: analysis.conversationHistory ?? [],
     };
-    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    const text = JSON.stringify(payload, null, 2);
+
+    const markCopied = () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    const fallback = () => {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+      document.body.appendChild(el);
+      el.focus();
+      el.select();
+      try { document.execCommand('copy'); markCopied(); } catch (_) {}
+      document.body.removeChild(el);
+    };
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(markCopied).catch(fallback);
+    } else {
+      fallback();
+    }
   };
 
   const handleSend = () => {
@@ -161,7 +185,7 @@ const AIReviewModal = ({
               </AnalysisMeta>
 
               <ChatSection>
-                {((analysis.conversationHistory && analysis.conversationHistory.length > 0) || (chatLoading && chatStreamingText)) && (
+                {((analysis.conversationHistory && analysis.conversationHistory.length > 0) || pendingChatMessage || chatStreamingText) && (
                   <ChatThread>
                     {(analysis.conversationHistory || []).map((msg, i) =>
                       msg.role === 'user' ? (
@@ -174,7 +198,10 @@ const AIReviewModal = ({
                         </ChatBubble>
                       )
                     )}
-                    {chatLoading && chatStreamingText && (
+                    {pendingChatMessage && (
+                      <ChatBubble $isUser={true}>{pendingChatMessage}</ChatBubble>
+                    )}
+                    {chatStreamingText && (
                       <ChatBubble $isUser={false}>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{chatStreamingText}</ReactMarkdown>
                       </ChatBubble>
@@ -206,7 +233,7 @@ const AIReviewModal = ({
         {analysis?.response && (
           <Footer>
             <CopyButton type="button" onClick={handleCopy}>
-              Copy as JSON
+              {copied ? 'Copied!' : 'Copy as JSON'}
             </CopyButton>
           </Footer>
         )}
@@ -236,6 +263,7 @@ AIReviewModal.propTypes = {
   onChat: PropTypes.func,
   chatLoading: PropTypes.bool,
   chatStreamingText: PropTypes.string,
+  pendingChatMessage: PropTypes.string,
 };
 
 
