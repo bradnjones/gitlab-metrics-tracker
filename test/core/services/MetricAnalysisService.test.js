@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { MetricAnalysisService, LLMNotConfiguredError } from '../../../src/lib/core/services/MetricAnalysisService.js';
+import { MetricAnalysisService, LLMNotConfiguredError, AnalysisNotFoundError } from '../../../src/lib/core/services/MetricAnalysisService.js';
 import { Analysis } from '../../../src/lib/core/entities/Analysis.js';
 
 // ---------------------------------------------------------------------------
@@ -34,6 +34,28 @@ function makeAnnotation(overrides = {}) {
   };
 }
 
+function makeStoredAnalysis(overrides = {}) {
+  return new Analysis({
+    id: 'stored-analysis-id',
+    createdAt: '2025-01-01T00:00:00.000Z',
+    iterationIds: ['gid://gitlab/Iteration/1'],
+    iterationRange: { from: '2025-01-01', to: '2025-01-14' },
+    annotationIds: [],
+    inputsDigest: 'sha256:abc',
+    signalPackage: {},
+    model: 'claude-sonnet-4-6',
+    systemPrompt: 'You are an analyst.',
+    userPrompt: 'Analyze these metrics.',
+    response: '## Initial Report\n\nVelocity stable.',
+    usage: { input: 1000, output: 300 },
+    latencyMs: 1500,
+    status: 'succeeded',
+    errorMessage: null,
+    conversationHistory: [],
+    ...overrides,
+  });
+}
+
 function makeDeps(overrides = {}) {
   const metrics = [makeMetric(), makeMetric({ iterationId: 'gid://gitlab/Iteration/2', iterationTitle: 'Sprint 2', endDate: '2025-01-28' })];
   const annotations = [makeAnnotation()];
@@ -56,9 +78,15 @@ function makeDeps(overrides = {}) {
       yield { type: 'delta', text: 'world' };
       yield { type: 'done', text: 'Hello world', usage: { input: 500, output: 200 }, model: 'claude-sonnet-4-6', latencyMs: 2000 };
     }),
+    streamConversation: jest.fn().mockImplementation(async function* () {
+      yield { type: 'delta', text: 'Chat ' };
+      yield { type: 'delta', text: 'reply' };
+      yield { type: 'done', text: 'Chat reply', usage: { input: 300, output: 100 }, model: 'claude-sonnet-4-6', latencyMs: 1200 };
+    }),
   };
   const analysesRepository = {
     save: jest.fn().mockResolvedValue(undefined),
+    findById: jest.fn().mockResolvedValue(makeStoredAnalysis()),
   };
 
   return {
@@ -260,6 +288,134 @@ describe('MetricAnalysisService', () => {
 
       const doneEvent = collected.find((e) => e.type === 'done');
       expect(doneEvent.analysis.createdAt).toBe(fixedDate.toISOString());
+    });
+  });
+
+  describe('chatStream()', () => {
+    it('throws LLMNotConfiguredError when llmClient is null', async () => {
+      const deps = makeDeps({ llmClient: null });
+      const service = new MetricAnalysisService(deps);
+
+      const gen = service.chatStream('stored-analysis-id', 'What does this mean?');
+      await expect(gen.next()).rejects.toThrow(LLMNotConfiguredError);
+    });
+
+    it('throws AnalysisNotFoundError when analysis does not exist', async () => {
+      const deps = makeDeps();
+      deps.analysesRepository.findById.mockResolvedValue(null);
+      const service = new MetricAnalysisService(deps);
+
+      const gen = service.chatStream('nonexistent-id', 'Hello?');
+      await expect(gen.next()).rejects.toThrow(AnalysisNotFoundError);
+    });
+
+    it('yields delta events from llmClient.streamConversation()', async () => {
+      const deps = makeDeps();
+      const service = new MetricAnalysisService(deps);
+
+      const collected = [];
+      for await (const event of service.chatStream('stored-analysis-id', 'What does velocity mean?')) {
+        collected.push(event);
+      }
+
+      const deltas = collected.filter((e) => e.type === 'delta');
+      expect(deltas).toHaveLength(2);
+      expect(deltas[0]).toEqual({ type: 'delta', text: 'Chat ' });
+      expect(deltas[1]).toEqual({ type: 'delta', text: 'reply' });
+    });
+
+    it('builds multi-turn messages array with original prompt, response, and new message', async () => {
+      const deps = makeDeps();
+      const service = new MetricAnalysisService(deps);
+
+      for await (const _ of service.chatStream('stored-analysis-id', 'Follow-up question')) {}
+
+      expect(deps.llmClient.streamConversation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            { role: 'user', content: 'Analyze these metrics.' },
+            { role: 'assistant', content: '## Initial Report\n\nVelocity stable.' },
+            { role: 'user', content: 'Follow-up question' },
+          ]),
+        })
+      );
+    });
+
+    it('appends user and assistant messages to conversationHistory and saves updated analysis', async () => {
+      const deps = makeDeps();
+      const service = new MetricAnalysisService(deps);
+
+      const collected = [];
+      for await (const event of service.chatStream('stored-analysis-id', 'What does this mean?')) {
+        collected.push(event);
+      }
+
+      expect(deps.analysesRepository.save).toHaveBeenCalledTimes(1);
+      const saved = deps.analysesRepository.save.mock.calls[0][0];
+      expect(saved.conversationHistory).toEqual([
+        { role: 'user', content: 'What does this mean?' },
+        { role: 'assistant', content: 'Chat reply' },
+      ]);
+    });
+
+    it('yields { type:"done", analysis } with updated conversationHistory', async () => {
+      const deps = makeDeps();
+      const service = new MetricAnalysisService(deps);
+
+      const collected = [];
+      for await (const event of service.chatStream('stored-analysis-id', 'Tell me more')) {
+        collected.push(event);
+      }
+
+      const doneEvent = collected.find((e) => e.type === 'done');
+      expect(doneEvent).toBeDefined();
+      expect(doneEvent.analysis).toBeInstanceOf(Analysis);
+      expect(doneEvent.analysis.conversationHistory).toHaveLength(2);
+      expect(doneEvent.analysis.conversationHistory[0]).toEqual({ role: 'user', content: 'Tell me more' });
+      expect(doneEvent.analysis.conversationHistory[1]).toEqual({ role: 'assistant', content: 'Chat reply' });
+    });
+
+    it('includes existing conversationHistory in the messages array when continuing a thread', async () => {
+      const existingHistory = [
+        { role: 'user', content: 'First question' },
+        { role: 'assistant', content: 'First answer' },
+      ];
+      const storedAnalysis = makeStoredAnalysis({ conversationHistory: existingHistory });
+      const deps = makeDeps();
+      deps.analysesRepository.findById.mockResolvedValue(storedAnalysis);
+      const service = new MetricAnalysisService(deps);
+
+      for await (const _ of service.chatStream('stored-analysis-id', 'Second question')) {}
+
+      const call = deps.llmClient.streamConversation.mock.calls[0][0];
+      expect(call.messages).toEqual([
+        { role: 'user', content: 'Analyze these metrics.' },
+        { role: 'assistant', content: '## Initial Report\n\nVelocity stable.' },
+        { role: 'user', content: 'First question' },
+        { role: 'assistant', content: 'First answer' },
+        { role: 'user', content: 'Second question' },
+      ]);
+    });
+
+    it('yields { type:"error" } and does not save when streamConversation throws', async () => {
+      const deps = makeDeps({
+        llmClient: {
+          generate: jest.fn(),
+          stream: jest.fn(),
+          streamConversation: jest.fn().mockImplementation(async function* () {
+            throw new Error('LLM timeout');
+          }),
+        },
+      });
+      const service = new MetricAnalysisService(deps);
+
+      const collected = [];
+      for await (const event of service.chatStream('stored-analysis-id', 'Hello?')) {
+        collected.push(event);
+      }
+
+      expect(collected.find((e) => e.type === 'error')).toEqual({ type: 'error', message: 'LLM timeout' });
+      expect(deps.analysesRepository.save).not.toHaveBeenCalled();
     });
   });
 });

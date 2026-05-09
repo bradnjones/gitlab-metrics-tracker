@@ -197,3 +197,80 @@ export const KeyboardHint = styled.div`
     display: none;
   }
 `;
+
+export const ChatSection = styled.div`
+  border-top: 1px solid ${(p) => p.theme.colors.border};
+  margin-top: ${(p) => p.theme.spacing.lg};
+  padding-top: ${(p) => p.theme.spacing.md};
+`;
+
+export const ChatThread = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${(p) => p.theme.spacing.sm};
+  margin-bottom: ${(p) => p.theme.spacing.md};
+  max-height: 280px;
+  overflow-y: auto;
+`;
+
+export const ChatBubble = styled.div`
+  max-width: 80%;
+  padding: ${(p) => p.theme.spacing.sm} ${(p) => p.theme.spacing.md};
+  border-radius: ${(p) => p.theme.borderRadius.lg};
+  font-size: ${(p) => p.theme.typography.fontSize.sm};
+  line-height: ${(p) => p.theme.typography.lineHeight.normal};
+  align-self: ${(p) => (p.$isUser ? 'flex-end' : 'flex-start')};
+  background: ${(p) =>
+    p.$isUser ? p.theme.colors.primary : p.theme.colors.bgTertiary};
+  color: ${(p) =>
+    p.$isUser ? '#fff' : p.theme.colors.textPrimary};
+  word-break: break-word;
+`;
+
+export const ChatInputRow = styled.div`
+  display: flex;
+  gap: ${(p) => p.theme.spacing.sm};
+  align-items: flex-end;
+`;
+
+export const ChatInput = styled.input`
+  flex: 1;
+  padding: ${(p) => p.theme.spacing.sm} ${(p) => p.theme.spacing.md};
+  font-size: ${(p) => p.theme.typography.fontSize.sm};
+  border: 1px solid ${(p) => p.theme.colors.border};
+  border-radius: ${(p) => p.theme.borderRadius.md};
+  background: ${(p) => p.theme.colors.bgPrimary};
+  color: ${(p) => p.theme.colors.textPrimary};
+  outline: none;
+
+  &:focus {
+    border-color: ${(p) => p.theme.colors.primary};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+export const SendButton = styled.button`
+  padding: ${(p) => p.theme.spacing.sm} ${(p) => p.theme.spacing.md};
+  background: ${(p) => p.theme.colors.primary};
+  color: #fff;
+  border: none;
+  border-radius: ${(p) => p.theme.borderRadius.md};
+  font-size: ${(p) => p.theme.typography.fontSize.sm};
+  font-weight: ${(p) => p.theme.typography.fontWeight.medium};
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background ${(p) => p.theme.transitions.normal} ${(p) => p.theme.transitions.easing};
+
+  &:hover:not(:disabled) {
+    background: ${(p) => p.theme.colors.primaryDark || p.theme.colors.primary};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;

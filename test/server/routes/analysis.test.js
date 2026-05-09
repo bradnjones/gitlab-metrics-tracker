@@ -7,6 +7,7 @@ import request from 'supertest';
 import { createApp } from '../../../src/server/app.js';
 import { ServiceFactory } from '../../../src/server/services/ServiceFactory.js';
 import { Analysis } from '../../../src/lib/core/entities/Analysis.js';
+import { AnalysisNotFoundError } from '../../../src/lib/core/services/MetricAnalysisService.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,12 +60,16 @@ describe('Analysis API', () => {
     // Mock LLM client (non-null = configured)
     mockLLMClient = { generate: jest.fn() };
 
-    // Mock service with analyze and analyzeStream methods
+    // Mock service with analyze, analyzeStream, and chatStream methods
     mockService = {
       analyze: jest.fn().mockResolvedValue(makeAnalysis()),
       analyzeStream: jest.fn().mockImplementation(async function* () {
         yield { type: 'delta', text: 'Hello ' };
         yield { type: 'done', analysis: makeAnalysis() };
+      }),
+      chatStream: jest.fn().mockImplementation(async function* () {
+        yield { type: 'delta', text: 'Chat ' };
+        yield { type: 'done', analysis: makeAnalysis({ conversationHistory: [{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'Chat reply' }] }) };
       }),
     };
 
@@ -324,6 +329,95 @@ describe('Analysis API', () => {
         .expect(500);
 
       expect(response.body.error).toMatch(/failed to fetch/i);
+    });
+  });
+
+  // ─── POST /api/analysis/:id/chat ──────────────────────────────────────────
+
+  describe('POST /api/analysis/:id/chat', () => {
+    it('returns 200 SSE response with delta and done events on happy path', async () => {
+      const analysis = makeAnalysis();
+      mockAnalysesRepository.findById.mockResolvedValue(analysis);
+      mockService.chatStream = jest.fn().mockImplementation(async function* () {
+        yield { type: 'delta', text: 'Answer ' };
+        yield { type: 'done', analysis };
+      });
+
+      const response = await request(app)
+        .post('/api/analysis/test-analysis-id/chat')
+        .auth('test', 'test')
+        .send({ message: 'What does velocity mean?' })
+        .expect(200);
+
+      expect(response.headers['content-type']).toMatch(/text\/event-stream/);
+      expect(response.text).toContain('data: {"type":"delta","text":"Answer "}');
+      expect(response.text).toContain('"type":"done"');
+      expect(response.text).toContain('"id":"test-analysis-id"');
+      expect(mockService.chatStream).toHaveBeenCalledWith('test-analysis-id', 'What does velocity mean?');
+    });
+
+    it('returns 400 when message is missing', async () => {
+      const response = await request(app)
+        .post('/api/analysis/test-analysis-id/chat')
+        .auth('test', 'test')
+        .send({})
+        .expect('Content-Type', /json/)
+        .expect(400);
+
+      expect(response.body.error).toMatch(/non-empty string/i);
+    });
+
+    it('returns 400 when message is an empty string', async () => {
+      const response = await request(app)
+        .post('/api/analysis/test-analysis-id/chat')
+        .auth('test', 'test')
+        .send({ message: '   ' })
+        .expect('Content-Type', /json/)
+        .expect(400);
+
+      expect(response.body.error).toMatch(/non-empty string/i);
+    });
+
+    it('returns 503 when LLM client is not configured', async () => {
+      ServiceFactory.createLLMClient = jest.fn().mockReturnValue(null);
+
+      const response = await request(app)
+        .post('/api/analysis/test-analysis-id/chat')
+        .auth('test', 'test')
+        .send({ message: 'hello' })
+        .expect('Content-Type', /json/)
+        .expect(503);
+
+      expect(response.body.error).toMatch(/not configured/i);
+    });
+
+    it('returns 404 when analysis is not found', async () => {
+      mockAnalysesRepository.findById.mockResolvedValue(null);
+
+      const response = await request(app)
+        .post('/api/analysis/nonexistent-id/chat')
+        .auth('test', 'test')
+        .send({ message: 'hello' })
+        .expect('Content-Type', /json/)
+        .expect(404);
+
+      expect(response.body.error).toMatch(/not found/i);
+    });
+
+    it('streams error event when chatStream yields { type:"error" }', async () => {
+      const analysis = makeAnalysis();
+      mockAnalysesRepository.findById.mockResolvedValue(analysis);
+      mockService.chatStream = jest.fn().mockImplementation(async function* () {
+        yield { type: 'error', message: 'LLM timeout' };
+      });
+
+      const response = await request(app)
+        .post('/api/analysis/test-analysis-id/chat')
+        .auth('test', 'test')
+        .send({ message: 'hello' })
+        .expect(200);
+
+      expect(response.text).toContain('data: {"type":"error","message":"LLM timeout"}');
     });
   });
 });

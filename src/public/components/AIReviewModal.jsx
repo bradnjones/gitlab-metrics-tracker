@@ -7,7 +7,7 @@
  * @module components/AIReviewModal
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -27,6 +27,12 @@ import {
   Footer,
   CopyButton,
   KeyboardHint,
+  ChatSection,
+  ChatThread,
+  ChatBubble,
+  ChatInputRow,
+  ChatInput,
+  SendButton,
 } from './AIReviewModal.styles.jsx';
 
 /**
@@ -37,10 +43,24 @@ import {
  * @param {boolean} props.loading - True while request is in flight
  * @param {string|null} props.error
  * @param {string} [props.streamingText] - Partial text being streamed; shown while loading
+ * @param {Function} [props.onChat] - Called with (analysisId, message) to send follow-up
+ * @param {boolean} [props.chatLoading] - True while chat response is streaming
+ * @param {string} [props.chatStreamingText] - Partial chat assistant text while streaming
  * @returns {React.ReactElement|null}
  */
-const AIReviewModal = ({ isOpen, onClose, analysis = null, loading = false, error = null, streamingText = '' }) => {
+const AIReviewModal = ({
+  isOpen,
+  onClose,
+  analysis = null,
+  loading = false,
+  error = null,
+  streamingText = '',
+  onChat = null,
+  chatLoading = false,
+  chatStreamingText = '',
+}) => {
   const closeButtonRef = useRef(null);
+  const [chatInput, setChatInput] = useState('');
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -71,6 +91,20 @@ const AIReviewModal = ({ isOpen, onClose, analysis = null, loading = false, erro
 
   const handleCopy = () => {
     navigator.clipboard.writeText(analysis.response);
+  };
+
+  const handleSend = () => {
+    const trimmed = chatInput.trim();
+    if (!trimmed || chatLoading || !analysis || !onChat) return;
+    onChat(analysis.id, trimmed);
+    setChatInput('');
+  };
+
+  const handleChatKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   if (!isOpen) return null;
@@ -120,6 +154,38 @@ const AIReviewModal = ({ isOpen, onClose, analysis = null, loading = false, erro
                 )}
                 {totalTokens != null && <MetaItem>Tokens: {totalTokens}</MetaItem>}
               </AnalysisMeta>
+
+              <ChatSection>
+                {((analysis.conversationHistory && analysis.conversationHistory.length > 0) || (chatLoading && chatStreamingText)) && (
+                  <ChatThread>
+                    {(analysis.conversationHistory || []).map((msg, i) => (
+                      <ChatBubble key={i} $isUser={msg.role === 'user'}>
+                        {msg.content}
+                      </ChatBubble>
+                    ))}
+                    {chatLoading && chatStreamingText && (
+                      <ChatBubble $isUser={false}>{chatStreamingText}</ChatBubble>
+                    )}
+                  </ChatThread>
+                )}
+                <ChatInputRow>
+                  <ChatInput
+                    placeholder="Ask a follow-up question…"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={handleChatKeyDown}
+                    disabled={chatLoading}
+                    aria-label="Follow-up question"
+                  />
+                  <SendButton
+                    type="button"
+                    onClick={handleSend}
+                    disabled={chatLoading}
+                  >
+                    Send
+                  </SendButton>
+                </ChatInputRow>
+              </ChatSection>
             </>
           )}
         </ContentBody>
@@ -142,14 +208,21 @@ AIReviewModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   analysis: PropTypes.shape({
+    id: PropTypes.string,
     response: PropTypes.string,
     model: PropTypes.string,
     latencyMs: PropTypes.number,
     usage: PropTypes.shape({ input: PropTypes.number, output: PropTypes.number }),
+    conversationHistory: PropTypes.arrayOf(
+      PropTypes.shape({ role: PropTypes.string, content: PropTypes.string })
+    ),
   }),
   loading: PropTypes.bool,
   error: PropTypes.string,
   streamingText: PropTypes.string,
+  onChat: PropTypes.func,
+  chatLoading: PropTypes.bool,
+  chatStreamingText: PropTypes.string,
 };
 
 

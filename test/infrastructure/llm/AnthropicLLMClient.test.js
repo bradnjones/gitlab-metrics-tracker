@@ -252,4 +252,59 @@ describe('AnthropicLLMClient', () => {
       }).rejects.toThrow('Stream failure');
     });
   });
+
+  describe('streamConversation()', () => {
+    let client;
+
+    beforeEach(() => {
+      process.env.ANTHROPIC_API_KEY = 'sk-test';
+      process.env.AI_REVIEW_ENABLED = 'true';
+      client = new AnthropicLLMClient();
+    });
+
+    it('yields delta and done events for a multi-turn messages array', async () => {
+      const events = [
+        { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Chat ' } },
+        { type: 'content_block_delta', delta: { type: 'text_delta', text: 'reply' } },
+      ];
+      mockStream.mockReturnValue(makeMockStream(events));
+
+      const messages = [
+        { role: 'user', content: 'initial prompt' },
+        { role: 'assistant', content: 'initial response' },
+        { role: 'user', content: 'follow-up question' },
+      ];
+
+      const collected = [];
+      for await (const event of client.streamConversation({ system: 'sys', messages })) {
+        collected.push(event);
+      }
+
+      const deltas = collected.filter((e) => e.type === 'delta');
+      expect(deltas).toHaveLength(2);
+      expect(deltas[0]).toEqual({ type: 'delta', text: 'Chat ' });
+      expect(deltas[1]).toEqual({ type: 'delta', text: 'reply' });
+
+      const done = collected.find((e) => e.type === 'done');
+      expect(done).toBeDefined();
+      expect(done.text).toBe('Chat reply');
+    });
+
+    it('passes the messages array directly to the SDK (not wrapped in single user message)', async () => {
+      mockStream.mockReturnValue(makeMockStream([]));
+
+      const messages = [
+        { role: 'user', content: 'q1' },
+        { role: 'assistant', content: 'a1' },
+        { role: 'user', content: 'q2' },
+      ];
+      for await (const _ of client.streamConversation({ system: 'sys', messages })) {}
+
+      const call = mockStream.mock.calls[0][0];
+      expect(call.messages).toEqual(messages);
+      expect(call.system).toEqual([
+        { type: 'text', text: 'sys', cache_control: { type: 'ephemeral' } },
+      ]);
+    });
+  });
 });

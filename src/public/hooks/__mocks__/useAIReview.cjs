@@ -2,10 +2,13 @@
 function useAIReview() {
   return {
     run: () => Promise.resolve(),
+    chat: () => Promise.resolve(),
     loading: false,
     error: null,
     lastAnalysis: null,
     streamingText: '',
+    chatLoading: false,
+    chatStreamingText: '',
     history: [],
   };
 }

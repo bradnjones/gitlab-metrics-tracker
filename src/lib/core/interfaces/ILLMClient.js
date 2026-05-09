@@ -14,6 +14,14 @@
  */
 
 /**
+ * @typedef {Object} LLMConversationRequest
+ * @property {string} system - System prompt text
+ * @property {Array<{role: 'user'|'assistant', content: string}>} messages - Full conversation thread
+ * @property {string} [model] - Model identifier override
+ * @property {number} [maxTokens] - Maximum tokens in the response
+ */
+
+/**
  * @typedef {Object} LLMResponse
  * @property {string} text - Generated text content
  * @property {{ input: number, output: number }} usage - Token counts
@@ -51,5 +59,17 @@ export class ILLMClient {
    */
   async *stream(request) {
     throw new Error('ILLMClient.stream() must be implemented');
+  }
+
+  /**
+   * Stream a multi-turn conversation, passing the full messages array to the LLM.
+   * Yields delta events and a final done event, same shape as stream().
+   *
+   * @param {LLMConversationRequest} request
+   * @returns {AsyncGenerator<LLMStreamEvent>}
+   * @throws {Error} If not implemented by subclass
+   */
+  async *streamConversation(request) {
+    throw new Error('ILLMClient.streamConversation() must be implemented');
   }
 }

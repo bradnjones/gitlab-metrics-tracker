@@ -32,6 +32,7 @@ export class Analysis {
    * @param {number} data.latencyMs
    * @param {'succeeded'|'failed'} data.status
    * @param {string|null} data.errorMessage
+   * @param {Array<{role: 'user'|'assistant', content: string}>} [data.conversationHistory]
    */
   constructor(data) {
     this.id = data.id || randomUUID();
@@ -50,6 +51,7 @@ export class Analysis {
     this.latencyMs = data.latencyMs ?? null;
     this.status = data.status;
     this.errorMessage = data.errorMessage ?? null;
+    this.conversationHistory = data.conversationHistory ?? [];
 
     this._validate();
   }
@@ -83,6 +85,7 @@ export class Analysis {
       latencyMs: this.latencyMs,
       status: this.status,
       errorMessage: this.errorMessage,
+      conversationHistory: this.conversationHistory,
     };
   }
 

@@ -68,6 +68,11 @@ export class AnthropicLLMClient extends ILLMClient {
     };
   }
 
+  /** @private */
+  _buildSystemParam(system) {
+    return [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
+  }
+
   /**
    * Generate text via the Anthropic Messages API.
    * The system prompt is sent with cache_control ephemeral for prompt-cache discounts
@@ -111,6 +116,48 @@ export class AnthropicLLMClient extends ILLMClient {
   async *stream(request) {
     const start = Date.now();
     const sdkStream = this._client.messages.stream(this._buildParams(request));
+
+    let fullText = '';
+
+    for await (const event of sdkStream) {
+      if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+        const text = event.delta.text;
+        fullText += text;
+        yield { type: 'delta', text };
+      }
+    }
+
+    const finalMessage = await sdkStream.finalMessage();
+    const latencyMs = Date.now() - start;
+
+    yield {
+      type: 'done',
+      text: fullText,
+      usage: {
+        input: finalMessage.usage.input_tokens,
+        output: finalMessage.usage.output_tokens,
+      },
+      model: finalMessage.model,
+      latencyMs,
+    };
+  }
+
+  /**
+   * Stream a multi-turn conversation using the full messages array.
+   * Unlike stream(), this accepts a pre-built messages array for multi-turn conversations.
+   * Yields `{ type: 'delta', text }` events then `{ type: 'done', text, usage, model, latencyMs }`.
+   *
+   * @param {import('../../core/interfaces/ILLMClient.js').LLMConversationRequest} request
+   * @returns {AsyncGenerator<import('../../core/interfaces/ILLMClient.js').LLMStreamEvent>}
+   */
+  async *streamConversation({ system, messages, model, maxTokens }) {
+    const start = Date.now();
+    const sdkStream = this._client.messages.stream({
+      model: model || this._defaultModel,
+      max_tokens: maxTokens || DEFAULT_MAX_TOKENS,
+      system: this._buildSystemParam(system),
+      messages,
+    });
 
     let fullText = '';
 

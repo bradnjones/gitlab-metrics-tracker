@@ -208,7 +208,7 @@ export default function VelocityApp() {
     startEditAnnotation,
     startCreateAnnotation,
   } = useAppModals();
-  const { run: runAIReview, loading: aiLoading, error: aiError, lastAnalysis, streamingText: aiStreamingText } = useAIReview();
+  const { run: runAIReview, chat: chatAIReview, loading: aiLoading, error: aiError, lastAnalysis, streamingText: aiStreamingText, chatLoading: aiChatLoading, chatStreamingText: aiChatStreamingText } = useAIReview();
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   const [annotationRefreshKey, setAnnotationRefreshKey] = useState(0);
@@ -580,6 +580,9 @@ export default function VelocityApp() {
                     loading={aiLoading}
                     error={aiError}
                     streamingText={aiStreamingText}
+                    onChat={chatAIReview}
+                    chatLoading={aiChatLoading}
+                    chatStreamingText={aiChatStreamingText}
                   />
                   <ChartsGrid>
               <ChartCard>

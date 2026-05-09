@@ -10,7 +10,6 @@
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { ServiceFactory } from '../services/ServiceFactory.js';
-import { MetricAnalysisService } from '../../lib/core/services/MetricAnalysisService.js';
 import { ConsoleLogger } from '../../lib/infrastructure/logging/ConsoleLogger.js';
 
 const router = express.Router();
@@ -41,6 +40,32 @@ function validateIterationIds(req, res, next) {
   if (iterationIds.length > 100) {
     return res.status(400).json({ error: 'iterationIds cannot exceed 100 items' });
   }
+  next();
+}
+
+/**
+ * Validate chat message before rate limiter so malformed requests don't consume quota.
+ */
+function validateChatMessage(req, res, next) {
+  const { message } = req.body;
+  if (typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'message must be a non-empty string' });
+  }
+  next();
+}
+
+/**
+ * Gate on LLM availability before the rate limiter so unconfigured requests don't consume quota.
+ * Attaches the client to req.llmClient for downstream use.
+ */
+function requireLLMClient(req, res, next) {
+  const llmClient = ServiceFactory.createLLMClient();
+  if (!llmClient) {
+    return res.status(503).json({
+      error: 'AI review is not configured — set ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true',
+    });
+  }
+  req.llmClient = llmClient;
   next();
 }
 
@@ -130,6 +155,52 @@ router.post('/review', validateIterationIds, reviewLimiter, async (req, res) => 
     return res.status(500).json({
       error: 'Analysis failed — the run has been persisted for debugging',
     });
+  }
+});
+
+/**
+ * POST /api/analysis/:id/chat
+ * Stream a follow-up chat message against an existing analysis via Server-Sent Events.
+ *
+ * Body: { message: string }
+ * Response: text/event-stream — delta, done, and error events
+ */
+router.post('/:id/chat', validateChatMessage, requireLLMClient, reviewLimiter, async (req, res) => {
+  const { message } = req.body;
+  const { id } = req.params;
+
+  // Pre-check existence so we can return 404 JSON before switching to SSE
+  const repo = ServiceFactory.createAnalysesRepository();
+  const existing = await repo.findById(id);
+  if (!existing) {
+    return res.status(404).json({ error: 'Analysis not found' });
+  }
+
+  const service = ServiceFactory.createMetricAnalysisService({
+    gitlabToken: req.gitlabToken,
+    projectPath: req.gitlabProject,
+  });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+
+  try {
+    for await (const event of service.chatStream(id, message)) {
+      if (event.type === 'done') {
+        send({ type: 'done', analysis: event.analysis.toJSON() });
+      } else {
+        send(event);
+      }
+    }
+  } catch (err) {
+    logger.error('Chat stream failed', err, { route: 'POST /api/analysis/:id/chat', id });
+    send({ type: 'error', message: 'Chat failed — please try again' });
+  } finally {
+    res.end();
   }
 });
 

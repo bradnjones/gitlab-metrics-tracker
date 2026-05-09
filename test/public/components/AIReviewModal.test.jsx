@@ -43,7 +43,16 @@ const makeAnalysis = (overrides = {}) => ({
 });
 
 function renderModal(props = {}) {
-  const defaults = { isOpen: true, onClose: jest.fn(), analysis: makeAnalysis(), loading: false, error: null };
+  const defaults = {
+    isOpen: true,
+    onClose: jest.fn(),
+    analysis: makeAnalysis(),
+    loading: false,
+    error: null,
+    onChat: jest.fn(),
+    chatLoading: false,
+    chatStreamingText: '',
+  };
   return render(
     <ThemeProvider theme={theme}>
       <AIReviewModal {...defaults} {...props} />
@@ -171,5 +180,87 @@ describe('AIReviewModal', () => {
     });
     expect(screen.getByText(/Final report/)).toBeInTheDocument();
     expect(screen.queryByText(/Partial heading/)).toBeNull();
+  });
+
+  // ─── Chat section ──────────────────────────────────────────────────────────
+
+  it('renders chat input and send button when analysis is loaded', () => {
+    renderModal();
+    expect(screen.getByPlaceholderText(/ask a follow-up/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument();
+  });
+
+  it('does not render chat section while initial report is loading', () => {
+    renderModal({ loading: true, analysis: null });
+    expect(screen.queryByPlaceholderText(/ask a follow-up/i)).toBeNull();
+  });
+
+  it('calls onChat with analysisId and message when Send button is clicked', () => {
+    const onChat = jest.fn();
+    const analysis = makeAnalysis({ id: 'analysis-123' });
+    renderModal({ analysis, onChat });
+
+    const input = screen.getByPlaceholderText(/ask a follow-up/i);
+    fireEvent.change(input, { target: { value: 'What does velocity mean?' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(onChat).toHaveBeenCalledWith('analysis-123', 'What does velocity mean?');
+  });
+
+  it('calls onChat when Enter key (without Shift) is pressed in the input', () => {
+    const onChat = jest.fn();
+    renderModal({ onChat });
+
+    const input = screen.getByPlaceholderText(/ask a follow-up/i);
+    fireEvent.change(input, { target: { value: 'Hello?' } });
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: false });
+
+    expect(onChat).toHaveBeenCalledWith('test-id', 'Hello?');
+  });
+
+  it('does not call onChat when Shift+Enter is pressed', () => {
+    const onChat = jest.fn();
+    renderModal({ onChat });
+
+    const input = screen.getByPlaceholderText(/ask a follow-up/i);
+    fireEvent.change(input, { target: { value: 'Hello?' } });
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
+
+    expect(onChat).not.toHaveBeenCalled();
+  });
+
+  it('disables input and send button while chatLoading is true', () => {
+    renderModal({ chatLoading: true });
+    expect(screen.getByPlaceholderText(/ask a follow-up/i)).toBeDisabled();
+    expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
+  });
+
+  it('renders conversation history bubbles from analysis.conversationHistory', () => {
+    const analysis = makeAnalysis({
+      conversationHistory: [
+        { role: 'user', content: 'What does this mean?' },
+        { role: 'assistant', content: 'It means velocity is stable.' },
+      ],
+    });
+    renderModal({ analysis });
+
+    expect(screen.getByText('What does this mean?')).toBeInTheDocument();
+    expect(screen.getByText('It means velocity is stable.')).toBeInTheDocument();
+  });
+
+  it('renders streaming assistant bubble when chatLoading and chatStreamingText is non-empty', () => {
+    renderModal({ chatLoading: true, chatStreamingText: 'Partial answer...' });
+    expect(screen.getByText('Partial answer...')).toBeInTheDocument();
+  });
+
+  it('clears input after sending', () => {
+    const onChat = jest.fn();
+    renderModal({ onChat });
+
+    const input = screen.getByPlaceholderText(/ask a follow-up/i);
+    fireEvent.change(input, { target: { value: 'Question?' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(input.value).toBe('');
   });
 });

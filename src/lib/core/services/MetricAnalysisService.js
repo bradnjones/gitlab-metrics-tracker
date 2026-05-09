@@ -21,6 +21,17 @@ export class LLMNotConfiguredError extends Error {
   }
 }
 
+/**
+ * Thrown when chatStream() is called with an analysis ID that does not exist.
+ */
+export class AnalysisNotFoundError extends Error {
+  /** @param {string} id */
+  constructor(id) {
+    super(`Analysis not found: ${id}`);
+    this.name = 'AnalysisNotFoundError';
+  }
+}
+
 /** System prompt sent to the LLM for every analysis request. */
 const SYSTEM_PROMPT = `You are a Sprint Metrics Analyst. You receive a pre-computed JSON signal package containing statistical summaries of team sprint metrics. Your job is interpretation, contextualization, and recommendation — never arithmetic. Trust the numbers exactly as given.
 
@@ -249,5 +260,71 @@ export class MetricAnalysisService {
 
     await this._analysesRepository.save(analysis);
     yield { type: 'done', analysis };
+  }
+
+  /**
+   * Stream a follow-up chat message against an existing analysis.
+   * Reconstructs the full conversation thread and sends it to the LLM via streamConversation().
+   * On completion, appends the user/assistant turn to conversationHistory and re-saves the analysis.
+   *
+   * @param {string} analysisId
+   * @param {string} message - The user's follow-up message
+   * @yields {{ type: 'delta', text: string } | { type: 'done', analysis: Analysis } | { type: 'error', message: string }}
+   * @throws {LLMNotConfiguredError} If llmClient is null
+   * @throws {AnalysisNotFoundError} If no analysis exists with the given ID
+   */
+  async *chatStream(analysisId, message) {
+    if (this._llmClient === null) {
+      throw new LLMNotConfiguredError(
+        'AI review is not configured — set ANTHROPIC_API_KEY and AI_REVIEW_ENABLED=true'
+      );
+    }
+
+    const analysis = await this._analysesRepository.findById(analysisId);
+    if (!analysis) {
+      throw new AnalysisNotFoundError(analysisId);
+    }
+
+    // Reconstruct full conversation: original turn + any prior chat + new user message
+    const messages = [
+      { role: 'user', content: analysis.userPrompt },
+      { role: 'assistant', content: analysis.response },
+      ...analysis.conversationHistory,
+      { role: 'user', content: message },
+    ];
+
+    let fullText = '';
+
+    try {
+      for await (const event of this._llmClient.streamConversation({
+        system: SYSTEM_PROMPT,
+        messages,
+      })) {
+        if (event.type === 'delta') {
+          fullText += event.text;
+          yield event;
+        } else if (event.type === 'done') {
+          fullText = event.text;
+        }
+      }
+    } catch (err) {
+      yield { type: 'error', message: err.message };
+      return;
+    }
+
+    // Append the completed turn to conversationHistory and persist
+    const updatedHistory = [
+      ...analysis.conversationHistory,
+      { role: 'user', content: message },
+      { role: 'assistant', content: fullText },
+    ];
+
+    const updatedAnalysis = Analysis.fromJSON({
+      ...analysis.toJSON(),
+      conversationHistory: updatedHistory,
+    });
+
+    await this._analysesRepository.save(updatedAnalysis);
+    yield { type: 'done', analysis: updatedAnalysis };
   }
 }

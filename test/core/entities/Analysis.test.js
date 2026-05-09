@@ -108,5 +108,35 @@ describe('Analysis', () => {
       expect(analysis.status).toBe('failed');
       expect(analysis.errorMessage).toBe('Rate limit exceeded');
     });
+
+    it('round-trips conversationHistory through toJSON and fromJSON', () => {
+      const history = [
+        { role: 'user', content: 'What does this mean?' },
+        { role: 'assistant', content: 'It means velocity is stable.' },
+      ];
+      const original = new Analysis({ ...validData, id: 'chat-id', conversationHistory: history });
+      const restored = Analysis.fromJSON(original.toJSON());
+      expect(restored.conversationHistory).toEqual(history);
+    });
+  });
+
+  describe('conversationHistory', () => {
+    it('defaults to empty array when not provided', () => {
+      const analysis = new Analysis(validData);
+      expect(analysis.conversationHistory).toEqual([]);
+    });
+
+    it('preserves provided conversationHistory', () => {
+      const history = [{ role: 'user', content: 'hello' }];
+      const analysis = new Analysis({ ...validData, conversationHistory: history });
+      expect(analysis.conversationHistory).toEqual(history);
+    });
+
+    it('existing analyses without the field default to [] via fromJSON', () => {
+      const json = { ...validData, id: 'old-id', createdAt: '2025-01-01T00:00:00.000Z' };
+      delete json.conversationHistory;
+      const analysis = Analysis.fromJSON(json);
+      expect(analysis.conversationHistory).toEqual([]);
+    });
   });
 });

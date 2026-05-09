@@ -13,10 +13,13 @@ import { apiFetch } from '../utils/apiFetch.js';
  *
  * @returns {{
  *   run: (iterationIds: string[]) => Promise<void>,
+ *   chat: (analysisId: string, message: string) => Promise<void>,
  *   loading: boolean,
  *   error: string|null,
  *   lastAnalysis: Object|null,
  *   streamingText: string,
+ *   chatLoading: boolean,
+ *   chatStreamingText: string,
  *   history: Object[]
  * }}
  */
@@ -25,6 +28,8 @@ export function useAIReview() {
   const [error, setError] = useState(null);
   const [lastAnalysis, setLastAnalysis] = useState(null);
   const [streamingText, setStreamingText] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatStreamingText, setChatStreamingText] = useState('');
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
@@ -116,5 +121,72 @@ export function useAIReview() {
     }
   }
 
-  return { run, loading, error, lastAnalysis, streamingText, history };
+  /**
+   * Send a follow-up chat message against an existing analysis via SSE streaming.
+   * No-ops if a chat request is already in flight.
+   *
+   * @param {string} analysisId
+   * @param {string} message
+   * @returns {Promise<void>}
+   */
+  async function chat(analysisId, message) {
+    if (chatLoading) return;
+
+    setChatLoading(true);
+    setError(null);
+    setChatStreamingText('');
+
+    try {
+      const response = await apiFetch(`/api/analysis/${analysisId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop();
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.type === 'delta') {
+              setChatStreamingText((prev) => prev + data.text);
+            } else if (data.type === 'done') {
+              setLastAnalysis(data.analysis);
+              setChatStreamingText('');
+            } else if (data.type === 'error') {
+              setError(data.message);
+            }
+          } catch (_) {
+            // Ignore malformed SSE lines
+          }
+        }
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  return { run, chat, loading, error, lastAnalysis, streamingText, chatLoading, chatStreamingText, history };
 }

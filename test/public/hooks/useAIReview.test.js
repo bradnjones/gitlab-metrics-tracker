@@ -326,4 +326,105 @@ describe('useAIReview', () => {
     expect(result.current.lastAnalysis).toEqual(analysis);
     expect(result.current.loading).toBe(false);
   });
+
+  // ─── chat() ────────────────────────────────────────────────────────────────
+
+  it('hook exposes chat, chatLoading, and chatStreamingText', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    const { result } = renderHook(() => useAIReview());
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    expect(typeof result.current.chat).toBe('function');
+    expect(result.current.chatLoading).toBe(false);
+    expect(result.current.chatStreamingText).toBe('');
+  });
+
+  it('chat() accumulates chatStreamingText from delta events', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    const { result } = renderHook(() => useAIReview());
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    const updatedAnalysis = { id: 'a1', conversationHistory: [{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'Hello world' }] };
+    global.fetch.mockResolvedValueOnce(
+      makeSSEResponse([
+        { type: 'delta', text: 'Hello ' },
+        { type: 'delta', text: 'world' },
+        { type: 'done', analysis: updatedAnalysis },
+      ])
+    );
+
+    await act(async () => {
+      await result.current.chat('analysis-id', 'hi');
+    });
+
+    expect(result.current.lastAnalysis).toEqual(updatedAnalysis);
+    expect(result.current.chatLoading).toBe(false);
+    expect(result.current.chatStreamingText).toBe('');
+  });
+
+  it('chat() calls the correct endpoint with POST and message body', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    const { result } = renderHook(() => useAIReview());
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    global.fetch.mockResolvedValueOnce(makeSSEResponse([{ type: 'done', analysis: { id: 'a1' } }]));
+
+    await act(async () => {
+      await result.current.chat('the-analysis-id', 'What does velocity mean?');
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/analysis/the-analysis-id/chat'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ message: 'What does velocity mean?' }),
+      })
+    );
+  });
+
+  it('chat() sets error on non-ok HTTP response', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    const { result } = renderHook(() => useAIReview());
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Analysis not found' }),
+    });
+
+    await act(async () => {
+      await result.current.chat('bad-id', 'hello');
+    });
+
+    expect(result.current.error).toBe('Analysis not found');
+    expect(result.current.chatLoading).toBe(false);
+  });
+
+  it('chat() merges updated analysis into lastAnalysis on done event', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    const { result } = renderHook(() => useAIReview());
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    const originalAnalysis = { id: 'a1', response: 'original report', conversationHistory: [] };
+    const updatedAnalysis = { id: 'a1', response: 'original report', conversationHistory: [{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a' }] };
+
+    // Set lastAnalysis via run first
+    global.fetch.mockResolvedValueOnce(makeSSEResponse([{ type: 'done', analysis: originalAnalysis }]));
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => [originalAnalysis] });
+
+    await act(async () => {
+      await result.current.run(['iter-1']);
+    });
+    expect(result.current.lastAnalysis).toEqual(originalAnalysis);
+
+    // Now chat
+    global.fetch.mockResolvedValueOnce(makeSSEResponse([{ type: 'done', analysis: updatedAnalysis }]));
+
+    await act(async () => {
+      await result.current.chat('a1', 'q');
+    });
+
+    expect(result.current.lastAnalysis).toEqual(updatedAnalysis);
+    expect(result.current.chatStreamingText).toBe('');
+  });
 });
