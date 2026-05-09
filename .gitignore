@@ -10,6 +10,7 @@ src/data/*.json
 !src/data/.gitkeep
 src/data/cache/
 data/
+metrics.json
 
 # Build
 dist/
