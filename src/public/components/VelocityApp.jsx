@@ -50,6 +50,7 @@ import DataExplorerView from './DataExplorerView.jsx';
 import AIReviewButton from './AIReviewButton.jsx';
 import AIReviewModal from './AIReviewModal.jsx';
 import { useAIReview } from '../hooks/useAIReview.js';
+import MetricInfoIcon from './MetricInfoIcon.jsx';
 
 /**
  * Main app container
@@ -120,6 +121,9 @@ const ChartCard = styled.div`
  * @component
  */
 const ChartTitle = styled.h3`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   color: ${props => props.theme.colors.textPrimary};
   font-size: ${props => props.theme.typography.fontSize.lg};
   font-weight: ${props => props.theme.typography.fontWeight.semibold};
@@ -178,6 +182,40 @@ const AnnotationToggleButton = styled.button`
  *
  * @returns {JSX.Element} Rendered application
  */
+/** @type {Record<string, { description: string, goodDirection: 'up'|'down', goodLabel: string }>} */
+const CHART_TOOLTIPS = {
+  velocity: {
+    description: 'Story points and issues completed per sprint. Measures team output and throughput over time.',
+    goodDirection: 'up',
+    goodLabel: 'increasing velocity indicates growing throughput and team capacity',
+  },
+  cycleTime: {
+    description: 'Average time from when work starts to when it is delivered. Measures flow efficiency and execution speed.',
+    goodDirection: 'down',
+    goodLabel: 'lower cycle time means faster feedback loops and reduced delivery risk',
+  },
+  deployFreq: {
+    description: 'How often code is released to production. Frequent small releases reduce batch size and deployment risk.',
+    goodDirection: 'up',
+    goodLabel: 'higher frequency signals a healthy, low-risk delivery pipeline',
+  },
+  leadTime: {
+    description: 'Time from first commit to production deployment. Measures end-to-end delivery speed from code to customer.',
+    goodDirection: 'down',
+    goodLabel: 'shorter lead time means faster delivery of value and quicker response to feedback',
+  },
+  mttr: {
+    description: 'Mean Time to Recovery — how quickly the team restores service after an incident. Reflects operational maturity.',
+    goodDirection: 'down',
+    goodLabel: 'lower MTTR limits user impact and indicates strong incident response practices',
+  },
+  changeFailureRate: {
+    description: 'Percentage of deployments that cause incidents or require a rollback. Reflects release quality and testing effectiveness.',
+    goodDirection: 'down',
+    goodLabel: 'fewer failures mean higher quality and more reliable releases',
+  },
+};
+
 const STORAGE_KEY = 'gitlab-metrics-selected-iterations';
 const SHOW_ANNOTATIONS_KEY = 'show-annotations';
 const SHOW_P90_KEY = 'chart-show-p90';
@@ -587,7 +625,7 @@ export default function VelocityApp() {
                   />
                   <ChartsGrid>
               <ChartCard>
-                <ChartTitle>Velocity Trend</ChartTitle>
+                <ChartTitle>Velocity Trend <MetricInfoIcon label="Velocity Trend" tooltip={CHART_TOOLTIPS.velocity} /></ChartTitle>
                 <VelocityChart
                   selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
@@ -596,7 +634,7 @@ export default function VelocityApp() {
               </ChartCard>
 
               <ChartCard>
-                <ChartTitle>Cycle Time</ChartTitle>
+                <ChartTitle>Cycle Time <MetricInfoIcon label="Cycle Time" tooltip={CHART_TOOLTIPS.cycleTime} /></ChartTitle>
                 <CycleTimeChart
                   selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
@@ -608,7 +646,7 @@ export default function VelocityApp() {
               </ChartCard>
 
               <ChartCard>
-                <ChartTitle>Deployment Frequency</ChartTitle>
+                <ChartTitle>Deployment Frequency <MetricInfoIcon label="Deployment Frequency" tooltip={CHART_TOOLTIPS.deployFreq} /></ChartTitle>
                 <DeploymentFrequencyChart
                   selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
@@ -617,7 +655,7 @@ export default function VelocityApp() {
               </ChartCard>
 
               <ChartCard>
-                <ChartTitle>Lead Time</ChartTitle>
+                <ChartTitle>Lead Time <MetricInfoIcon label="Lead Time" tooltip={CHART_TOOLTIPS.leadTime} /></ChartTitle>
                 <LeadTimeChart
                   selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
@@ -629,7 +667,7 @@ export default function VelocityApp() {
               </ChartCard>
 
               <ChartCard>
-                <ChartTitle>MTTR (Mean Time to Recovery)</ChartTitle>
+                <ChartTitle>MTTR (Mean Time to Recovery) <MetricInfoIcon label="MTTR" tooltip={CHART_TOOLTIPS.mttr} /></ChartTitle>
                 <MTTRChart
                   selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
@@ -638,7 +676,7 @@ export default function VelocityApp() {
               </ChartCard>
 
               <ChartCard>
-                <ChartTitle>Change Failure Rate</ChartTitle>
+                <ChartTitle>Change Failure Rate <MetricInfoIcon label="Change Failure Rate" tooltip={CHART_TOOLTIPS.changeFailureRate} /></ChartTitle>
                 <ChangeFailureRateChart
                   selectedIterations={displayedIterations}
                   annotationRefreshKey={annotationRefreshKey}
