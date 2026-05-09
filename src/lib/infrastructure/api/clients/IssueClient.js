@@ -117,6 +117,17 @@ export class IssueClient {
    * Fetches detailed information for a specific iteration, including all issues.
    * Issues are fetched from the group level with subgroup inclusion.
    *
+   * Each closed issue is enriched with `inProgressAt` and `inProgressAtSource`:
+   * - `inProgressAt`: ISO timestamp of the first recognized "In Progress" status note, or `null` if none found.
+   * - `inProgressAtSource`:
+   *   - `'status_change'` — a recognized "In Progress" status note was found.
+   *   - `'unknown'`       — closed issue but no matching status note found in any fetched batch,
+   *                         or the paginated note fetch errored before one was found.
+   *   - `null`            — issue is open (inProgressAt is not meaningful for open issues).
+   *
+   * NOTE: `inProgressAt` is NEVER substituted with `createdAt`. A `null` value means the issue
+   * has no recorded In Progress transition and must be excluded from cycle time calculations.
+   *
    * @param {string} iterationId - GitLab iteration ID (e.g., 'gid://gitlab/Iteration/123')
    * @param {Function} fetchIterations - Function that returns Promise<Array> of all iterations
    * @param {Function} fetchMergeRequestsForGroup - Function (startDate, endDate) => Promise<Array> of MRs
@@ -255,13 +266,11 @@ export class IssueClient {
                 if (this.logger) {
                   this.logger.warn('Exhausted all notes without finding InProgress status change', {
                     issueIid: issue.iid,
-                    totalNotes: allNotes.length,
-                    fallback: 'using createdAt',
-                    createdAt: issue.createdAt
+                    totalNotes: allNotes.length
                   });
                 }
-                // Fallback: Use createdAt if no InProgress status change found
-                inProgressAt = issue.createdAt;
+                // No fallback: null signals "no In Progress transition found"
+                inProgressAt = null;
               }
 
               // Update issue with all notes for consistency
@@ -276,7 +285,7 @@ export class IssueClient {
                   },
                 },
                 inProgressAt,
-                inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : 'status_change', // Track source
+                inProgressAtSource: inProgressAt ? 'status_change' : 'unknown',
               };
             } catch (error) {
               if (this.logger) {
@@ -285,20 +294,11 @@ export class IssueClient {
                   error: error.message
                 });
               }
-              // Fall back to using createdAt for closed stories
-              if (isClosed && !inProgressAt) {
-                if (this.logger) {
-                  this.logger.debug('Error recovery: falling back to createdAt', {
-                    issueIid: issue.iid,
-                    createdAt: issue.createdAt
-                  });
-                }
-                inProgressAt = issue.createdAt;
-              }
+              // No fallback: null signals "no In Progress transition found"
               return {
                 ...issue,
-                inProgressAt,
-                inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : 'status_change',
+                inProgressAt: null,
+                inProgressAtSource: 'unknown',
               };
             }
           }
@@ -306,13 +306,12 @@ export class IssueClient {
           // For closed stories without InProgress in first batch and no more notes to fetch
           if (isClosed && !inProgressAt && !issue.notes?.pageInfo?.hasNextPage) {
             if (this.logger) {
-              this.logger.debug('No InProgress status found, falling back to createdAt', {
+              this.logger.debug('No InProgress status found in any notes', {
                 issueIid: issue.iid,
-                notesChecked: initialNotes.length,
-                fallback: 'createdAt'
+                notesChecked: initialNotes.length
               });
             }
-            inProgressAt = issue.createdAt;
+            // No fallback: leave inProgressAt as null to signal "no In Progress transition found"
           }
 
           // InProgress found in first batch, no more notes to fetch, or story is OPEN (doesn't need InProgress)
@@ -328,7 +327,7 @@ export class IssueClient {
           return {
             ...issue,
             inProgressAt,
-            inProgressAtSource: inProgressAt === issue.createdAt ? 'created' : (inProgressAt ? 'status_change' : null),
+            inProgressAtSource: isClosed ? (inProgressAt ? 'status_change' : 'unknown') : null,
           };
         })
       );

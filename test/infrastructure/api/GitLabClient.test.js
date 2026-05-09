@@ -868,7 +868,7 @@ describe('GitLabClient', () => {
         );
       });
 
-      it('should fallback to createdAt when CLOSED issue has no InProgress in all notes', async () => {
+      it('should return null inProgressAt when CLOSED issue has no InProgress in all notes', async () => {
         const mockIterationData = {
           group: {
             id: 'gid://gitlab/Group/1',
@@ -925,12 +925,12 @@ describe('GitLabClient', () => {
         const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
 
         expect(result.issues).toHaveLength(1);
-        // Should fallback to createdAt
-        expect(result.issues[0].inProgressAt).toBe('2025-01-01T08:00:00Z');
-        expect(result.issues[0].inProgressAtSource).toBe('created');
+        // No In Progress found: inProgressAt must be null, not createdAt
+        expect(result.issues[0].inProgressAt).toBeNull();
+        expect(result.issues[0].inProgressAtSource).toBe('unknown');
       });
 
-      it('should handle error fetching additional notes and fallback to createdAt', async () => {
+      it('should handle error fetching additional notes and return null inProgressAt', async () => {
         const mockIterationData = {
           group: {
             id: 'gid://gitlab/Group/1',
@@ -968,12 +968,12 @@ describe('GitLabClient', () => {
         const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
 
         expect(result.issues).toHaveLength(1);
-        // Should fallback to createdAt after error
-        expect(result.issues[0].inProgressAt).toBe('2025-01-01T09:00:00Z');
-        expect(result.issues[0].inProgressAtSource).toBe('created');
+        // Error during note fetch: inProgressAt must be null, not createdAt
+        expect(result.issues[0].inProgressAt).toBeNull();
+        expect(result.issues[0].inProgressAtSource).toBe('unknown');
       });
 
-      it('should fallback to createdAt for CLOSED issue without more notes to fetch', async () => {
+      it('should return null inProgressAt for CLOSED issue without more notes to fetch', async () => {
         const mockIterationData = {
           group: {
             id: 'gid://gitlab/Group/1',
@@ -1018,9 +1018,9 @@ describe('GitLabClient', () => {
         const result = await client.fetchIterationDetails('gid://gitlab/Iteration/123');
 
         expect(result.issues).toHaveLength(1);
-        // Should fallback to createdAt (no InProgress found, no more notes to fetch)
-        expect(result.issues[0].inProgressAt).toBe('2025-01-01T07:00:00Z');
-        expect(result.issues[0].inProgressAtSource).toBe('created');
+        // No In Progress found, no more notes: inProgressAt must be null, not createdAt
+        expect(result.issues[0].inProgressAt).toBeNull();
+        expect(result.issues[0].inProgressAtSource).toBe('unknown');
       });
 
       it('should return null inProgressAt for OPEN issue without InProgress', async () => {

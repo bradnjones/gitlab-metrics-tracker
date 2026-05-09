@@ -403,5 +403,167 @@ describe('IssueClient', () => {
         client.fetchIterationDetails(ITERATION_ID, async () => [], async () => [])
       ).rejects.toThrow('Failed to fetch iteration details: connection refused');
     });
+
+    it('closed issue with In Progress note in first batch yields status_change source', async () => {
+      const issue = makeIssue({
+        state: 'closed',
+        notes: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [{
+            id: 'n1',
+            body: 'set status to **In progress**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-01-05T09:00:00Z'
+          }]
+        }
+      });
+
+      mockExecutor.execute = async () => makeGroupResponse([issue]);
+
+      const result = await client.fetchIterationDetails(
+        ITERATION_ID,
+        async () => [{ id: ITERATION_ID, startDate: '2025-01-01', dueDate: '2025-01-14' }],
+        async () => []
+      );
+
+      expect(result.issues[0].inProgressAt).toBe('2025-01-05T09:00:00Z');
+      expect(result.issues[0].inProgressAtSource).toBe('status_change');
+    });
+
+    it('closed issue with In Progress note only in paginated batch yields status_change source', async () => {
+      const issue = makeIssue({
+        state: 'closed',
+        notes: {
+          pageInfo: { hasNextPage: true, endCursor: 'cursor-page-1' },
+          nodes: [{
+            id: 'n1',
+            body: 'set status to **Open**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-01-01T08:00:00Z'
+          }]
+        }
+      });
+
+      let executorCallCount = 0;
+      mockExecutor.execute = async (_query, variables) => {
+        executorCallCount++;
+        // First call: iteration details query (fetchIterationDetails)
+        if (variables.fullPath) {
+          return makeGroupResponse([issue]);
+        }
+        // Subsequent calls: fetchAdditionalNotesForIssue (paginated notes)
+        return {
+          issue: {
+            id: issue.id,
+            notes: {
+              nodes: [{
+                id: 'n2',
+                body: 'set status to **In progress**',
+                system: true,
+                systemNoteMetadata: { action: 'work_item_status' },
+                createdAt: '2025-01-04T10:00:00Z'
+              }],
+              pageInfo: { hasNextPage: false, endCursor: null }
+            }
+          }
+        };
+      };
+
+      const result = await client.fetchIterationDetails(
+        ITERATION_ID,
+        async () => [{ id: ITERATION_ID, startDate: '2025-01-01', dueDate: '2025-01-14' }],
+        async () => []
+      );
+
+      expect(result.issues[0].inProgressAt).toBe('2025-01-04T10:00:00Z');
+      expect(result.issues[0].inProgressAtSource).toBe('status_change');
+    });
+
+    it('closed issue with no In Progress note in any batch yields null and unknown source', async () => {
+      const issue = makeIssue({
+        state: 'closed',
+        createdAt: '2025-01-01T00:00:00Z',
+        notes: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [{
+            id: 'n1',
+            body: 'set status to **Open**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-01-01T08:00:00Z'
+          }]
+        }
+      });
+
+      mockExecutor.execute = async () => makeGroupResponse([issue]);
+
+      const result = await client.fetchIterationDetails(
+        ITERATION_ID,
+        async () => [{ id: ITERATION_ID, startDate: '2025-01-01', dueDate: '2025-01-14' }],
+        async () => []
+      );
+
+      expect(result.issues[0].inProgressAt).toBeNull();
+      expect(result.issues[0].inProgressAt).not.toBe('2025-01-01T00:00:00Z');
+      expect(result.issues[0].inProgressAtSource).toBe('unknown');
+    });
+
+    it('closed issue where paginated note fetch throws yields null and unknown source', async () => {
+      const issue = makeIssue({
+        state: 'closed',
+        createdAt: '2025-01-01T00:00:00Z',
+        notes: {
+          pageInfo: { hasNextPage: true, endCursor: 'cursor-page-1' },
+          nodes: [{
+            id: 'n1',
+            body: 'set status to **Open**',
+            system: true,
+            systemNoteMetadata: { action: 'work_item_status' },
+            createdAt: '2025-01-01T08:00:00Z'
+          }]
+        }
+      });
+
+      mockExecutor.execute = async (_query, variables) => {
+        if (variables.fullPath) {
+          return makeGroupResponse([issue]);
+        }
+        throw new Error('network timeout');
+      };
+
+      const result = await client.fetchIterationDetails(
+        ITERATION_ID,
+        async () => [{ id: ITERATION_ID, startDate: '2025-01-01', dueDate: '2025-01-14' }],
+        async () => []
+      );
+
+      expect(result.issues[0].inProgressAt).toBeNull();
+      expect(result.issues[0].inProgressAt).not.toBe('2025-01-01T00:00:00Z');
+      expect(result.issues[0].inProgressAtSource).toBe('unknown');
+    });
+
+    it('open issue yields null inProgressAt and null source', async () => {
+      const issue = makeIssue({
+        state: 'opened',
+        closedAt: null,
+        notes: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: []
+        }
+      });
+
+      mockExecutor.execute = async () => makeGroupResponse([issue]);
+
+      const result = await client.fetchIterationDetails(
+        ITERATION_ID,
+        async () => [{ id: ITERATION_ID, startDate: '2025-01-01', dueDate: '2025-01-14' }],
+        async () => []
+      );
+
+      expect(result.issues[0].inProgressAt).toBeNull();
+      expect(result.issues[0].inProgressAtSource).toBeNull();
+    });
   });
 });
