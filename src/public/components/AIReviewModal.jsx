@@ -90,7 +90,12 @@ const AIReviewModal = ({
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(analysis.response);
+    const payload = {
+      report: analysis.response,
+      signalPackage: analysis.signalPackage,
+      conversationHistory: analysis.conversationHistory ?? [],
+    };
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
   };
 
   const handleSend = () => {
@@ -201,7 +206,7 @@ const AIReviewModal = ({
         {analysis?.response && (
           <Footer>
             <CopyButton type="button" onClick={handleCopy}>
-              Copy as Markdown
+              Copy as JSON
             </CopyButton>
           </Footer>
         )}

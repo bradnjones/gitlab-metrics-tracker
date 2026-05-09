@@ -117,16 +117,24 @@ describe('AIReviewModal', () => {
     expect(screen.getByText(/2\.5s/)).toBeInTheDocument();
   });
 
-  it('calls clipboard writeText when copy button is clicked', () => {
+  it('calls clipboard writeText with JSON payload (report + signalPackage + conversationHistory) when copy button is clicked', () => {
     Object.assign(navigator, { clipboard: { writeText: jest.fn() } });
-    renderModal();
-    fireEvent.click(screen.getByText(/copy/i));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('## Headline\n\nAll metrics stable.');
+    const analysis = makeAnalysis({
+      signalPackage: { schemaVersion: 1, velocity: { mean: 30 } },
+      conversationHistory: [{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a' }],
+    });
+    renderModal({ analysis });
+    fireEvent.click(screen.getByText(/copy as json/i));
+    const written = navigator.clipboard.writeText.mock.calls[0][0];
+    const parsed = JSON.parse(written);
+    expect(parsed.report).toBe('## Headline\n\nAll metrics stable.');
+    expect(parsed.signalPackage).toEqual({ schemaVersion: 1, velocity: { mean: 30 } });
+    expect(parsed.conversationHistory).toEqual([{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a' }]);
   });
 
   it('does not render copy button when analysis has no response', () => {
     renderModal({ analysis: makeAnalysis({ response: null }) });
-    expect(screen.queryByText(/copy/i)).toBeNull();
+    expect(screen.queryByText(/copy as json/i)).toBeNull();
   });
 
   it('calls onClose when overlay background is clicked directly', () => {
