@@ -111,11 +111,32 @@ export const MarkdownContent = styled.div`
   code { background: ${(p) => p.theme.colors.bgTertiary}; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; }
 `;
 
+export const LoadingState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: ${(p) => p.theme.spacing.md};
+  padding: ${(p) => p.theme.spacing.xl};
+`;
+
+export const Spinner = styled.div`
+  width: 32px;
+  height: 32px;
+  border: 3px solid ${(p) => p.theme.colors.border};
+  border-top-color: ${(p) => p.theme.colors.primary};
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 export const StatusMessage = styled.p`
   color: ${(p) => p.theme.colors.textSecondary};
   font-size: ${(p) => p.theme.typography.fontSize.base};
   text-align: center;
-  padding: ${(p) => p.theme.spacing.xl};
+  margin: 0;
 `;
 
 export const ErrorMessage = styled.p`

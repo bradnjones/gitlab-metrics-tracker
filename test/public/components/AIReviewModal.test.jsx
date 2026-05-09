@@ -87,7 +87,7 @@ describe('AIReviewModal', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('shows loading text when loading=true', () => {
+  it('shows spinner and loading text when loading=true', () => {
     renderModal({ loading: true, analysis: null });
     expect(screen.getByText(/analyzing/i)).toBeInTheDocument();
   });

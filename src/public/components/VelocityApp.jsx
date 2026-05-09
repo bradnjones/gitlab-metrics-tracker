@@ -567,6 +567,7 @@ export default function VelocityApp() {
                     </AnnotationToggleButton>
                     <AIReviewButton
                       onClick={handleAIReview}
+                      onOpenLast={() => setIsReviewModalOpen(true)}
                       loading={aiLoading}
                       disabled={displayedIterations.length === 0}
                       lastAnalysis={lastAnalysis}

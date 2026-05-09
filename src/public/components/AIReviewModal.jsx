@@ -18,6 +18,8 @@ import {
   CloseButton,
   ContentBody,
   MarkdownContent,
+  LoadingState,
+  Spinner,
   StatusMessage,
   ErrorMessage,
   AnalysisMeta,
@@ -91,7 +93,12 @@ const AIReviewModal = ({ isOpen, onClose, analysis = null, loading = false, erro
         </Header>
 
         <ContentBody>
-          {loading && <StatusMessage>Analyzing metrics…</StatusMessage>}
+          {loading && (
+            <LoadingState>
+              <Spinner />
+              <StatusMessage>Analyzing metrics…</StatusMessage>
+            </LoadingState>
+          )}
           {!loading && error && <ErrorMessage>{error}</ErrorMessage>}
           {!loading && !error && analysis && (
             <>

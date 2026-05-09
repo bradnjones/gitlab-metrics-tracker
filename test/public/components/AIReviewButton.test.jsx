@@ -68,6 +68,13 @@ describe('AIReviewButton', () => {
     expect(screen.getByText(/last reviewed/i)).toBeInTheDocument();
   });
 
+  it('calls onOpenLast when the "Last reviewed" timestamp is clicked', () => {
+    const onOpenLast = jest.fn();
+    renderButton({ onOpenLast, lastAnalysis: { createdAt: new Date().toISOString() } });
+    fireEvent.click(screen.getByText(/last reviewed/i));
+    expect(onOpenLast).toHaveBeenCalledTimes(1);
+  });
+
   it('does not show "Last reviewed" text when lastAnalysis is null', () => {
     renderButton({ lastAnalysis: null });
     expect(screen.queryByText(/last reviewed/i)).toBeNull();

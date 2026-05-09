@@ -45,9 +45,18 @@ const Button = styled.button`
   }
 `;
 
-const LastReviewed = styled.span`
+const LastReviewed = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
   font-size: ${(p) => p.theme.typography.fontSize.xs};
   color: ${(p) => p.theme.colors.textSecondary};
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+
+  &:hover { color: ${(p) => p.theme.colors.primary}; }
+  &:focus { outline: 2px solid ${(p) => p.theme.colors.primary}; outline-offset: 2px; border-radius: 2px; }
 `;
 
 /**
@@ -74,7 +83,7 @@ function formatRelative(isoString) {
  * @param {Object|null} [props.lastAnalysis] - Most recent analysis (toJSON output)
  * @returns {React.ReactElement}
  */
-const AIReviewButton = ({ onClick, loading = false, disabled = false, lastAnalysis = null }) => {
+const AIReviewButton = ({ onClick, onOpenLast, loading = false, disabled = false, lastAnalysis = null }) => {
   return (
     <Wrapper>
       <Button
@@ -86,7 +95,9 @@ const AIReviewButton = ({ onClick, loading = false, disabled = false, lastAnalys
         {loading ? 'Reviewing…' : 'Review with AI'}
       </Button>
       {lastAnalysis && (
-        <LastReviewed>Last reviewed {formatRelative(lastAnalysis.createdAt)}</LastReviewed>
+        <LastReviewed type="button" onClick={onOpenLast} aria-label="View last AI review">
+          Last reviewed {formatRelative(lastAnalysis.createdAt)}
+        </LastReviewed>
       )}
     </Wrapper>
   );
@@ -94,6 +105,7 @@ const AIReviewButton = ({ onClick, loading = false, disabled = false, lastAnalys
 
 AIReviewButton.propTypes = {
   onClick: PropTypes.func.isRequired,
+  onOpenLast: PropTypes.func,
   loading: PropTypes.bool,
   disabled: PropTypes.bool,
   lastAnalysis: PropTypes.shape({ createdAt: PropTypes.string }),
