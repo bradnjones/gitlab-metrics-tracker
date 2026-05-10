@@ -41,14 +41,18 @@ export class LeadTimeCalculator {
       .map((mr) => {
         let startTime;
 
-        // Use first commit date if available (more accurate DORA metric)
+        // Use first commit date if available (more accurate DORA metric).
+        // Floor at mr.createdAt: a lead time cannot predate the MR being opened.
+        // When firstCommit < createdAt, the commit carries legacy history (monorepo
+        // absorptions, rebases with preserved timestamps) — not real development lag.
         if (mr.commits?.nodes?.length > 0) {
           const commits = mr.commits.nodes;
           const firstCommit = commits.reduce((earliest, commit) => {
             const commitDate = new Date(commit.committedDate);
             return commitDate < earliest ? commitDate : earliest;
           }, new Date(commits[0].committedDate));
-          startTime = firstCommit;
+          const mrCreated = mr.createdAt ? new Date(mr.createdAt) : null;
+          startTime = mrCreated && firstCommit < mrCreated ? mrCreated : firstCommit;
         } else if (mr.createdAt) {
           // Fallback to MR creation date if no commits but createdAt exists
           startTime = new Date(mr.createdAt);
