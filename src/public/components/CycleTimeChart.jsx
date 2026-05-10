@@ -102,6 +102,8 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
 
   // Total issues excluded from cycle time across all displayed iterations (no In Progress transition)
   const [totalExcluded, setTotalExcluded] = useState(0);
+  // Total carry-over issues (In Progress before sprint started)
+  const [totalCarryover, setTotalCarryover] = useState(0);
 
   // Filter iterations based on exclusions (memoized to prevent flickering)
   const visibleIterations = useMemo(
@@ -160,9 +162,11 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
         const limits = calculateControlLimits(avgData);
         setControlLimits(limits);
 
-        // Sum excluded counts across all iterations for the notice
+        // Sum excluded and carry-over counts across all iterations for the notices
         const excluded = data.metrics.reduce((sum, m) => sum + (m.cycleTimeExcludedCount ?? 0), 0);
         setTotalExcluded(excluded);
+        const carryover = data.metrics.reduce((sum, m) => sum + (m.cycleTimeCarryoverCount ?? 0), 0);
+        setTotalCarryover(carryover);
       } catch (err) {
         setError(`Error loading cycle time data: ${err.message}`);
       } finally {
@@ -441,6 +445,11 @@ const CycleTimeChart = ({ selectedIterations = [], annotationRefreshKey = 0, sho
             }
           />
 
+          {totalCarryover > 0 && (
+            <ExcludedNotice data-testid="cycle-time-carryover-notice">
+              {totalCarryover} {totalCarryover === 1 ? 'issue' : 'issues'} excluded — In Progress before sprint started (carry-over)
+            </ExcludedNotice>
+          )}
           {totalExcluded > 0 && (
             <ExcludedNotice data-testid="cycle-time-excluded-notice">
               {totalExcluded} {totalExcluded === 1 ? 'issue' : 'issues'} excluded — no In Progress transition recorded
