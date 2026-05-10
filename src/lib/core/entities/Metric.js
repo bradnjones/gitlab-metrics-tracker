@@ -33,6 +33,7 @@ export class Metric {
    * @param {number} data.cycleTimeP50 - Median cycle time (days)
    * @param {number} data.cycleTimeP90 - 90th percentile cycle time (days)
    * @param {number} [data.cycleTimeExcludedCount] - Count of closed issues excluded from cycle time (no In Progress transition)
+   * @param {number} [data.cycleTimeCarryoverCount] - Count of closed issues excluded because In Progress predates sprint start
    * @param {number} data.deploymentFrequency - Deployments per day
    * @param {number} data.leadTimeAvg - Average lead time (days)
    * @param {number} data.leadTimeP50 - Median lead time (days)
@@ -58,6 +59,7 @@ export class Metric {
     this.cycleTimeP50 = data.cycleTimeP50;
     this.cycleTimeP90 = data.cycleTimeP90;
     this.cycleTimeExcludedCount = data.cycleTimeExcludedCount ?? 0;
+    this.cycleTimeCarryoverCount = data.cycleTimeCarryoverCount ?? 0;
     this.deploymentFrequency = data.deploymentFrequency;
     this.leadTimeAvg = data.leadTimeAvg;
     this.leadTimeP50 = data.leadTimeP50;
@@ -123,6 +125,7 @@ export class Metric {
       cycleTimeP50: this.cycleTimeP50,
       cycleTimeP90: this.cycleTimeP90,
       cycleTimeExcludedCount: this.cycleTimeExcludedCount,
+      cycleTimeCarryoverCount: this.cycleTimeCarryoverCount,
       deploymentFrequency: this.deploymentFrequency,
       leadTimeAvg: this.leadTimeAvg,
       leadTimeP50: this.leadTimeP50,

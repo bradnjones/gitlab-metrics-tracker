@@ -55,7 +55,7 @@ describe('MetricsService', () => {
 
     // Setup calculator mocks to return expected values
     VelocityCalculator.calculate = jest.fn().mockReturnValue({ points: 42, stories: 5 });
-    CycleTimeCalculator.calculate = jest.fn().mockReturnValue({ avg: 3.5, p50: 3.0, p90: 5.0 });
+    CycleTimeCalculator.calculate = jest.fn().mockReturnValue({ avg: 3.5, p50: 3.0, p90: 5.0, includedCount: 3, excludedCount: 0, carryoverCount: 0 });
     DeploymentFrequencyCalculator.calculate = jest.fn().mockReturnValue(2.5);
     LeadTimeCalculator.calculate = jest.fn().mockReturnValue({ avg: 2.0, p50: 1.5, p90: 3.0 });
     IncidentAnalyzer.calculateMTTR = jest.fn().mockReturnValue(2.5);
@@ -79,7 +79,7 @@ describe('MetricsService', () => {
 
       // Verify all calculators called with correct data
       expect(VelocityCalculator.calculate).toHaveBeenCalledWith(mockIterationData.issues);
-      expect(CycleTimeCalculator.calculate).toHaveBeenCalledWith(mockIterationData.issues);
+      expect(CycleTimeCalculator.calculate).toHaveBeenCalledWith(mockIterationData.issues, mockIterationData.iteration.startDate);
       expect(LeadTimeCalculator.calculate).toHaveBeenCalled(); // Will verify MRs passed
 
       // Verify results structure contains all metrics (as JSON, not entity)
@@ -142,7 +142,7 @@ describe('MetricsService', () => {
 
       // Mock calculators to return zero/empty results for empty data
       VelocityCalculator.calculate.mockReturnValue({ points: 0, stories: 0 });
-      CycleTimeCalculator.calculate.mockReturnValue({ avg: 0, p50: 0, p90: 0 });
+      CycleTimeCalculator.calculate.mockReturnValue({ avg: 0, p50: 0, p90: 0, includedCount: 0, excludedCount: 0, carryoverCount: 0 });
       DeploymentFrequencyCalculator.calculate.mockReturnValue(0);
       LeadTimeCalculator.calculate.mockReturnValue({ avg: 0, p50: 0, p90: 0 });
       IncidentAnalyzer.calculateMTTR.mockReturnValue(0);
@@ -154,7 +154,7 @@ describe('MetricsService', () => {
 
       // Verify all calculators still called (with empty arrays)
       expect(VelocityCalculator.calculate).toHaveBeenCalledWith([]);
-      expect(CycleTimeCalculator.calculate).toHaveBeenCalledWith([]);
+      expect(CycleTimeCalculator.calculate).toHaveBeenCalledWith([], '2025-01-01');
 
       // Verify results have proper structure with zero values
       expect(result).toEqual(
@@ -286,6 +286,7 @@ describe('MetricsService', () => {
         p90: 5.0,
         includedCount: 4,
         excludedCount: 3,
+        carryoverCount: 0,
       });
 
       const result = await service.calculateMetrics(iterationId);
@@ -302,11 +303,29 @@ describe('MetricsService', () => {
         p90: 3.0,
         includedCount: 5,
         excludedCount: 0,
+        carryoverCount: 0,
       });
 
       const result = await service.calculateMetrics(iterationId);
 
       expect(result.cycleTimeExcludedCount).toBe(0);
+    });
+
+    it('should pass cycleTimeCarryoverCount through when calculator returns carry-overs', async () => {
+      const iterationId = 'gid://gitlab/Iteration/123';
+
+      CycleTimeCalculator.calculate = jest.fn().mockReturnValue({
+        avg: 2.0,
+        p50: 2.0,
+        p90: 3.0,
+        includedCount: 3,
+        excludedCount: 0,
+        carryoverCount: 2,
+      });
+
+      const result = await service.calculateMetrics(iterationId);
+
+      expect(result.cycleTimeCarryoverCount).toBe(2);
     });
   });
 

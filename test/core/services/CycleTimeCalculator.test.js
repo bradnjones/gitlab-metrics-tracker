@@ -315,6 +315,130 @@ describe('CycleTimeCalculator', () => {
       expect(result.excludedCount).toBe(0);
     });
 
+    // --- Carry-over tests (inProgressAt before sprint start) ---
+
+    it('should treat issue whose inProgressAt is before iterationStartDate as a carry-over', () => {
+      const issues = [
+        {
+          id: 'gid://gitlab/Issue/1',
+          state: 'closed',
+          createdAt: '2025-10-01T00:00:00Z',
+          inProgressAt: '2025-10-15T00:00:00Z', // before sprint start
+          inProgressAtSource: 'status_change',
+          closedAt: '2026-02-20T00:00:00Z',
+        },
+        {
+          id: 'gid://gitlab/Issue/2',
+          state: 'closed',
+          createdAt: '2026-02-16T00:00:00Z',
+          inProgressAt: '2026-02-17T00:00:00Z', // within sprint
+          inProgressAtSource: 'status_change',
+          closedAt: '2026-02-19T00:00:00Z', // 2 days
+        },
+      ];
+
+      const result = CycleTimeCalculator.calculate(issues, '2026-02-16');
+
+      expect(result.includedCount).toBe(1);
+      expect(result.carryoverCount).toBe(1);
+      expect(result.excludedCount).toBe(0);
+      expect(result.avg).toBe(2);
+    });
+
+    it('should return zeros with carryoverCount=N when all status_change issues are carry-overs', () => {
+      const issues = [
+        {
+          id: 'gid://gitlab/Issue/1',
+          state: 'closed',
+          createdAt: '2025-10-01T00:00:00Z',
+          inProgressAt: '2025-10-15T00:00:00Z',
+          inProgressAtSource: 'status_change',
+          closedAt: '2026-02-20T00:00:00Z',
+        },
+      ];
+
+      const result = CycleTimeCalculator.calculate(issues, '2026-02-16');
+
+      expect(result.avg).toBe(0);
+      expect(result.p50).toBe(0);
+      expect(result.p90).toBe(0);
+      expect(result.includedCount).toBe(0);
+      expect(result.carryoverCount).toBe(1);
+      expect(result.excludedCount).toBe(0);
+    });
+
+    it('should correctly separate carryover, excluded, and included counts', () => {
+      const issues = [
+        {
+          id: 'gid://gitlab/Issue/1',
+          state: 'closed',
+          createdAt: '2025-10-01T00:00:00Z',
+          inProgressAt: '2025-10-15T00:00:00Z', // carry-over
+          inProgressAtSource: 'status_change',
+          closedAt: '2026-02-20T00:00:00Z',
+        },
+        {
+          id: 'gid://gitlab/Issue/2',
+          state: 'closed',
+          createdAt: '2026-02-16T00:00:00Z',
+          inProgressAt: null, // excluded (no transition)
+          inProgressAtSource: 'unknown',
+          closedAt: '2026-02-19T00:00:00Z',
+        },
+        {
+          id: 'gid://gitlab/Issue/3',
+          state: 'closed',
+          createdAt: '2026-02-16T00:00:00Z',
+          inProgressAt: '2026-02-17T00:00:00Z', // included (within sprint)
+          inProgressAtSource: 'status_change',
+          closedAt: '2026-02-20T00:00:00Z', // 3 days
+        },
+      ];
+
+      const result = CycleTimeCalculator.calculate(issues, '2026-02-16');
+
+      expect(result.includedCount).toBe(1);
+      expect(result.carryoverCount).toBe(1);
+      expect(result.excludedCount).toBe(1);
+      expect(result.avg).toBe(3);
+    });
+
+    it('should not treat carry-overs as excluded — they are a separate category', () => {
+      const issues = [
+        {
+          id: 'gid://gitlab/Issue/1',
+          state: 'closed',
+          createdAt: '2025-10-01T00:00:00Z',
+          inProgressAt: '2025-10-15T00:00:00Z',
+          inProgressAtSource: 'status_change',
+          closedAt: '2026-02-20T00:00:00Z',
+        },
+      ];
+
+      const result = CycleTimeCalculator.calculate(issues, '2026-02-16');
+
+      expect(result.excludedCount).toBe(0); // not excluded (has status_change source)
+      expect(result.carryoverCount).toBe(1); // carry-over
+    });
+
+    it('should be backward-compatible: no iterationStartDate means no carry-over detection', () => {
+      const issues = [
+        {
+          id: 'gid://gitlab/Issue/1',
+          state: 'closed',
+          createdAt: '2025-10-01T00:00:00Z',
+          inProgressAt: '2025-10-15T00:00:00Z',
+          inProgressAtSource: 'status_change',
+          closedAt: '2026-02-20T00:00:00Z',
+        },
+      ];
+
+      const result = CycleTimeCalculator.calculate(issues); // no second arg
+
+      expect(result.carryoverCount).toBe(0);
+      expect(result.includedCount).toBe(1); // included because no start date to compare
+    });
+
     it('should exclude issues with non-status_change source even if inProgressAt is non-null (belt-and-suspenders)', () => {
       // Guard against a future bug where inProgressAt gets a fallback value but source
       // is not status_change. The calculator must still exclude these.

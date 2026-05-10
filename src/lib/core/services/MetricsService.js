@@ -95,8 +95,8 @@ export class MetricsService {
     // Calculate velocity (points and stories)
     const velocity = VelocityCalculator.calculate(iterationData.issues);
 
-    // Calculate cycle time (avg, p50, p90)
-    const cycleTime = CycleTimeCalculator.calculate(iterationData.issues);
+    // Calculate cycle time (avg, p50, p90); pass sprint start to detect carry-overs
+    const cycleTime = CycleTimeCalculator.calculate(iterationData.issues, iterationData.iteration.startDate);
 
     // Calculate sprint duration in days (for DORA metrics)
     const sprintDays = this._calculateSprintDays(
@@ -146,6 +146,7 @@ export class MetricsService {
       cycleTimeP50: cycleTime.p50,
       cycleTimeP90: cycleTime.p90,
       cycleTimeExcludedCount: cycleTime.excludedCount ?? 0,
+      cycleTimeCarryoverCount: cycleTime.carryoverCount ?? 0,
       deploymentFrequency,
       leadTimeAvg: leadTime.avg,
       leadTimeP50: leadTime.p50,

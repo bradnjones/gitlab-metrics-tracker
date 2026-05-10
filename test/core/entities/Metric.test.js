@@ -159,6 +159,7 @@ describe('Metric', () => {
         cycleTimeP50: metric.cycleTimeP50,
         cycleTimeP90: metric.cycleTimeP90,
         cycleTimeExcludedCount: metric.cycleTimeExcludedCount,
+        cycleTimeCarryoverCount: metric.cycleTimeCarryoverCount,
         deploymentFrequency: metric.deploymentFrequency,
         leadTimeAvg: metric.leadTimeAvg,
         leadTimeP50: metric.leadTimeP50,
