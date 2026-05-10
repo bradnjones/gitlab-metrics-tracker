@@ -296,11 +296,12 @@ const pipelines = [
 ## 5. Lead Time
 
 ### Definition
-Time from first commit to merge for merged merge requests (in days).
+Time from first commit to merge for merged merge requests (in days). Measures how quickly code moves from development to production (DORA metric).
 
 ### Formula
 ```
-Lead Time (days) = (mergedAt - firstCommitCreatedAt) / (1000 * 60 * 60 * 24)
+effectiveStart = max(firstCommit.committedDate, mr.createdAt)
+Lead Time (days) = (mergedAt - effectiveStart) / (1000 * 60 * 60 * 24)
 
 Aggregate Metrics:
 - Average: MEAN(all lead times)
@@ -308,58 +309,56 @@ Aggregate Metrics:
 - P90: 90th percentile
 ```
 
+### Start-date floor (important)
+
+`firstCommit.committedDate` is used as the start when it falls on or after `mr.createdAt`. When `firstCommit < mr.createdAt`, `mr.createdAt` is used as the floor.
+
+**Why:** Monorepo absorptions and rebases with preserved timestamps can introduce commits dated years before the MR was opened. Using the raw oldest commit date produces lead times of thousands of days. Since a lead time cannot meaningfully predate the MR being opened, `mr.createdAt` is the earliest defensible anchor.
+
 ### Calculation Details
-- **Data Source:** GitLab merge requests
-- **Filters:**
-  - `state: 'merged'`
-  - `mergedAt` between `iteration.startDate` and `iteration.dueDate`
+- **Data Source:** GitLab merge requests (`commits.nodes[]`)
+- **Filters:** `state: 'merged'` and `mergedAt` non-null
 - **Date Fields:**
-  - `mergeRequest.commits[0].createdAt` (first commit timestamp)
-  - `mergeRequest.mergedAt` (merge timestamp)
+  - `min(mr.commits.nodes[].committedDate)` — first commit (floored at `mr.createdAt`)
+  - `mr.mergedAt` — merge timestamp
+  - Fallback to `mr.createdAt` when no commits are present
 - **Unit:** Days (decimal precision)
+- **Implementation:** `src/lib/core/services/LeadTimeCalculator.js`
 
-### Prototype Reference
-**File:** `gitlab-sprint-metrics/src/lib/metrics.js`
-**Function:** `calculateLeadTime(mergeRequests)`
-
+### Implementation Reference
 ```javascript
-import { mean, quantile } from 'simple-statistics';
+// LeadTimeCalculator.calculate(mergeRequests)
+const mergedMRs = mergeRequests.filter(mr => mr.state === 'merged' && mr.mergedAt);
 
-function calculateLeadTime(mergeRequests) {
-  const leadTimes = mergeRequests
-    .filter(mr => mr.mergedAt && mr.commits && mr.commits.length > 0)
-    .map(mr => {
-      const firstCommit = new Date(mr.commits[0].createdAt);
-      const merged = new Date(mr.mergedAt);
-      const days = (merged - firstCommit) / (1000 * 60 * 60 * 24);
-      return days;
-    });
+const leadTimes = mergedMRs.map(mr => {
+  let startTime;
+  if (mr.commits?.nodes?.length > 0) {
+    const firstCommit = mr.commits.nodes.reduce((earliest, c) => {
+      const d = new Date(c.committedDate);
+      return d < earliest ? d : earliest;
+    }, new Date(mr.commits.nodes[0].committedDate));
 
-  if (leadTimes.length === 0) {
-    return { avg: 0, p50: 0, p90: 0 };
+    // Floor at createdAt to prevent legacy commit dates from inflating lead time
+    const mrCreated = mr.createdAt ? new Date(mr.createdAt) : null;
+    startTime = mrCreated && firstCommit < mrCreated ? mrCreated : firstCommit;
+  } else if (mr.createdAt) {
+    startTime = new Date(mr.createdAt);
+  } else {
+    return null; // skip
   }
-
-  return {
-    avg: mean(leadTimes),
-    p50: quantile(leadTimes, 0.5),
-    p90: quantile(leadTimes, 0.9)
-  };
-}
+  return (new Date(mr.mergedAt) - startTime) / (1000 * 60 * 60 * 24);
+}).filter(t => t !== null);
 ```
 
 ### Example
 ```javascript
-const mergeRequests = [
-  {
-    mergedAt: '2024-01-05T14:00:00Z',
-    commits: [
-      { createdAt: '2024-01-03T10:00:00Z' }, // First commit
-      { createdAt: '2024-01-04T15:00:00Z' }
-    ]
-  },
-  // Lead Time = 2.17 days
-  // ... more MRs
-];
+// Normal MR: commit Jan 2, MR created Jan 1, merged Jan 5
+// firstCommit (Jan 2) >= createdAt (Jan 1) → startTime = Jan 2
+// Lead time = 3 days ✓
+
+// Monorepo absorption: commit 2016-04-28, MR created 2025-10-20, merged 2025-10-21
+// firstCommit (2016) < createdAt (2025-10-20) → startTime = 2025-10-20 (floored)
+// Lead time = 1 day ✓  (not 3,463 days)
 ```
 
 ### Visualization

@@ -6,6 +6,12 @@ Stories are prepended to this file (most recent at top).
 
 ## Bug Fixes & Improvements
 
+### 2026-05-09 - Issue #158 - Fix lead time inflation from legacy commit timestamps
+- Monorepo absorption MRs (iids 81–84, absorbed Oct 2025) carried git history from 2016–2018, producing lead times of 3,400+ days and an avg of 1,095 days in the 10/25 sprint
+- Root cause: `LeadTimeCalculator` used `min(committedDate)` across all commits without any floor; ancient commit dates from absorbed repos became the start anchor
+- Fix: `startTime = max(firstCommit, mr.createdAt)` — a lead time cannot predate the MR being opened; when `firstCommit < createdAt` the timestamp is a historical artifact, not real development lag
+- Result: the four absorption MRs now resolve to ~0–1 day lead time (their actual MR lifetime); 10/25 sprint avg/P90 drop dramatically
+
 ### 2026-05-09 - Issue #157 - Exclude carry-over issues from cycle time
 - Issues where `inProgressAt` predates the sprint's `startDate` were in-progress from a prior sprint and carried over, inflating cycle time with multi-month durations unrelated to current sprint flow
 - `CycleTimeCalculator.calculate()` now accepts an optional `iterationStartDate`; issues with `inProgressAt < startDate` are counted as `carryoverCount` and excluded from avg/P50/P90
