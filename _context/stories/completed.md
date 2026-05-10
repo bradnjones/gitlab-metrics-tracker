@@ -6,6 +6,22 @@ Stories are prepended to this file (most recent at top).
 
 ## Bug Fixes & Improvements
 
+### 2026-05-09 - Issue #157 - Exclude carry-over issues from cycle time
+- Issues where `inProgressAt` predates the sprint's `startDate` were in-progress from a prior sprint and carried over, inflating cycle time with multi-month durations unrelated to current sprint flow
+- `CycleTimeCalculator.calculate()` now accepts an optional `iterationStartDate`; issues with `inProgressAt < startDate` are counted as `carryoverCount` and excluded from avg/P50/P90
+- `carryoverCount` is surfaced separately from `excludedCount` (no In Progress transition) so users can distinguish the two classes of exclusion
+- `MetricsService` threads `iterationData.iteration.startDate` into the calculator and exposes `cycleTimeCarryoverCount` in the API response via the `Metric` entity
+- UI shows an italicised notice below the cycle time chart when `carryoverCount > 0`: *"N issues excluded — In Progress before sprint started (carry-over)"*
+- Example corrected: issue #26 (`inProgressAt: 2025-10-15`, `closedAt: 2026-02-20`) in the sprint starting `2026-02-16` is now correctly excluded as a carry-over
+
+### 2026-05-09 - Issue #156 - Fix cycle time silent createdAt fallback
+- Three sites in `IssueClient` silently substituted `createdAt` for `inProgressAt` when no "In Progress" status note was found, inflating cycle time by months for issues that never had a real transition
+- All three fallback sites replaced: `inProgressAt = null`, `inProgressAtSource = 'unknown'`
+- `CycleTimeCalculator` now strictly filters on `inProgressAtSource === 'status_change'`; issues with `'unknown'` source are counted in `excludedCount` and excluded from avg/P50/P90
+- `excludedCount` is surfaced in the API response (`cycleTimeExcludedCount`) and shown as italicised subtext in the cycle time chart when > 0
+- Post-fix data: 24 issues across 15 sprints now correctly carry `inProgressAtSource: 'unknown'` and are excluded; 0 issues retain the old `'created'` source
+- The original suspected 2/22 sprint spike (avg 28.6d, P90 127.7d) turned out to be genuine data — issue #26 had a legitimate 127-day cycle time from a real status-change note in October 2025
+
 ### 2026-05-08 - Issue #154 - Per-chart toggles in enlarged modal view
 - Added Average/P50/P90/Annotations toggle buttons to the Cycle Time and Lead Time enlargement modals
 - Local state initializes from global dashboard props; resets automatically when the modal is closed (useEffect on isEnlarged)

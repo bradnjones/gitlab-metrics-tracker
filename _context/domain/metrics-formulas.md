@@ -113,66 +113,102 @@ const issues = [
 ## 3. Cycle Time
 
 ### Definition
-Time from issue creation to closure (in days).
+Time from when a story was pulled into "In Progress" within the current sprint to when it was closed (in days). Measures actual flow time, not total age.
 
 ### Formula
 ```
-Cycle Time (days) = (closedAt - createdAt) / (1000 * 60 * 60 * 24)
+Cycle Time (days) = (closedAt - inProgressAt) / (1000 * 60 * 60 * 24)
 
 Aggregate Metrics:
-- Average: MEAN(all cycle times)
+- Average: MEAN(qualifying cycle times)
 - P50 (Median): 50th percentile
 - P90: 90th percentile
 ```
 
-### Calculation Details
-- **Data Source:** GitLab issues with `state: closed`
-- **Date Fields:** `issue.createdAt`, `issue.closedAt` (ISO 8601 timestamps)
-- **Unit:** Days (decimal precision)
-- **Filter:** Only closed issues (open issues have no cycle time yet)
+### Issue Eligibility (Three-tier filter)
 
-### Prototype Reference
-**File:** `gitlab-sprint-metrics/src/lib/metrics.js`
-**Function:** `calculateCycleTime(issues)`
+An issue contributes to cycle time only if **all** of the following hold:
 
+| Condition | Field | Required value |
+|---|---|---|
+| Issue is closed | `state` | `'closed'` |
+| Has a close timestamp | `closedAt` | non-null |
+| Has a confirmed In Progress transition | `inProgressAtSource` | `'status_change'` |
+| Was set In Progress within this sprint | `inProgressAt >= iterationStartDate` | true |
+
+Issues that fail the last check but pass the first three are **carry-overs** (counted in `carryoverCount`). Issues that fail the third check are simply **excluded** (counted in `excludedCount`). Neither category pollutes the avg/P50/P90.
+
+### inProgressAt sourcing (IssueClient)
+
+`inProgressAt` is resolved by scanning GitLab system notes for a `set status to **In progress**` event. The first matching note's timestamp is used.
+
+| Situation | `inProgressAt` | `inProgressAtSource` |
+|---|---|---|
+| Recognized "In Progress" note found | ISO timestamp | `'status_change'` |
+| No matching note in any fetched batch | `null` | `'unknown'` |
+| Paginated note fetch errored | `null` | `'unknown'` |
+| Issue is open | `null` | `null` |
+
+**`inProgressAt` is NEVER substituted with `createdAt`.** A `null` value means the issue has no recorded In Progress transition and will be excluded from cycle time.
+
+### Return shape (`CycleTimeCalculator.calculate`)
 ```javascript
-import { mean, quantile } from 'simple-statistics';
-
-function calculateCycleTime(issues) {
-  const cycleTimes = issues
-    .filter(issue => issue.closedAt)
-    .map(issue => {
-      const created = new Date(issue.createdAt);
-      const closed = new Date(issue.closedAt);
-      const days = (closed - created) / (1000 * 60 * 60 * 24);
-      return days;
-    });
-
-  if (cycleTimes.length === 0) {
-    return { avg: 0, p50: 0, p90: 0 };
-  }
-
-  return {
-    avg: mean(cycleTimes),
-    p50: quantile(cycleTimes, 0.5),
-    p90: quantile(cycleTimes, 0.9)
-  };
+{
+  avg,           // number — average cycle time in days (0 when no qualifying issues)
+  p50,           // number — median
+  p90,           // number — 90th percentile
+  includedCount, // number — issues that contributed to the stats
+  excludedCount, // number — closed issues with inProgressAtSource !== 'status_change'
+  carryoverCount // number — closed issues whose inProgressAt < iterationStartDate
 }
+```
+
+### Calculation Details
+- **Data Source:** GitLab issues with `state: 'closed'`
+- **Date Fields:** `issue.inProgressAt`, `issue.closedAt` (ISO 8601 timestamps)
+- **Sprint boundary:** `iterationData.iteration.startDate` (ISO date, e.g. `'2026-02-16'`)
+- **Unit:** Days (decimal precision)
+- **Implementation:** `src/lib/core/services/CycleTimeCalculator.js`
+
+### Implementation Reference
+```javascript
+// CycleTimeCalculator.calculate(issues, iterationStartDate)
+const sprintStart = iterationStartDate ? new Date(iterationStartDate) : null;
+
+// excludedCount: no confirmed In Progress transition
+const excludedCount = issues.filter(i =>
+  i.state === 'closed' && i.closedAt && i.inProgressAtSource !== 'status_change'
+).length;
+
+// Candidate pool: confirmed status_change issues
+const statusChangeIssues = issues.filter(i =>
+  i.state === 'closed' && i.closedAt && i.inProgressAt &&
+  i.inProgressAtSource === 'status_change'
+);
+
+// carryoverCount: In Progress before sprint started
+const carryoverCount = sprintStart
+  ? statusChangeIssues.filter(i => new Date(i.inProgressAt) < sprintStart).length
+  : 0;
+
+// Only issues started within the sprint
+const qualifying = sprintStart
+  ? statusChangeIssues.filter(i => new Date(i.inProgressAt) >= sprintStart)
+  : statusChangeIssues;
 ```
 
 ### Example
 ```javascript
-const issues = [
-  { createdAt: '2024-01-01T10:00:00Z', closedAt: '2024-01-05T15:00:00Z' }, // 4.2 days
-  { createdAt: '2024-01-02T10:00:00Z', closedAt: '2024-01-04T10:00:00Z' }, // 2.0 days
-  { createdAt: '2024-01-01T10:00:00Z', closedAt: '2024-01-15T10:00:00Z' }, // 14.0 days
-  // ... more issues
-];
+// Sprint: 2026-02-16 → 2026-02-22, 5 closed issues
+// Issue A: inProgressAt 2025-10-15 (carry-over) → excluded, carryoverCount++
+// Issue B: inProgressAtSource 'unknown'          → excluded, excludedCount++
+// Issue C: inProgressAt 2026-02-17, closed 2026-02-19 → 2 days, included
+// Issue D: inProgressAt 2026-02-16, closed 2026-02-20 → 4 days, included
+// Issue E: inProgressAt 2026-02-18, closed 2026-02-21 → 3 days, included
 
 // Result:
-// avg: 6.73 days (mean)
-// p50: 4.2 days (median)
-// p90: 13.4 days (90th percentile)
+// avg: 3 days, p50: 3 days, p90: 4 days
+// includedCount: 3, excludedCount: 1, carryoverCount: 1
 ```
 
 ### Visualization
@@ -181,6 +217,7 @@ const issues = [
 - **X-Axis:** Sprint/iteration
 - **Lines:** 3 lines (Average, P50, P90)
 - **Color Coding:** Avg (blue), P50 (green), P90 (orange)
+- **Notices:** Italicised subtext below chart when `excludedCount > 0` or `carryoverCount > 0`
 
 ---
 
